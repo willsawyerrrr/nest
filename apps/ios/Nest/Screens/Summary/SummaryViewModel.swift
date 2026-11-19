@@ -7,6 +7,8 @@ struct SummaryContent: Equatable, Sendable {
     let members: [Member]
     /// The Summary of the real rows while planning mode is on, to compare against.
     var baseline: BudgetSummary?
+    /// The cash-flow Sankey's graphs, from the same rows as `summary`.
+    var cashFlow: CashFlowGraphs?
 }
 
 /// Loads the household's rows through the cache, runs the reconciliation in the
@@ -24,6 +26,7 @@ final class SummaryViewModel {
 
     private let data: NestData
     private let summarise: @Sendable (SummaryInput) async throws -> BudgetSummary
+    private let cashFlow: @Sendable (SummaryInput) async throws -> CashFlowGraphs
     private let now: @Sendable () -> Date
     private let defaults: UserDefaults
     private let planning: PlanningStore
@@ -32,6 +35,8 @@ final class SummaryViewModel {
         data: NestData = .live,
         summarise: @escaping @Sendable (SummaryInput) async throws -> BudgetSummary =
             ScreenEngine.summarise,
+        cashFlow: @escaping @Sendable (SummaryInput) async throws -> CashFlowGraphs =
+            ScreenEngine.cashFlow,
         now: @escaping @Sendable () -> Date = Date.init,
         defaults: UserDefaults = .standard,
         planning: PlanningStore = .shared
@@ -39,6 +44,7 @@ final class SummaryViewModel {
         self.planning = planning
         self.data = data
         self.summarise = summarise
+        self.cashFlow = cashFlow
         self.now = now
         self.defaults = defaults
         basis = defaults.string(forKey: Self.basisKey).flatMap(IncomeBasis.init) ?? .takeHome
@@ -55,14 +61,16 @@ final class SummaryViewModel {
             for try await snapshot in stream {
                 planning.select(household: snapshot.rows.members.first?.householdId)
                 let sandbox = planning.state
-                let summary = try await summarise(
-                    (sandbox.active ? snapshot.rows.sandboxed(by: sandbox) : snapshot.rows)
-                        .input(now: instant))
+                let input = (sandbox.active ? snapshot.rows.sandboxed(by: sandbox) : snapshot.rows)
+                    .input(now: instant)
+                let summary = try await summarise(input)
+                let graphs = try await cashFlow(input)
                 let baseline =
                     sandbox.active ? try await summarise(snapshot.rows.input(now: instant)) : nil
                 state = .loaded(
                     SummaryContent(
-                        summary: summary, members: snapshot.rows.members, baseline: baseline),
+                        summary: summary, members: snapshot.rows.members, baseline: baseline,
+                        cashFlow: graphs),
                     isRefreshing: snapshot.isCached, refreshError: nil)
             }
         } catch is CancellationError {

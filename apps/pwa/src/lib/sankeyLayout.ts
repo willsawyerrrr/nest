@@ -200,3 +200,58 @@ export function ribbonPath({ x0, x1, y0, y1, thickness }: SankeyLinkLayout): str
     `L${x1},${y1 + thickness} C${mid},${y1 + thickness} ${mid},${y0 + thickness} ${x0},${y0 + thickness} Z`
   )
 }
+
+/** The bars' width. */
+const NODE_WIDTH = 8
+/** The least gap between neighbouring bars. */
+const NODE_PADDING = 24
+/** Vertical room one node's two-line label needs, so labels never collide. */
+const ROW_HEIGHT = 32
+/** The chart's least height, before its margins. */
+const SANKEY_MIN_HEIGHT = 240
+/** The gap between a bar and its label. */
+export const LABEL_GAP = 6
+/** Room above and below the bars for the end labels' second line. */
+export const VERTICAL_MARGIN = 14
+/** Approximate width of one label character at the chart's 11px font size. */
+const CHAR_WIDTH = 6
+
+/** A Sankey chart's frame at a container width: its size, label room, and layout options. */
+export interface SankeyFrame {
+  height: number
+  /** The label margin each side reserves: the first column's labels sit left, the last column's right. */
+  margin: number
+  /** The most label characters that fit in `margin`. */
+  maxChars: number
+  options: SankeyLayoutOptions
+}
+
+/**
+ * The chart's frame for `nodeCount` nodes and `links` at `width`: it fills the
+ * width, reserving a label margin either side, and grows in height with the number
+ * of end nodes so labels stay clear of each other.
+ */
+export function sankeyFrame(
+  nodeCount: number,
+  links: readonly SankeyLinkInput[],
+  width: number,
+  order: SankeyOrder = 'input',
+): SankeyFrame {
+  const rows = Array.from({ length: nodeCount }, (_, index) => index).filter(
+    (index) => !links.some((link) => link.source === index),
+  ).length
+  const height = Math.max(SANKEY_MIN_HEIGHT, rows * ROW_HEIGHT) + 2 * VERTICAL_MARGIN
+  const margin = Math.min(140, Math.round(width * 0.27))
+  return {
+    height,
+    margin,
+    maxChars: Math.floor((margin - LABEL_GAP) / CHAR_WIDTH),
+    options: {
+      width: width - 2 * margin,
+      height: height - 2 * VERTICAL_MARGIN,
+      nodeWidth: NODE_WIDTH,
+      nodePadding: NODE_PADDING,
+      order,
+    },
+  }
+}

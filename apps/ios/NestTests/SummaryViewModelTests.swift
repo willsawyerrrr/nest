@@ -66,7 +66,7 @@ private enum Fixtures {
         }
     ) -> SummaryViewModel {
         SummaryViewModel(
-            data: data, summarise: summarise,
+            data: data, summarise: summarise, cashFlow: { _ in Self.cashFlow },
             now: { Date(timeIntervalSince1970: 1_796_083_200) }, defaults: defaults,
             planning: planning)
     }
@@ -95,6 +95,25 @@ private enum Fixtures {
         await model.load()
         #expect(model.state.value?.summary.oneOffCents == 500)
         #expect(model.state.value?.baseline?.oneOffCents == 100)
+    }
+
+    nonisolated private static let cashFlow: CashFlowGraphs = {
+        let graph = CashFlowGraph(
+            nodes: [
+                .init(name: "Available", color: .buffer, valueCents: 100_00),
+                .init(name: "Buffer", color: .buffer, valueCents: 100_00),
+            ],
+            links: [.init(source: 0, target: 1, value: 100_00)])
+        return CashFlowGraphs(
+            takeHome: .init(grouped: graph, drilled: graph), gross: .init(grouped: graph, drilled: graph),
+            hasLines: false)
+    }()
+
+    @Test func carriesTheCashFlowGraphs() async {
+        let model = model(makeData(Server(), directory: directory()))
+        await model.load()
+        #expect(model.state.value?.cashFlow == Self.cashFlow)
+        #expect(Self.cashFlow.takeHome.grouped.descriptions == ["Available to Buffer: $100.00"])
     }
 
     @Test func withoutPlanningModeThereIsNoBaseline() async {

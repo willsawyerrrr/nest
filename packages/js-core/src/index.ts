@@ -30,6 +30,7 @@ import {
 } from '@nest/plan'
 import { configsByYear, FY2027_CONFIG } from '@nest/tax'
 import { summariseBreakdowns } from './breakdowns.ts'
+import { cashFlowOf, layoutSankey } from './cashFlow.ts'
 import { deductionFigures, financialYearOptions } from './deductions.ts'
 import { summariseEquity } from './equity.ts'
 import { projectEstimate, type EstimateInput } from './estimate.ts'
@@ -49,6 +50,15 @@ export type { InflowDraftInput, InflowDraftPreview, InflowsInput } from './inflo
 export { payslipsOverview } from './payslips.ts'
 export type { PayslipsInput } from './payslips.ts'
 export type { BreakdownsInput } from './breakdowns.ts'
+export {
+  cashFlowGraph,
+  cashFlowLines,
+  cashFlowOf,
+  inflowSources,
+  layoutSankey,
+} from './cashFlow.ts'
+export type { CashFlowInput, SankeyLayoutInput } from './cashFlow.ts'
+export { sankeyLayout } from './sankeyLayout.ts'
 export { householdYear, mlsWhatIf, salarySacrifice, taxScreen } from './taxScreen.ts'
 export type {
   DependentChildrenInput,
@@ -183,6 +193,8 @@ const entry =
 export const entryPoints = {
   estimateTax: entry(estimateTax),
   summariseHousehold: entry(summariseHousehold),
+  cashFlow: entry(cashFlowOf),
+  sankeyLayout: entry(layoutSankey),
   projectGoalQueue: entry(projectGoalQueueAt),
   summariseBreakdowns: entry(summariseBreakdowns),
   budgetOverview: entry(budgetOverviewOf),

@@ -104,7 +104,7 @@ import Testing
 
     @Test func aPromotedDraftSeedsANewDiscretionaryLine() {
         let form = BudgetLineFormState(
-            draft: BudgetLineDraft(name: "New couch", amountCents: 3_500_00), defaultGroup: .discretionary)
+            draft: PromoteDraft(name: "New couch", amountCents: 3_500_00), defaultGroup: .discretionary)
         #expect(form.name == "New couch" && form.amount == "3500.00")
         #expect(form.group == .discretionary && form.frequency == .fortnightly)
         #expect(form.initial == nil)

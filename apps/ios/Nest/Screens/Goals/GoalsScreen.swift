@@ -1,18 +1,21 @@
 import SwiftUI
 
 /// The native Goals route: savings goals with progress and projection, the
-/// drag-reorderable Upcoming queue, and add, edit and delete.
+/// drag-reorderable Upcoming queue, and add, edit and delete. A `draft` (a wishlist
+/// item promoted to a goal) opens a prefilled add form above the list.
 struct GoalsScreen: View {
     @State private var model: GoalsViewModel
+    @State private var draft: PromoteDraft?
     private let planning = PlanningStore.shared
 
-    init(model: GoalsViewModel = GoalsViewModel()) {
+    init(model: GoalsViewModel = GoalsViewModel(), draft: PromoteDraft? = nil) {
         _model = State(initialValue: model)
+        _draft = State(initialValue: draft)
     }
 
     var body: some View {
         ScreenStateView(state: model.state, retry: { Task { await model.retry() } }) { content in
-            GoalsContentView(model: model, content: content)
+            GoalsContentView(model: model, content: content, draft: $draft)
         }
         .task(id: planning.revision) { await model.load() }
     }
@@ -28,6 +31,7 @@ private enum GoalEditing: Equatable {
 struct GoalsContentView: View {
     let model: GoalsViewModel
     let content: GoalsContent
+    @Binding var draft: PromoteDraft?
 
     @State private var editing = GoalEditing.none
     @State private var deleting: GoalRow?
@@ -43,6 +47,7 @@ struct GoalsContentView: View {
                 PlanningBanner()
                 refreshRow
                 if let error = model.syncError { GoalAlert(text: error) }
+                if let draft { promoted(draft) }
                 activeList
                 if !presentation.queued.isEmpty { upcoming }
             }
@@ -146,6 +151,22 @@ struct GoalsContentView: View {
                 editing = .none
             },
             onCancel: { editing = .none })
+    }
+
+    private func promoted(_ draft: PromoteDraft) -> some View {
+        VStack(alignment: .leading, spacing: NestSpacing.xs) {
+            Text(
+                "New goal from your wishlist item “\(draft.name)”. Adjust and save it, or cancel to leave the wishlist item as it is."
+            )
+            .font(.system(size: 14)).foregroundStyle(NestColor.dimmedText)
+            GoalForm(
+                editing: nil, savers: savers, promoted: draft,
+                onSubmit: { input in
+                    try await model.create(input)
+                    self.draft = nil
+                },
+                onCancel: { self.draft = nil })
+        }
     }
 
     private func display(_ goal: GoalRow, handle: AnyView?) -> some View {

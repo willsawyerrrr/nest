@@ -21,12 +21,6 @@ struct WishlistScreen: View {
     }
 }
 
-/// A web page shown in a sheet, identified by its path.
-private struct WebPage: Identifiable {
-    let path: String
-    var id: String { path }
-}
-
 struct WishlistContentView: View {
     let presentation: WishlistPresentation
     @Binding var sort: WishlistSort
@@ -37,7 +31,7 @@ struct WishlistContentView: View {
     @State private var adding = false
     @State private var deleting: WishlistItemRow?
     @State private var deleteFailed = false
-    @State private var page: WebPage?
+    @State private var promotion: WishlistPromotion?
 
     var body: some View {
         ScrollView {
@@ -63,7 +57,7 @@ struct WishlistContentView: View {
                             row: row,
                             onEdit: { editingID = row.id; adding = false },
                             onDelete: { deleting = row },
-                            onPromote: { page = WebPage(path: WishlistPresentation.promotionPath($0, row: row)) })
+                            onPromote: { promotion = WishlistPromotion($0, row: row) })
                     }
                 }
                 if adding {
@@ -102,14 +96,18 @@ struct WishlistContentView: View {
         } message: {
             Text("Something went wrong. Try again.")
         }
-        .sheet(item: $page) { page in
-            VStack(spacing: 0) {
-                HStack {
-                    Spacer()
-                    Button("Done") { self.page = nil }.padding(NestSpacing.md)
+        .navigationDestination(item: $promotion) { promotion in
+            let route: Route = promotion.target == .goal ? .goals : .budget
+            Group {
+                switch promotion.target {
+                case .goal: GoalsScreen(draft: promotion.draft)
+                case .budget: BudgetScreen(draft: promotion.draft)
                 }
-                WebRouteView(path: page.path)
             }
+            .navigationTitle(route.title)
+            #if os(iOS)
+                .navigationBarTitleDisplayMode(.inline)
+            #endif
         }
     }
 }
@@ -170,7 +168,7 @@ private struct WishlistItemView: View {
     let row: WishlistItemRow
     let onEdit: () -> Void
     let onDelete: () -> Void
-    let onPromote: (WishlistPromotion) -> Void
+    let onPromote: (WishlistPromotion.Target) -> Void
 
     #if os(iOS)
         @Environment(\.horizontalSizeClass) private var sizeClass
@@ -262,7 +260,7 @@ private struct OwnerBadge: View {
 
 /// The overflow menu holding an item's two promote actions.
 private struct PromoteMenu: View {
-    let onPromote: (WishlistPromotion) -> Void
+    let onPromote: (WishlistPromotion.Target) -> Void
 
     var body: some View {
         Menu {

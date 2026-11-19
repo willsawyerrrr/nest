@@ -173,14 +173,17 @@ private enum Wishlist {
         #expect(WishlistPresentation.memberName([], id: "gone") == "Unknown")
     }
 
-    @Test func promotionPathsCarryTheItem() throws {
+    @Test func aPromotionCarriesTheItem() {
         let row = WishlistItemRow(
             id: "w", name: "Café & bar", amountCents: 1_200_00, memberID: nil, ownerName: nil, note: nil)
-        let path = WishlistPresentation.promotionPath(.goal, row: row)
-        let components = try #require(URLComponents(string: path))
-        #expect(components.path == "/goals")
-        #expect(components.queryItems?.first { $0.name == "promoteName" }?.value == "Café & bar")
-        #expect(components.queryItems?.first { $0.name == "promoteAmountCents" }?.value == "120000")
-        #expect(WishlistPresentation.promotionPath(.budget, row: row).hasPrefix("/budget?"))
+        let promotion = WishlistPromotion(.goal, row: row)
+        #expect(promotion.target == .goal)
+        #expect(promotion.draft == PromoteDraft(name: "Café & bar", amountCents: 1_200_00))
+    }
+
+    @Test func aPromotedGoalPrefillsNameAndTargetWithNoDate() {
+        let draft = GoalDraft(promoted: PromoteDraft(name: "Couch", amountCents: 3_500_50))
+        #expect(draft.name == "Couch" && draft.targetAmount == "3500.50" && draft.targetDate == nil)
+        #expect(draft.input(queuePosition: nil).targetAmountCents == 3_500_50)
     }
 }

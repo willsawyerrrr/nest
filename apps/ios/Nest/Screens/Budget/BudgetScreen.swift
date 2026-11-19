@@ -6,10 +6,10 @@ import SwiftUI
 /// item promoted to a budget line) opens a prefilled add form above the list.
 struct BudgetScreen: View {
     @State private var model: BudgetViewModel
-    @State private var draft: BudgetLineDraft?
+    @State private var draft: PromoteDraft?
     private let planning = PlanningStore.shared
 
-    init(model: BudgetViewModel = BudgetViewModel(), draft: BudgetLineDraft? = nil) {
+    init(model: BudgetViewModel = BudgetViewModel(), draft: PromoteDraft? = nil) {
         _model = State(initialValue: model)
         _draft = State(initialValue: draft)
     }
@@ -39,7 +39,7 @@ enum BudgetEditing: Equatable {
 struct BudgetContentView: View {
     let model: BudgetViewModel
     let presentation: BudgetPresentation
-    @Binding var draft: BudgetLineDraft?
+    @Binding var draft: PromoteDraft?
 
     @State private var editing: BudgetEditing?
     @State private var deleting: BudgetLineRow?

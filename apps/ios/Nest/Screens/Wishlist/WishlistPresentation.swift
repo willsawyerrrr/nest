@@ -42,11 +42,26 @@ struct WishlistItemRow: Equatable, Identifiable, Sendable {
     let note: String?
 }
 
-/// What a promote action opens.
-enum WishlistPromotion: Sendable {
-    case goal, budget
+/// A wishlist item promoted to a goal or a budget line: its name and amount seed
+/// the target's add form.
+struct PromoteDraft: Codable, Equatable, Hashable, Sendable {
+    var name: String
+    var amountCents: Int
+}
 
-    var route: Route { self == .goal ? .goals : .budget }
+/// What a promote action opens: the Goals or Budget add form, prefilled.
+struct WishlistPromotion: Hashable, Identifiable, Sendable {
+    enum Target: Hashable, Sendable { case goal, budget }
+
+    let target: Target
+    let draft: PromoteDraft
+
+    init(_ target: Target, row: WishlistItemRow) {
+        self.target = target
+        draft = PromoteDraft(name: row.name, amountCents: row.amountCents)
+    }
+
+    var id: Self { self }
 }
 
 /// Pure presentation of the wishlist, mirroring `WishlistScreen`.
@@ -96,17 +111,6 @@ struct WishlistPresentation: Equatable, Sendable {
             return order == .orderedSame ? a.offset < b.offset : order == .orderedAscending
         }.map(\.element)
         return sort.direction == .desc ? ascending.reversed() : ascending
-    }
-
-    /// The web page that opens the target with its add form prefilled from `row`.
-    static func promotionPath(_ promotion: WishlistPromotion, row: WishlistItemRow) -> String {
-        var components = URLComponents()
-        components.path = promotion.route.path
-        components.queryItems = [
-            URLQueryItem(name: "promoteName", value: row.name),
-            URLQueryItem(name: "promoteAmountCents", value: String(row.amountCents)),
-        ]
-        return components.string ?? promotion.route.path
     }
 }
 

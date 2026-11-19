@@ -239,8 +239,9 @@ queued goal moves it there and rewrites `queue_position` for the goals that move
 Move up and Move down actions. While planning mode is on, create, edit, delete and
 reorder go to the sandbox (`PlanningStore.create`/`update`/`delete`), not the database.
 
-The page title is the shell's navigation title. A wishlist item promoted to a goal
-is not picked up natively yet.
+The page title is the shell's navigation title. `GoalsScreen(draft:)` opens a
+prefilled add form (name and target, no date, as `GoalDraft(promoted:)`) above the
+list with the PWA's wishlist note, the entry point for a promoted wishlist item.
 
 `apps/pwa/src/lib/goalsParity.test.tsx` computes each goal's funding, progress, status
 flag and ETA with the PWA's own `goalProjection` helpers and snapshots rows and
@@ -365,10 +366,9 @@ fresh) whenever the sandbox moves.
 - **Save** calls `commit_planning_changes` with the same nine arguments as the web
   app (`CommitPlanningParams`), invalidating the three tables' cached rows. A
   failed save keeps every pending change and shows the error's fixed message.
-- Goals creates, edits, deletes and reorders into the sandbox, and Budget and
-  Allowance create, edit and delete manual budget lines in it. Creating an inflow in
-  the sandbox is not offered natively yet; the layer already holds, applies, lists
-  and saves a created row (as one made in the web app's sandbox shape would be).
+- Goals creates, edits, deletes and reorders into the sandbox, Budget and
+  Allowance create, edit and delete manual budget lines in it, and Inflows creates,
+  edits and deletes inflows in it; Planning lists, applies and saves each created row.
 
 `apps/pwa/src/lib/planningParity.test.ts` applies a sandbox (an edited and a hidden
 inflow, edited, hidden and added budget lines, an edited goal) with the PWA's own
@@ -392,10 +392,10 @@ Writes go through `NestData` as the PWA's hook does: an insert carries the house
 `note` (the last two as `null` when cleared), and a delete filters by id. The form
 requires a name and a positive amount and trims the name and note, as `WishlistForm`.
 
-Promote to a savings goal or a budget line opens the web Goals or Budget page in a
-sheet with `?promoteName=…&promoteAmountCents=…`; the PWA's `takeGoalDraft` and
-`takeBudgetDraft` read those parameters when no draft was stashed, so the add form
-opens prefilled.
+"Make a savings goal" and "Add to budget" push the native Goals or Budget screen
+(`navigationDestination(item:)` on a `WishlistPromotion`) with the item's
+`PromoteDraft` (name and amount), which opens that screen's add form prefilled, as
+the PWA's `takeGoalDraft` and `takeBudgetDraft` do. The wishlist item stays.
 
 There is no engine figure: parity is the order, owner and amount of each row.
 `apps/pwa/src/lib/wishlistParity.test.ts` snapshots rows and, for all four sorts,

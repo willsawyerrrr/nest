@@ -42,14 +42,16 @@ struct GoalForm: View {
     @State private var error: String?
 
     init(
-        editing: SavingsGoal?, savers: [GoalSaver],
+        editing: SavingsGoal?, savers: [GoalSaver], promoted: PromoteDraft? = nil,
         onSubmit: @escaping (GoalInput) async throws -> Void, onCancel: @escaping () -> Void
     ) {
         self.editing = editing
         self.savers = savers
         self.onSubmit = onSubmit
         self.onCancel = onCancel
-        _draft = State(initialValue: editing.map(GoalDraft.init(goal:)) ?? GoalDraft())
+        _draft = State(
+            initialValue: editing.map(GoalDraft.init(goal:)) ?? promoted.map(GoalDraft.init(promoted:))
+                ?? GoalDraft())
     }
 
     private var submitLabel: String {

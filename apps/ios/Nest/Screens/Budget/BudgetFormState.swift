@@ -78,12 +78,6 @@ struct AllowanceChoice: Codable, Equatable, Sendable {
     var remainingAnnualCents: Int
 }
 
-/// A wishlist item promoted to a budget line: its name and amount seed a new line.
-struct BudgetLineDraft: Codable, Equatable, Hashable, Sendable {
-    var name: String
-    var amountCents: Int
-}
-
 /// The columns a manual budget line's save writes, every one stated so an edit
 /// clears what the form cleared.
 struct BudgetLineInput: Codable, Equatable, Sendable {
@@ -206,7 +200,7 @@ struct BudgetLineFormState: Codable, Equatable, Sendable {
     /// A new line (seeded from `draft`, in `defaultGroup`, drawn from
     /// `defaultAllowanceMemberId`), or the form for `initial`.
     init(
-        initial: BudgetLine? = nil, draft: BudgetLineDraft? = nil,
+        initial: BudgetLine? = nil, draft: PromoteDraft? = nil,
         defaultGroup: BudgetGroup? = nil, defaultAllowanceMemberId: String? = nil,
         allowances: [AllowanceChoice] = []
     ) {

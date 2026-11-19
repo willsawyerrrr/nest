@@ -16,6 +16,12 @@ struct GoalDraft: Equatable, Sendable {
 
     init() {}
 
+    /// A wishlist item's name and target with no date, as the PWA's `GoalForm` seeds a promoted draft.
+    init(promoted: PromoteDraft) {
+        name = promoted.name
+        targetAmount = Self.dollars(promoted.amountCents)
+    }
+
     init(goal: SavingsGoal) {
         name = goal.name
         targetAmount = Self.dollars(goal.targetAmountCents)

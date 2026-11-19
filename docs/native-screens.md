@@ -88,21 +88,37 @@ what-if and the planning baseline, and snapshots
 
 `Route.summary` is native (`SummaryScreen`): the allocation donut (Swift Charts
 `SectorMark`) with a take-home/gross toggle (persisted in `UserDefaults`), stat
-tiles and legend; allowance progress per member; the reconciliation ledger; and
-the one-off money note. The figures come from the engine's `summariseHousehold`.
+tiles and legend; allowance progress per member; the cash-flow Sankey (below);
+the reconciliation ledger; and the one-off money note. The figures come from the engine's `summariseHousehold`.
 While planning mode is on, the figures are computed from the sandboxed rows and
 the ledger reads `was → now (±change)` against the real rows' figures (see
 [Planning mode](#planning-mode)).
 
-### Cash-flow Sankey: web-only for now
+### Cash-flow Sankey
 
-The Sankey stays web-only until the end of the migration. Swift Charts has no
-Sankey mark, so a native one means porting `sankeyLayout.ts` (node ordering,
-link routing, the drill-down and sort options) onto `Canvas`, plus an
-accessibility description. That is a self-contained chart with no effect on any
-figure, and the web version already reads the same engine output. The Summary
-shows a card that opens the web Summary page in a sheet. When the chart goes
-native it replaces that card.
+The Summary's cash-flow card is native (`CashFlowSankeyCard`), on the same
+income basis as the donut, with the PWA's "Show budget lines" switch and, once
+drilled, its "Order budget lines" picker (default order, largest first,
+smallest first). The graphs come from the engine's `cashFlow` (`packages/js-core`
+`cashFlow.ts`, the PWA's `cashFlowGraph` reading the Summary bundle): both bases,
+grouped and drilled, from the same (sandboxed, in planning mode) input as
+`summariseHousehold`. Each inflow landing now is a source, a negative buffer is a
+Shortfall source, and an allowance stands in for its drawn lines. Geometry comes
+from the engine's `sankeyLayout`, the PWA's `sankeyFrame` and `sankeyLayout` at
+the chart's measured width: one value-to-pixel scale, the PWA's node ordering and
+ribbon routing, and the frame's height, label margin and clipping. `SankeyCanvas`
+draws it on a `Canvas` with the tokenised chart colours (`ChartColorKey`):
+translucent ribbons in their source's hue, solid bars, and each bar's name and
+value beside it with a halo in the card colour. VoiceOver skips the drawing and
+reads one element per flow (`Available to Needs: $2,000.00`), as the PWA's hidden
+list does.
+
+Parity is held by `apps/pwa/src/lib/cashFlowParity.test.ts`, which draws the
+graphs and the chart's frame and layout with the PWA's own functions for the
+Summary parity household and an overspent copy of it (a Shortfall), and
+snapshots them into `apps/ios/NestTests/Fixtures/cash-flow-parity.json`.
+`CashFlowParityTests` runs the same rows through `SummaryRows.input` and the
+engine and asserts identical graphs, screen-reader lines and geometry.
 
 ## Breakdowns
 
@@ -338,7 +354,7 @@ fresh) whenever the sandbox moves.
 
 - **Summary** computes the engine's `summariseHousehold` twice while the sandbox
   is on, once from the sandboxed rows and once from the real ones; `LedgerCard`
-  shows `ComparedAmount` per row. **Budget** and **Allowance** read and write the
+  shows `ComparedAmount` per row. The cash-flow Sankey draws the sandboxed rows. **Budget** and **Allowance** read and write the
   sandboxed lines and read the sandboxed goals. Breakdowns are not sandboxed, as in the web app.
 - **Planning** shows the projected impact (buffer, available, outgoings, saving:
   real vs proposed vs change), the pending changes (an Edited / New / Removed pill,

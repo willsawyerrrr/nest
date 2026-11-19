@@ -373,7 +373,8 @@ Available cannot cover, filling them in reconciliation order, and no Buffer node
 is drawn. A "Show budget lines" switch drills each group down to its budget lines
 and active temporary items (an **Other** node carries any unnamed remainder).
 One-off money stays out, as it does of `available`. The chart is plain SVG laid
-out by the pure `sankeyLayout` (`apps/pwa/src/lib/sankeyLayout.ts`): one value
+out by the pure `sankeyLayout` (`apps/pwa/src/lib/sankeyLayout.ts`, framed for
+the card's width by `sankeyFrame`): one value
 scale for the whole diagram, so a ribbon is as thick at both ends as the value
 it carries and each node bar is exactly filled by its inflow and drained by its
 outflow (Available fills Needs first, Shortfall tops Needs up and funds the
@@ -395,7 +396,9 @@ and the rest right, with long names clipped, so no label crosses a ribbon at
 group level. The chart is lazy-loaded, fills the card's width with a reserved
 label margin (no horizontal scroll at phone width), grows with its tallest column
 so labels never collide, and is hidden from assistive tech in favour of a list
-stating every flow in formatted cents.
+stating every flow in formatted cents. The native app draws the same graphs and
+geometry on a `Canvas` (see
+[native-screens.md](native-screens.md#cash-flow-sankey)).
 
 | Line          | Composition                          |
 | ------------- | ------------------------------------ |

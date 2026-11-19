@@ -866,8 +866,8 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   the allowance's annual amount; a zero allowance admits nothing, and a change that
   keeps a line on its allowance without raising its annual amount is always
   allowed. The guards are SECURITY DEFINER so a co-member lowering an allowance is
-  held to lines they cannot read, and the refusal names no amount. The PWA
-  pre-validates against what is left and shows fixed copy on a refusal.
+  held to lines they cannot read, and the refusal names no amount. The PWA and
+  the native app pre-validate against what is left and show fixed copy on a refusal.
   `BudgetSummary.allowances` reports each member's allowance, drawn, and remaining,
   and the Budget tab shows the signed-in
   member's own allowance with a progress bar, and their

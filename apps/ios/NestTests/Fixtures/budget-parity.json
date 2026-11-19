@@ -3,6 +3,8 @@
     "name": "a two-member household",
     "now": "2026-12-01T00:00:00Z",
     "rows": {
+      "breakdowns": [],
+      "superProfiles": [],
       "members": [
         {
           "household_id": "h1",

@@ -5,19 +5,42 @@ struct BudgetRows: Codable, Sendable, Equatable {
     var budgetLines: [BudgetLine] = []
     var memberAllowances: [MemberAllowance] = []
     var members: [Member] = []
-    var accounts: [Account] = []
+    /// Every account a line can name or be funded from, a co-member's spending
+    /// account by name only.
+    var accounts: [AccountDirectoryEntry] = []
     var savingsGoals: [SavingsGoal] = []
     var temporaryItems: [TemporaryItem] = []
+    /// The generic breakdowns, which own their derived line's name and group.
+    var breakdowns: [Breakdown] = []
+    /// The super profiles, whose linked balance accounts cannot fund a line.
+    var superProfiles: [SuperProfile] = []
 
-    static var sources: [TableSource<BudgetRows>] {
+    /// The tables, with super profiles scoped to `financialYear` as the PWA reads them.
+    static func sources(financialYear: Int) -> [TableSource<BudgetRows>] {
         [
             .table(BudgetLine.self) { $0.budgetLines = $1 },
             .table(MemberAllowance.self) { $0.memberAllowances = $1 },
             .table(Member.self) { $0.members = $1 },
-            .table(Account.self) { $0.accounts = $1 },
+            .table(AccountDirectoryEntry.self, order: [Order(column: "name")]) { $0.accounts = $1 },
             .table(SavingsGoal.self) { $0.savingsGoals = $1 },
             .table(TemporaryItem.self) { $0.temporaryItems = $1 },
+            .table(Breakdown.self) { $0.breakdowns = $1 },
+            .table(SuperProfile.self, filters: [.eq("financial_year", String(financialYear))]) {
+                $0.superProfiles = $1
+            },
         ]
+    }
+
+    /// The accounts a line or allowance may be funded from: every account but a
+    /// super fund's balance account, which is not spendable.
+    var fundingAccounts: [(id: String, name: String)] {
+        let superIDs = Set(superProfiles.compactMap(\.linkedAccountId))
+        return accounts.compactMap { account in
+            guard let id = account.id, let name = account.name, !superIDs.contains(id) else {
+                return nil
+            }
+            return (id, name)
+        }
     }
 
     /// The engine input at `now`: the lines and allowances in the shape

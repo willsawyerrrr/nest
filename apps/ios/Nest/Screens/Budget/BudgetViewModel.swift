@@ -12,7 +12,9 @@ struct BudgetContent: Equatable, Sendable {
 
 /// Loads the household's budget rows through the cache, runs the figures in the
 /// engine and publishes the result. Budget and Allowance share it: each screen
-/// projects `BudgetContent` its own way.
+/// projects `BudgetContent` its own way. Budget-line writes go to the database,
+/// or into the planning sandbox while planning mode is on; allowances,
+/// breakdowns and temporary items are not sandboxed, so their writes are always real.
 @MainActor @Observable
 final class BudgetViewModel {
     private(set) var state: ScreenState<BudgetContent> = .loading
@@ -40,7 +42,9 @@ final class BudgetViewModel {
         let instant = now()
         let userID = try? await data.userID()
         let stream = RowsCombiner.stream(
-            initial: BudgetRows(), sources: BudgetRows.sources, data: data)
+            initial: BudgetRows(),
+            sources: BudgetRows.sources(financialYear: FinancialYear.containing(instant)),
+            data: data)
         do {
             for try await snapshot in stream {
                 planning.select(household: snapshot.rows.members.first?.householdId)
@@ -69,5 +73,117 @@ final class BudgetViewModel {
     func retry() async {
         if state.value == nil { state = .loading }
         await load()
+    }
+
+    /// Whether planning mode is on, where a derived line is read-only: its edit
+    /// writes a breakdown, which the sandbox does not cover.
+    var isPlanning: Bool { planning.isActive }
+
+    // MARK: Writes
+
+    /// Adds a manual budget line, then reloads.
+    func createLine(_ input: BudgetLineInput) async throws {
+        guard let household = state.value?.rows.members.first?.householdId else {
+            throw NestError(.invalidRequest)
+        }
+        if planning.isActive {
+            planning.create(
+                .budgetLine, row: Self.sandboxRow(input, household: household, now: now()))
+        } else {
+            try await data.insert(BudgetLine.self, values: input.insertValues(householdID: household))
+        }
+        await load()
+    }
+
+    /// Saves `input` over the line `id`, then reloads.
+    func updateLine(id: String, _ input: BudgetLineInput) async throws {
+        if planning.isActive {
+            planning.update(.budgetLine, id: id, patch: PlanningLayer.json(of: input) ?? [:])
+        } else {
+            try await data.update(BudgetLine.self, values: input, filters: [.eq("id", id)])
+        }
+        await load()
+    }
+
+    /// Removes the line `id`, then reloads.
+    func deleteLine(id: String) async throws {
+        if planning.isActive {
+            planning.delete(.budgetLine, id: id)
+        } else {
+            try await data.delete(BudgetLine.self, filters: [.eq("id", id)])
+        }
+        await load()
+    }
+
+    /// Saves a derived line's edit, as the PWA's `useDerivedLineEditor`: a generic
+    /// line's name and group go to its breakdown and the line, a gift line's group
+    /// to the line alone (its name stays partition-derived), and the funding
+    /// account to the line unless a gift member line's reconcile owns it.
+    func updateDerivedLine(_ line: BudgetLine, _ values: DerivedLineValues) async throws {
+        guard line.isGiftLine || line.breakdownId != nil else { return }
+        if !line.isGiftLine, let breakdown = line.breakdownId {
+            try await data.update(
+                Breakdown.self, values: BreakdownPatch(name: values.name, lineGroup: values.group),
+                filters: [.eq("id", breakdown)], also: [BudgetLine.table])
+        }
+        var input = BudgetLineInput(line)
+        input.lineGroup = values.group
+        if !line.isGiftLine { input.name = values.name }
+        if line.giftRecipientMemberId == nil { input.destinationAccountId = values.destinationAccountId }
+        try await data.update(BudgetLine.self, values: input, filters: [.eq("id", line.id)])
+        await load()
+    }
+
+    /// Saves `input` over the allowance `id`, then reloads.
+    func updateAllowance(id: String, _ input: MemberAllowanceInput) async throws {
+        try await data.update(MemberAllowance.self, values: input, filters: [.eq("id", id)])
+        await load()
+    }
+
+    /// Adds a temporary item, then reloads. Temporary items are not sandboxed.
+    func createTemporaryItem(_ input: TemporaryItemInput) async throws {
+        guard let household = state.value?.rows.members.first?.householdId else {
+            throw NestError(.invalidRequest)
+        }
+        try await data.insert(TemporaryItem.self, values: input.insertValues(householdID: household))
+        await load()
+    }
+
+    /// Saves `input` over the temporary item `id`, then reloads.
+    func updateTemporaryItem(id: String, _ input: TemporaryItemInput) async throws {
+        try await data.update(TemporaryItem.self, values: input, filters: [.eq("id", id)])
+        await load()
+    }
+
+    /// Removes the temporary item `id`, then reloads.
+    func deleteTemporaryItem(id: String) async throws {
+        try await data.delete(TemporaryItem.self, filters: [.eq("id", id)])
+        await load()
+    }
+
+    /// Today as an ISO date, a new temporary item's default target.
+    var today: String { InflowsPresentation.isoDate(now()) }
+
+    /// A whole budget line row for the sandbox: the input's columns plus the ones
+    /// the database would set.
+    static func sandboxRow(_ input: BudgetLineInput, household: String, now: Date) -> JSONRow {
+        var row = PlanningLayer.json(of: input) ?? [:]
+        let stamp = now.formatted(.iso8601)
+        row["id"] = .string(UUID().uuidString.lowercased())
+        row["household_id"] = .string(household)
+        row["created_at"] = .string(stamp)
+        row["updated_at"] = .string(stamp)
+        return row
+    }
+}
+
+/// The breakdown columns a generic derived line's edit writes.
+private struct BreakdownPatch: Encodable, Sendable {
+    let name: String
+    let lineGroup: BudgetGroup
+
+    enum CodingKeys: String, CodingKey {
+        case name
+        case lineGroup = "line_group"
     }
 }

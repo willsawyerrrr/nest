@@ -70,7 +70,7 @@ struct WebView: PlatformViewRepresentable {
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
-        webView.load(URLRequest(url: NotificationRouter.shared.take() ?? url))
+        webView.load(URLRequest(url: url))
         return webView
     }
 
@@ -94,16 +94,7 @@ struct WebView: PlatformViewRepresentable {
             sessionObservation?.cancel()
         }
 
-        /// Opens the pages tapped notifications name: the one waiting from
-        /// before the page loaded, and any that follow.
-        private func openNotificationURLs(in webView: WKWebView) {
-            let router = NotificationRouter.shared
-            router.handler = { [weak webView] url in webView?.load(URLRequest(url: url)) }
-            if let url = router.take() { webView.load(URLRequest(url: url)) }
-        }
-
         func stop() {
-            NotificationRouter.shared.handler = nil
             sessionObservation?.cancel()
             sessionObservation = nil
         }
@@ -118,7 +109,6 @@ struct WebView: PlatformViewRepresentable {
             self.webView = webView
             Task { await pushCurrentSession() }
             observeSessionChanges()
-            openNotificationURLs(in: webView)
         }
 
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {

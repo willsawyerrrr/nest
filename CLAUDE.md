@@ -1030,9 +1030,9 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   the caller's own devices of both kinds, pruning a row only on a dead-device
   response and reporting `{ devices, sent, pruned, failed }`. The payload is
   `{ title, body, url }`, the URL being where `notificationclick` navigates and
-  the page a tapped native notification hands to the web view (an in-app path
-  only; the app ignores anything else). No native screen shows a web view, so
-  the app holds that page and the tap opens the app where it was. The native app's web view reports its device as on
+  the native screen a tapped notification opens in the app (an in-app path
+  naming a `Route`, with any context that screen takes, such as a promote draft
+  for Goals or Budget; the app ignores anything else). The native app's web view reports its device as on
   in the Notifications settings (status `native`, gated on
   `__NEST_NATIVE_SHELL__`), with no web opt-in; the native Notifications screen
   shows the same state, reads and upserts `notification_preference` on

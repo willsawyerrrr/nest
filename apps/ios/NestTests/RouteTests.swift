@@ -35,7 +35,7 @@ struct RouteTests {
 
     @Test func everyRouteIsNative() {
         for route in Route.allCases {
-            guard case .native = route.content else {
+            guard case .native = route.content() else {
                 Issue.record("\(route) is not native")
                 continue
             }

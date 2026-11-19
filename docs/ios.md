@@ -436,7 +436,7 @@ with Web Push (see [`architecture.md`](architecture.md#push-notifications)).
   member allows notifications at launch, except under Mac Catalyst, which
   keys push differently and does not receive APNs. The iOS `NestAppDelegate`
   (`NestAppDelegate+iOS.swift`, wired uniformly on every platform through a
-  `PlatformAppDelegateAdaptor` typealias; the macOS one is an empty stand-in)
+  `PlatformAppDelegateAdaptor` typealias; the macOS one handles only taps)
   receives the token and hands it to `PushRegistrar`, which calls the
   `register_apns_device` RPC through PostgREST with the session's access token
   as soon as it has both a token and a session (retrying after a failed call
@@ -444,12 +444,19 @@ with Web Push (see [`architecture.md`](architecture.md#push-notifications)).
   environment is `sandbox` in Debug builds and `production` otherwise. Before the
   app signs out, it deletes its own `apns_device` row, so
   a signed-out install stops receiving the member's notifications.
-- **Tap.** The payload carries `url`, an in-app path. `NestAppDelegate`
-  resolves it against the web app's origin (`NotificationRoute` ignores anything
-  that is not a same-origin path) and hands it to `NotificationRouter` on the
-  main actor, which loads it in the web view: directly when one is showing,
-  otherwise it is held as that web view's first load. No native screen shows a
-  web view, so the page stays held and the tap opens the app where it was.
+- **Tap.** The payload carries `url`, an in-app path, optionally with a query.
+  `NestAppDelegate` (on iOS, iPad, Mac Catalyst and `NestMac`) turns it into a
+  `NotificationDestination`: the native `Route` whose path it names (`/` opens
+  Summary and `/household` Household, as the web app redirects them), plus any
+  context that screen takes — a `promoteName` and positive integer
+  `promoteAmountCents` carry a promote draft that opens Goals or Budget with its
+  add form prefilled. Anything else (another origin, a scheme, an unknown path)
+  is ignored. The destination goes to `NotificationRouter` on the main actor,
+  which holds it until `NavigationShell` takes it: at once while the shell is
+  showing, or as soon as it appears after launch or sign-in. The shell selects
+  the route with a fresh navigation stack, so a pushed detail is popped even
+  when the route is already showing; Planning opens Summary while planning
+  mode is off.
   Notifications that arrive in the foreground are shown as banners. The delegate
   uses the completion-handler forms of `didReceive` and `willPresent` and calls
   the completion handler on the main thread: UserNotifications calls them on a
@@ -570,7 +577,7 @@ the anon key.
   phrasing, its request shape, and the signed-out / HTTP-failure sentence
   mapping), for `SessionBridge`'s injected JavaScript and string escaping, for
   the share inbox (storing, limits, ordering, cleanup), and for
-  push registration (token encoding, notification routes, the register/unregister
+  push registration (token encoding, notification destinations, the register/unregister
   requests, and the registrar's retry behaviour), money formatting and sign
   colour, the route table and route-to-URL mapping, for the data layer (request
   shapes, error mapping, the row cache and its invalidation, and the model-vs-schema

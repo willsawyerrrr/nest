@@ -1,0 +1,102 @@
+{
+  "rows": {
+    "members": [
+      {
+        "household_id": "h1",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "id": "m1",
+        "name": "Alex",
+        "user_id": "u-m1",
+        "email": null,
+        "date_of_birth": null,
+        "up_connected_at": null,
+        "up_sync_failed_at": null
+      },
+      {
+        "household_id": "h1",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "id": "m2",
+        "name": "Jo",
+        "user_id": "u-m2",
+        "email": null,
+        "date_of_birth": null,
+        "up_connected_at": null,
+        "up_sync_failed_at": null
+      },
+      {
+        "household_id": "h1",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "id": "m3",
+        "name": "Sam",
+        "user_id": "u-m3",
+        "email": null,
+        "date_of_birth": null,
+        "up_connected_at": null,
+        "up_sync_failed_at": null
+      }
+    ],
+    "helpDebts": [
+      {
+        "household_id": "h1",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "id": "d1",
+        "member_id": "m1",
+        "balance_cents": 4521099
+      },
+      {
+        "household_id": "h1",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "id": "d2",
+        "member_id": "m3",
+        "balance_cents": 0
+      }
+    ]
+  },
+  "expected": [
+    {
+      "id": "m1",
+      "name": "Alex",
+      "balance": "$45,210.99",
+      "input": "45,210.99"
+    },
+    {
+      "id": "m2",
+      "name": "Jo",
+      "balance": "$0.00",
+      "input": ""
+    },
+    {
+      "id": "m3",
+      "name": "Sam",
+      "balance": "$0.00",
+      "input": "0.00"
+    }
+  ],
+  "typed": [
+    {
+      "text": "45210.99",
+      "cents": 4521099
+    },
+    {
+      "text": "1234.5",
+      "cents": 123450
+    },
+    {
+      "text": "0.07",
+      "cents": 7
+    },
+    {
+      "text": "0",
+      "cents": 0
+    },
+    {
+      "text": "",
+      "cents": 0
+    }
+  ]
+}

@@ -33,20 +33,11 @@ struct RouteTests {
         #expect(Route.allCases.filter { $0.section == nil } == [.planning, .allowance, .whatsNew])
     }
 
-    @Test func nativeRoutesAreTheMigratedScreensAndEveryOtherRouteIsTheWebFallback() {
-        let native: Set<Route> = [
-            .summary, .breakdowns, .budget, .goals, .gifts, .allowance, .planning, .planningMode,
-            .wishlist, .tax, .eofy, .inflows, .splits, .payslips, .deductions, .members,
-            .connections, .household, .notifications, .whatsNew, .equity, .netWorth,
-            .superannuation, .investments,
-        ]
+    @Test func everyRouteIsNative() {
         for route in Route.allCases {
-            switch route.content {
-            case .native:
-                #expect(native.contains(route))
-            case .web(let path):
-                #expect(!native.contains(route))
-                #expect(path == route.path)
+            guard case .native = route.content else {
+                Issue.record("\(route) is not native")
+                continue
             }
         }
     }

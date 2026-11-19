@@ -12,10 +12,30 @@ struct InvestmentsPresentation: Equatable, Sendable {
     static let saveError = "Could not save this trade. Please try again."
     static let duplicateWarning =
         "You already have a trade with this ticker, date, units, and price. Save it only if it is a separate trade."
-    static let handoffTitle = "Contract notes"
-    static let handoffMessage =
-        "Reading trades from a contract note, trade confirmation or statement happens in the web app. Open it to attach a document and review each trade."
-    static let handoffAction = "Add from a contract note"
+    static let readFromNoteTitle = "Read from the contract note"
+    static let readNothing = "Nothing on the contract note could be filled in for you."
+    static let readSomething =
+        "The details below were extracted from the contract note by AI — check them against it before saving."
+
+    /// What a draft says about the fields the document left for the member, or nil
+    /// when it left none.
+    static func checkNotice(_ check: [String]) -> String? {
+        guard !check.isEmpty else { return nil }
+        return "Check the \(check.joined(separator: ", ")): the document did not give \(check.count == 1 ? "it" : "them") clearly."
+    }
+
+    /// The line above a document's drafts, saying how many trades were read from it.
+    static func extractedNote(_ count: Int) -> String {
+        "\(count == 1 ? "1 trade was" : "\(count) trades were") extracted by AI — check each against the document, then save or discard it."
+    }
+
+    /// The contract-note input's description: the prompt's while the fields are hidden,
+    /// the form's once they show.
+    static func attachDescription(prompt: Bool) -> String {
+        prompt
+            ? "Add a contract note or several, or drop them here. We'll read the details for you to check — no typing needed. Any file, up to 25 MB."
+            : "Any file, up to 25 MB. Stored privately, then read to pre-fill the details below where it can be — which you confirm. Pick again to replace it. Choose or drop several to review each document's trades."
+    }
 
     /// One holdings or realised-gains line.
     struct Line: Equatable, Sendable {

@@ -8,7 +8,8 @@ struct InvestmentsContent: Equatable, Sendable {
 }
 
 /// Loads the household's trades, members and documents through the cache, derives
-/// holdings and gains in the engine, and writes trades.
+/// holdings and gains in the engine, and writes trades, including those read from a
+/// contract note.
 @MainActor @Observable
 final class InvestmentsViewModel {
     private(set) var state: ScreenState<InvestmentsContent> = .loading
@@ -16,9 +17,11 @@ final class InvestmentsViewModel {
     private let data: NestData
     private let derive: @Sendable (PortfolioInput) async throws -> Portfolio
     private let figures: @Sendable (TradeFiguresInput) async throws -> TradeFigures
+    let documents: any TradeDocumentsServicing
 
     init(
         data: NestData = .live,
+        documents: (any TradeDocumentsServicing)? = nil,
         derive: @escaping @Sendable (PortfolioInput) async throws -> Portfolio =
             ScreenEngine.portfolio,
         figures: @escaping @Sendable (TradeFiguresInput) async throws -> TradeFigures =
@@ -27,6 +30,7 @@ final class InvestmentsViewModel {
         self.data = data
         self.derive = derive
         self.figures = figures
+        self.documents = documents ?? TradeDocumentsService(data: data)
     }
 
     /// Streams the screen's rows until the fresh fetch lands. Call from `.task`.
@@ -74,6 +78,35 @@ final class InvestmentsViewModel {
             try await data.insert(
                 Trade.self, values: TradeInsert(householdID: household, input: input))
         }
+        await load()
+    }
+
+    /// A fresh contract-note queue: each file is stored under its minted document id,
+    /// then read through `trade-extract` into its trades. A file the model cannot read
+    /// is kept with one blank trade to fill in by hand.
+    func makeDocumentQueue() -> UploadQueue<[ExtractedTrade]> {
+        let documents = documents
+        let household = state.value?.rows.householdID
+        let year = FinancialYear.containing(Date())
+        return UploadQueue(
+            handlers: UploadHandlers(
+                upload: { id, file in
+                    guard let household else { throw NestError(.invalidRequest) }
+                    return try await documents.upload(household: household, documentID: id, file: file)
+                },
+                discard: { await documents.discard(path: $0) },
+                read: { path in
+                    TradeExtractionReader.readResult(
+                        await documents.extract(path: path, financialYear: year))
+                },
+                blank: { [ExtractedTrade()] },
+                unsupportedMessage: TradeExtractionReader.unsupportedMessage))
+    }
+
+    /// Saves one confirmed trade with the document it was read from, then reloads.
+    func saveFromDocument(_ trade: TradeFromDocument) async throws {
+        guard let household = state.value?.rows.householdID else { throw NestError(.invalidRequest) }
+        try await documents.save(trade, household: household)
         await load()
     }
 

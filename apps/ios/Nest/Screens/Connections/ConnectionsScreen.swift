@@ -449,14 +449,3 @@ private extension Text {
     }
 }
 
-private extension View {
-    /// A bordered rounded outline on the elevated surface, as a default input.
-    func outlined() -> some View {
-        background(
-            NestColor.surface, in: RoundedRectangle(cornerRadius: NestRadius.md, style: .continuous)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: NestRadius.md, style: .continuous)
-                .strokeBorder(NestColor.border, lineWidth: 1))
-    }
-}

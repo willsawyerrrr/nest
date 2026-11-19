@@ -67,6 +67,23 @@ struct BudgetLineRow: Equatable, Identifiable, Sendable {
     }
 }
 
+/// How the lines within each Budget group are ordered.
+enum BudgetLineSortKey: String, SortKey {
+    case `default`, name, amount
+
+    var label: String {
+        switch self {
+        case .default: "Default"
+        case .name: "Name"
+        case .amount: "Amount"
+        }
+    }
+    static let storageKey = "budget-line-sort"
+    static let defaultKey = Self.default
+}
+
+typealias BudgetLineSort = SortPreference<BudgetLineSortKey>
+
 struct BudgetGroupSection: Equatable, Identifiable, Sendable {
     let group: BudgetGroup
     let subtotalCents: Int64
@@ -211,6 +228,32 @@ struct BudgetPresentation: Sendable {
                     if hasOwnAllowance && line.allowanceMemberId == own { return nil }
                     return row(line, at: index)
                 })
+        }
+    }
+
+    /// `groups` as the PWA's `BudgetLineList` lists them for `search` and `sort`:
+    /// each group's lines whose name contains the trimmed search, ignoring case,
+    /// in the chosen order, and while searching only the groups with a match.
+    func groups(search: String, sort: BudgetLineSort) -> [BudgetGroupSection] {
+        let query = search.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return groups.compactMap { section in
+            let matching =
+                query.isEmpty
+                ? section.lines : section.lines.filter { $0.name.lowercased().contains(query) }
+            if !query.isEmpty && matching.isEmpty { return nil }
+            return BudgetGroupSection(
+                group: section.group, subtotalCents: section.subtotalCents,
+                lines: Self.sorted(matching, by: sort))
+        }
+    }
+
+    /// `default` keeps stored order; `name` (ignoring case) and `amount` (fortnightly)
+    /// sort ascending, reversed for descending.
+    static func sorted(_ lines: [BudgetLineRow], by sort: BudgetLineSort) -> [BudgetLineRow] {
+        switch sort.key {
+        case .default: lines
+        case .name: sort.sorted(lines) { $0.name.localizedCompare($1.name) }
+        case .amount: sort.sorted(lines) { $0.fortnightlyCents.compared(to: $1.fortnightlyCents) }
         }
     }
 

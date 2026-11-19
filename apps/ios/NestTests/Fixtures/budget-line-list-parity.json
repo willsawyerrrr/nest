@@ -1,0 +1,594 @@
+{
+  "rows": {
+    "budgetLines": [
+      {
+        "household_id": "h1",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "id": "b1",
+        "name": "Rent",
+        "line_group": "needs",
+        "amount_cents": 240000,
+        "frequency": "monthly",
+        "interval_count": null,
+        "allowance_member_id": null,
+        "breakdown_id": null,
+        "destination_account_id": null,
+        "gift_recipient_member_id": null,
+        "goal_id": null,
+        "is_gift_line": false,
+        "management_url": null
+      },
+      {
+        "household_id": "h1",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "id": "b2",
+        "name": "electricity",
+        "line_group": "needs",
+        "amount_cents": 60000,
+        "frequency": "quarterly",
+        "interval_count": null,
+        "allowance_member_id": null,
+        "breakdown_id": null,
+        "destination_account_id": null,
+        "gift_recipient_member_id": null,
+        "goal_id": null,
+        "is_gift_line": false,
+        "management_url": null
+      },
+      {
+        "household_id": "h1",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "id": "b3",
+        "name": "Groceries",
+        "line_group": "needs",
+        "amount_cents": 25000,
+        "frequency": "weekly",
+        "interval_count": null,
+        "allowance_member_id": null,
+        "breakdown_id": null,
+        "destination_account_id": null,
+        "gift_recipient_member_id": null,
+        "goal_id": null,
+        "is_gift_line": false,
+        "management_url": null
+      },
+      {
+        "household_id": "h1",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "id": "b4",
+        "name": "Énergie",
+        "line_group": "needs",
+        "amount_cents": 4615,
+        "frequency": "fortnightly",
+        "interval_count": null,
+        "allowance_member_id": null,
+        "breakdown_id": null,
+        "destination_account_id": null,
+        "gift_recipient_member_id": null,
+        "goal_id": null,
+        "is_gift_line": false,
+        "management_url": null
+      },
+      {
+        "household_id": "h1",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "id": "b5",
+        "name": "Streaming",
+        "line_group": "wants",
+        "amount_cents": 2500,
+        "frequency": "fortnightly",
+        "interval_count": null,
+        "allowance_member_id": null,
+        "breakdown_id": null,
+        "destination_account_id": null,
+        "gift_recipient_member_id": null,
+        "goal_id": null,
+        "is_gift_line": false,
+        "management_url": null
+      },
+      {
+        "household_id": "h1",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "id": "b6",
+        "name": "Gym",
+        "line_group": "discretionary",
+        "amount_cents": 9000,
+        "frequency": "every_n_weeks",
+        "interval_count": 3,
+        "allowance_member_id": null,
+        "breakdown_id": null,
+        "destination_account_id": null,
+        "gift_recipient_member_id": null,
+        "goal_id": null,
+        "is_gift_line": false,
+        "management_url": null
+      },
+      {
+        "household_id": "h1",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "id": "b7",
+        "name": "gym gear",
+        "line_group": "discretionary",
+        "amount_cents": 6000,
+        "frequency": "fortnightly",
+        "interval_count": null,
+        "allowance_member_id": null,
+        "breakdown_id": null,
+        "destination_account_id": null,
+        "gift_recipient_member_id": null,
+        "goal_id": null,
+        "is_gift_line": false,
+        "management_url": null
+      },
+      {
+        "household_id": "h1",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "id": "b8",
+        "name": "Holiday",
+        "line_group": "savings",
+        "amount_cents": 30000,
+        "frequency": "fortnightly",
+        "interval_count": null,
+        "allowance_member_id": null,
+        "breakdown_id": null,
+        "destination_account_id": null,
+        "gift_recipient_member_id": null,
+        "goal_id": null,
+        "is_gift_line": false,
+        "management_url": null
+      }
+    ],
+    "memberAllowances": [],
+    "members": [],
+    "accounts": [],
+    "savingsGoals": [],
+    "temporaryItems": [],
+    "breakdowns": [],
+    "superProfiles": []
+  },
+  "cases": [
+    {
+      "query": "",
+      "key": "default",
+      "direction": "asc",
+      "groups": [
+        {
+          "group": "needs",
+          "ids": [
+            "b1",
+            "b2",
+            "b3",
+            "b4"
+          ]
+        },
+        {
+          "group": "wants",
+          "ids": [
+            "b5"
+          ]
+        },
+        {
+          "group": "discretionary",
+          "ids": [
+            "b6",
+            "b7"
+          ]
+        },
+        {
+          "group": "savings",
+          "ids": [
+            "b8"
+          ]
+        },
+        {
+          "group": "investments",
+          "ids": []
+        }
+      ]
+    },
+    {
+      "query": "",
+      "key": "name",
+      "direction": "asc",
+      "groups": [
+        {
+          "group": "needs",
+          "ids": [
+            "b2",
+            "b4",
+            "b3",
+            "b1"
+          ]
+        },
+        {
+          "group": "wants",
+          "ids": [
+            "b5"
+          ]
+        },
+        {
+          "group": "discretionary",
+          "ids": [
+            "b6",
+            "b7"
+          ]
+        },
+        {
+          "group": "savings",
+          "ids": [
+            "b8"
+          ]
+        },
+        {
+          "group": "investments",
+          "ids": []
+        }
+      ]
+    },
+    {
+      "query": "",
+      "key": "name",
+      "direction": "desc",
+      "groups": [
+        {
+          "group": "needs",
+          "ids": [
+            "b1",
+            "b3",
+            "b4",
+            "b2"
+          ]
+        },
+        {
+          "group": "wants",
+          "ids": [
+            "b5"
+          ]
+        },
+        {
+          "group": "discretionary",
+          "ids": [
+            "b7",
+            "b6"
+          ]
+        },
+        {
+          "group": "savings",
+          "ids": [
+            "b8"
+          ]
+        },
+        {
+          "group": "investments",
+          "ids": []
+        }
+      ]
+    },
+    {
+      "query": "",
+      "key": "amount",
+      "direction": "asc",
+      "groups": [
+        {
+          "group": "needs",
+          "ids": [
+            "b4",
+            "b2",
+            "b3",
+            "b1"
+          ]
+        },
+        {
+          "group": "wants",
+          "ids": [
+            "b5"
+          ]
+        },
+        {
+          "group": "discretionary",
+          "ids": [
+            "b6",
+            "b7"
+          ]
+        },
+        {
+          "group": "savings",
+          "ids": [
+            "b8"
+          ]
+        },
+        {
+          "group": "investments",
+          "ids": []
+        }
+      ]
+    },
+    {
+      "query": "",
+      "key": "amount",
+      "direction": "desc",
+      "groups": [
+        {
+          "group": "needs",
+          "ids": [
+            "b1",
+            "b3",
+            "b2",
+            "b4"
+          ]
+        },
+        {
+          "group": "wants",
+          "ids": [
+            "b5"
+          ]
+        },
+        {
+          "group": "discretionary",
+          "ids": [
+            "b7",
+            "b6"
+          ]
+        },
+        {
+          "group": "savings",
+          "ids": [
+            "b8"
+          ]
+        },
+        {
+          "group": "investments",
+          "ids": []
+        }
+      ]
+    },
+    {
+      "query": "  GYM ",
+      "key": "default",
+      "direction": "asc",
+      "groups": [
+        {
+          "group": "discretionary",
+          "ids": [
+            "b6",
+            "b7"
+          ]
+        }
+      ]
+    },
+    {
+      "query": "  GYM ",
+      "key": "name",
+      "direction": "asc",
+      "groups": [
+        {
+          "group": "discretionary",
+          "ids": [
+            "b6",
+            "b7"
+          ]
+        }
+      ]
+    },
+    {
+      "query": "  GYM ",
+      "key": "name",
+      "direction": "desc",
+      "groups": [
+        {
+          "group": "discretionary",
+          "ids": [
+            "b7",
+            "b6"
+          ]
+        }
+      ]
+    },
+    {
+      "query": "  GYM ",
+      "key": "amount",
+      "direction": "asc",
+      "groups": [
+        {
+          "group": "discretionary",
+          "ids": [
+            "b6",
+            "b7"
+          ]
+        }
+      ]
+    },
+    {
+      "query": "  GYM ",
+      "key": "amount",
+      "direction": "desc",
+      "groups": [
+        {
+          "group": "discretionary",
+          "ids": [
+            "b7",
+            "b6"
+          ]
+        }
+      ]
+    },
+    {
+      "query": "e",
+      "key": "default",
+      "direction": "asc",
+      "groups": [
+        {
+          "group": "needs",
+          "ids": [
+            "b1",
+            "b2",
+            "b3",
+            "b4"
+          ]
+        },
+        {
+          "group": "wants",
+          "ids": [
+            "b5"
+          ]
+        },
+        {
+          "group": "discretionary",
+          "ids": [
+            "b7"
+          ]
+        }
+      ]
+    },
+    {
+      "query": "e",
+      "key": "name",
+      "direction": "asc",
+      "groups": [
+        {
+          "group": "needs",
+          "ids": [
+            "b2",
+            "b4",
+            "b3",
+            "b1"
+          ]
+        },
+        {
+          "group": "wants",
+          "ids": [
+            "b5"
+          ]
+        },
+        {
+          "group": "discretionary",
+          "ids": [
+            "b7"
+          ]
+        }
+      ]
+    },
+    {
+      "query": "e",
+      "key": "name",
+      "direction": "desc",
+      "groups": [
+        {
+          "group": "needs",
+          "ids": [
+            "b1",
+            "b3",
+            "b4",
+            "b2"
+          ]
+        },
+        {
+          "group": "wants",
+          "ids": [
+            "b5"
+          ]
+        },
+        {
+          "group": "discretionary",
+          "ids": [
+            "b7"
+          ]
+        }
+      ]
+    },
+    {
+      "query": "e",
+      "key": "amount",
+      "direction": "asc",
+      "groups": [
+        {
+          "group": "needs",
+          "ids": [
+            "b4",
+            "b2",
+            "b3",
+            "b1"
+          ]
+        },
+        {
+          "group": "wants",
+          "ids": [
+            "b5"
+          ]
+        },
+        {
+          "group": "discretionary",
+          "ids": [
+            "b7"
+          ]
+        }
+      ]
+    },
+    {
+      "query": "e",
+      "key": "amount",
+      "direction": "desc",
+      "groups": [
+        {
+          "group": "needs",
+          "ids": [
+            "b1",
+            "b3",
+            "b2",
+            "b4"
+          ]
+        },
+        {
+          "group": "wants",
+          "ids": [
+            "b5"
+          ]
+        },
+        {
+          "group": "discretionary",
+          "ids": [
+            "b7"
+          ]
+        }
+      ]
+    },
+    {
+      "query": "nothing",
+      "key": "default",
+      "direction": "asc",
+      "groups": []
+    },
+    {
+      "query": "nothing",
+      "key": "name",
+      "direction": "asc",
+      "groups": []
+    },
+    {
+      "query": "nothing",
+      "key": "name",
+      "direction": "desc",
+      "groups": []
+    },
+    {
+      "query": "nothing",
+      "key": "amount",
+      "direction": "asc",
+      "groups": []
+    },
+    {
+      "query": "nothing",
+      "key": "amount",
+      "direction": "desc",
+      "groups": []
+    }
+  ]
+}

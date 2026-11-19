@@ -18,20 +18,28 @@ struct BudgetContent: Equatable, Sendable {
 @MainActor @Observable
 final class BudgetViewModel {
     private(set) var state: ScreenState<BudgetContent> = .loading
+    /// The Budget screen's line order, persisted as it changes.
+    var lineSort: BudgetLineSort {
+        didSet { lineSort.store(in: defaults) }
+    }
 
     private let data: NestData
     private let overview: @Sendable (BudgetOverviewInput) async throws -> BudgetOverview
     private let now: @Sendable () -> Date
     private let planning: PlanningStore
+    private let defaults: UserDefaults
 
     init(
         data: NestData = .live,
         overview: @escaping @Sendable (BudgetOverviewInput) async throws -> BudgetOverview =
             ScreenEngine.budgetOverview,
         now: @escaping @Sendable () -> Date = Date.init,
-        planning: PlanningStore = .shared
+        planning: PlanningStore = .shared,
+        defaults: UserDefaults = .standard
     ) {
         self.planning = planning
+        self.defaults = defaults
+        lineSort = BudgetLineSort.stored(in: defaults)
         self.data = data
         self.overview = overview
         self.now = now

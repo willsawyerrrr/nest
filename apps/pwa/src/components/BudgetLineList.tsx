@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { ActionIcon, CloseButton, Flex, Group, Select, Stack, TextInput } from '@mantine/core'
-import { budgetOverview, fortnightlyCents, type MemberAllowance } from '@nest/plan'
+import { budgetOverview, type MemberAllowance } from '@nest/plan'
 import type { BudgetLine, BudgetLineInput } from '../hooks/useBudgetLines'
 import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import { useInlineEditing } from '../hooks/useInlineEditing'
@@ -8,8 +8,9 @@ import { useSortPreference } from '../hooks/useSortPreference'
 import { allowanceChoices, toPlanBudgetLine } from '../lib/allowances'
 import { BUDGET_GROUPS } from '../lib/budgetGroups'
 import { resolveRoute } from '../lib/budgetLineRoute'
+import { budgetLineSearch, visibleBudgetLines, type BudgetLineSortKey } from '../lib/budgetLineSort'
 import type { BudgetGroup } from '../lib/domain'
-import { sortBy, type SortDirection, type SortPreference } from '../lib/sort'
+import type { SortPreference } from '../lib/sort'
 import { AddButton } from './AddButton'
 import { BudgetLineForm } from './BudgetLineForm'
 import { BudgetLineItem, type DerivedSource } from './BudgetLineItem'
@@ -52,36 +53,14 @@ interface BudgetLineListProps {
 /** Which add form is open: the top-level item form or a per-group line form. */
 type AddContext = { kind: 'item' } | { kind: 'group'; group: BudgetGroup }
 
-/** How the lines within each group are ordered. */
-type SortKey = 'default' | 'name' | 'amount'
-
 const SORT_STORAGE_KEY = 'budget-line-sort'
-const DEFAULT_SORT: SortPreference<SortKey> = { key: 'default', direction: 'asc' }
+const DEFAULT_SORT: SortPreference<BudgetLineSortKey> = { key: 'default', direction: 'asc' }
 
-const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+const SORT_OPTIONS: { value: BudgetLineSortKey; label: string }[] = [
   { value: 'default', label: 'Default' },
   { value: 'name', label: 'Name' },
   { value: 'amount', label: 'Amount' },
 ]
-
-/**
- * Orders lines by the chosen key and direction. `default` preserves the given
- * order untouched; `name` and `amount` sort ascending then reverse for descending.
- */
-function sortLines(lines: BudgetLine[], key: SortKey, direction: SortDirection): BudgetLine[] {
-  if (key === 'default') {
-    return lines
-  }
-  return sortBy(
-    lines,
-    (a, b) =>
-      key === 'name'
-        ? a.name.localeCompare(b.name)
-        : fortnightlyCents(a.amount_cents, a.frequency, a.interval_count ?? undefined) -
-          fortnightlyCents(b.amount_cents, b.frequency, b.interval_count ?? undefined),
-    direction,
-  )
-}
 
 /**
  * The household's budget lines grouped by the five groups, each group showing a
@@ -138,7 +117,7 @@ export function BudgetLineList({
   const startAdding = (group: BudgetGroup) => startAddingContext({ kind: 'group', group })
   const startAddingItem = () => startAddingContext({ kind: 'item' })
 
-  const search = query.trim().toLowerCase()
+  const search = budgetLineSearch(query)
   const searching = search !== ''
   const isOwnAllowanceLine = (line: BudgetLine) =>
     ownAllowance != null && line.allowance_member_id === ownAllowanceMemberId
@@ -246,7 +225,7 @@ export function BudgetLineList({
             aria-label="Sort by"
             data={SORT_OPTIONS}
             value={sortKey}
-            onChange={(value) => value && setKey(value as SortKey)}
+            onChange={(value) => value && setKey(value as BudgetLineSortKey)}
             allowDeselect={false}
           />
           <ActionIcon
@@ -278,13 +257,7 @@ export function BudgetLineList({
           (line) => line.line_group === group && !isOwnAllowanceLine(line),
         )
         const subtotal = overview.groups[group]
-        const visibleLines = sortLines(
-          searching
-            ? groupLines.filter((line) => line.name.toLowerCase().includes(search))
-            : groupLines,
-          sortKey,
-          sortDirection,
-        )
+        const visibleLines = visibleBudgetLines(groupLines, search, sortKey, sortDirection)
         if (searching && visibleLines.length === 0) {
           return null
         }

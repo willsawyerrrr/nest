@@ -129,40 +129,6 @@ private struct PageHeader: View {
     }
 }
 
-/// The sort `Select` and direction toggle, right-aligned.
-private struct SortBar: View {
-    @Binding var sort: WishlistSort
-
-    var body: some View {
-        HStack(spacing: NestSpacing.xs) {
-            Spacer()
-            Menu {
-                Picker("Sort by", selection: $sort.key) {
-                    ForEach(WishlistSortKey.allCases, id: \.self) { Text($0.label).tag($0) }
-                }
-            } label: {
-                HStack {
-                    Text(sort.key.label)
-                    Spacer(minLength: NestSpacing.xs)
-                    Image(systemName: "chevron.down").font(.system(size: 11))
-                }
-                .font(.system(size: 14))
-                .foregroundStyle(NestColor.text)
-                .padding(.horizontal, NestSpacing.sm)
-                .frame(width: 140, height: 36)
-                .outlined()
-            }
-            .accessibilityLabel("Sort by")
-            Button { sort.direction = sort.direction.toggled } label: {
-                Text(sort.direction.glyph)
-                    .font(.system(size: 16)).foregroundStyle(NestColor.text)
-                    .frame(width: 36, height: 36).outlined()
-            }
-            .accessibilityLabel("Toggle sort direction")
-        }
-    }
-}
-
 /// One wishlist item: a dense row where there is room, a bordered card on a phone.
 private struct WishlistItemView: View {
     let row: WishlistItemRow
@@ -387,14 +353,3 @@ private struct WishlistForm: View {
     }
 }
 
-private extension View {
-    /// A bordered rounded outline on the elevated surface, as a default input or button.
-    func outlined() -> some View {
-        background(
-            NestColor.surface, in: RoundedRectangle(cornerRadius: NestRadius.md, style: .continuous)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: NestRadius.md, style: .continuous)
-                .strokeBorder(NestColor.border, lineWidth: 1))
-    }
-}

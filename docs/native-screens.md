@@ -197,7 +197,18 @@ Budget-line writes go to the database, or into the planning sandbox while it is 
 (a create included); allowances, breakdowns and temporary items are never
 sandboxed. `BudgetScreen(draft:)` opens a prefilled add form (name and amount,
 Discretionary) above the list with the PWA's wishlist note, the entry point for a
-promoted wishlist item. The PWA's search and sort of the line list are not native.
+promoted wishlist item.
+
+Above the groups, as the PWA's `BudgetLineList`, sit a "Search budget items" box
+and a sort control (`SortBar`: Default, Name or Amount, ascending or descending,
+persisted in `UserDefaults` under `budget-line-sort`). `BudgetPresentation.groups(search:sort:)`
+lists each group's lines whose name contains the trimmed search, ignoring case,
+ordered by stored order, name, or fortnightly amount. While searching, groups with
+no match, the allowances block, the empty-group copy and the per-group add buttons
+are hidden. `apps/pwa/src/lib/budgetLineListParity.test.ts` runs the PWA's own
+`visibleBudgetLines` (`lib/budgetLineSort.ts`) over a set of searches and sorts into
+`apps/ios/NestTests/Fixtures/budget-line-list-parity.json`;
+`BudgetLineListParityTests` must list the same groups and lines for each.
 
 `apps/pwa/src/lib/budgetFormParity.test.tsx` opens the PWA's own `BudgetLineForm`
 and `MemberAllowanceForm` on stored rows, records whether each can be saved and the

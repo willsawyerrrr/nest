@@ -44,6 +44,9 @@ struct BudgetContentView: View {
     @State private var editing: BudgetEditing?
     @State private var deleting: BudgetLineRow?
     @State private var deletingTemporary: TemporaryRow?
+    @State private var search = ""
+
+    private var searching: Bool { !search.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
     var body: some View {
         NestPageSection(title: "Budget") {
@@ -64,34 +67,38 @@ struct BudgetContentView: View {
             }
             InflowAddButton(label: "Add item") { editing = .addItem }
                 .accessibilityIdentifier("add-budget-item")
+            BudgetSearchField(text: $search)
+            SortBar(sort: Bindable(model).lineSort)
             if editing == .addItem {
                 lineForm(BudgetLineFormState(allowances: presentation.allowanceChoices)) {
                     try await model.createLine($0)
                 }
             }
-            ForEach(presentation.groups) { section in
+            ForEach(presentation.groups(search: search, sort: model.lineSort)) { section in
                 GroupCard(section: section) {
-                    if section.group == .discretionary {
+                    if section.group == .discretionary && !searching {
                         AllowancesBlock(
                             rows: presentation.allowances, editing: $editing,
                             form: allowanceForm)
                     }
                 } lines: {
-                    if section.lines.isEmpty && editing != .add(section.group) {
+                    if !searching && section.lines.isEmpty && editing != .add(section.group) {
                         NestEmptyState(text: "No \(section.title.lowercased()) items yet.")
                     }
                     ForEach(section.lines) { row in
                         lineRow(row)
                     }
-                    if editing == .add(section.group) {
-                        lineForm(
-                            BudgetLineFormState(
-                                defaultGroup: section.group,
-                                allowances: presentation.allowanceChoices)
-                        ) { try await model.createLine($0) }
-                    } else {
-                        InflowAddButton(label: "Add \(section.title) item") {
-                            editing = .add(section.group)
+                    if !searching {
+                        if editing == .add(section.group) {
+                            lineForm(
+                                BudgetLineFormState(
+                                    defaultGroup: section.group,
+                                    allowances: presentation.allowanceChoices)
+                            ) { try await model.createLine($0) }
+                        } else {
+                            InflowAddButton(label: "Add \(section.title) item") {
+                                editing = .add(section.group)
+                            }
                         }
                     }
                 }
@@ -211,6 +218,31 @@ extension View {
         } message: { row in
             Text("Delete \(row.name)? This cannot be undone.")
         }
+    }
+}
+
+/// The PWA's "Search budget items" box, with a clear button once typed in.
+private struct BudgetSearchField: View {
+    @Binding var text: String
+
+    var body: some View {
+        HStack(spacing: NestSpacing.xs) {
+            TextField("Search budget items", text: $text)
+                .accessibilityLabel("Search budget items")
+            if !text.isEmpty {
+                Button { text = "" } label: {
+                    Image(systemName: "xmark").font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(NestColor.dimmedText)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Clear search")
+            }
+        }
+        .font(.system(size: 14))
+        .foregroundStyle(NestColor.text)
+        .padding(.horizontal, NestSpacing.sm)
+        .frame(minHeight: 36)
+        .outlined()
     }
 }
 

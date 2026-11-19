@@ -1,35 +1,15 @@
 import Foundation
 
 /// Which field the wishlist rows are ordered by.
-enum WishlistSortKey: String, Codable, CaseIterable, Sendable {
+enum WishlistSortKey: String, SortKey {
     case title, amount
 
     var label: String { self == .title ? "Title" : "Amount" }
-}
-
-enum WishlistSortDirection: String, Codable, Sendable {
-    case asc, desc
-
-    var toggled: Self { self == .asc ? .desc : .asc }
-    var glyph: String { self == .asc ? "↑" : "↓" }
-}
-
-/// The sort choice, persisted under the PWA's `wishlist-sort` key.
-struct WishlistSort: Codable, Equatable, Sendable {
-    var key: WishlistSortKey = .title
-    var direction: WishlistSortDirection = .asc
-
     static let storageKey = "wishlist-sort"
-
-    static func stored(in defaults: UserDefaults = .standard) -> WishlistSort {
-        defaults.data(forKey: storageKey).flatMap { try? JSONDecoder().decode(Self.self, from: $0) }
-            ?? WishlistSort()
-    }
-
-    func store(in defaults: UserDefaults = .standard) {
-        defaults.set(try? JSONEncoder().encode(self), forKey: Self.storageKey)
-    }
+    static let defaultKey = Self.title
 }
+
+typealias WishlistSort = SortPreference<WishlistSortKey>
 
 /// One wishlist item as listed.
 struct WishlistItemRow: Equatable, Identifiable, Sendable {
@@ -96,21 +76,12 @@ struct WishlistPresentation: Equatable, Sendable {
 
     /// Ascending order by the key (title ignoring case, ties in stored order), reversed for descending.
     static func sorted(_ rows: [WishlistItemRow], by sort: WishlistSort) -> [WishlistItemRow] {
-        let ascending = rows.enumerated().sorted { a, b in
-            let order: ComparisonResult
+        sort.sorted(rows) { a, b in
             switch sort.key {
-            case .title:
-                order = a.element.name.localizedCompare(b.element.name)
-            case .amount:
-                order =
-                    a.element.amountCents == b.element.amountCents
-                    ? .orderedSame
-                    : (a.element.amountCents < b.element.amountCents
-                        ? .orderedAscending : .orderedDescending)
+            case .title: a.name.localizedCompare(b.name)
+            case .amount: a.amountCents.compared(to: b.amountCents)
             }
-            return order == .orderedSame ? a.offset < b.offset : order == .orderedAscending
-        }.map(\.element)
-        return sort.direction == .desc ? ascending.reversed() : ascending
+        }
     }
 }
 

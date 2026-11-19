@@ -2,7 +2,7 @@ import Charts
 import SwiftUI
 
 /// The native Summary route: the reconciliation ledger, allocation donut,
-/// allowance progress and one-off money, computed by the shared engine.
+/// allowance progress, cash-flow Sankey and one-off money, computed by the shared engine.
 struct SummaryScreen: View {
     @State private var model: SummaryViewModel
     private let planning = PlanningStore.shared
@@ -22,7 +22,6 @@ struct SummaryScreen: View {
 struct SummaryContentView: View {
     let content: SummaryContent
     @Binding var basis: IncomeBasis
-    @State private var showsCashFlow = false
 
     private var presentation: SummaryPresentation { .init(summary: content.summary) }
 
@@ -32,7 +31,9 @@ struct SummaryContentView: View {
             if presentation.hasData {
                 AllocationCard(presentation: presentation, basis: $basis)
                 AllowanceCard(summary: content.summary, members: content.members)
-                cashFlowCard
+                if let graphs = content.cashFlow {
+                    CashFlowSankeyCard(graphs: graphs, basis: basis)
+                }
                 LedgerCard(
                     presentation: presentation, baseline: content.baseline.map(SummaryPresentation.init),
                     basis: basis)
@@ -49,26 +50,6 @@ struct SummaryContentView: View {
                     text:
                         "Nothing to reconcile yet. Add inflows and budget items to see how your money is allocated."
                 )
-            }
-        }
-        .sheet(isPresented: $showsCashFlow) {
-            VStack(spacing: 0) {
-                HStack {
-                    Spacer()
-                    Button("Done") { showsCashFlow = false }.padding(NestSpacing.md)
-                }
-                WebRouteView(path: Route.summary.path)
-            }
-        }
-    }
-
-    private var cashFlowCard: some View {
-        NestCard(padding: NestSpacing.md) {
-            VStack(alignment: .leading, spacing: NestSpacing.xs) {
-                Text("Fortnightly cash flow").font(NestFont.heading).foregroundStyle(NestColor.text)
-                Text("The cash-flow diagram is drawn by the web app.")
-                    .font(NestFont.caption).foregroundStyle(NestColor.dimmedText)
-                Button("View cash flow") { showsCashFlow = true }
             }
         }
     }

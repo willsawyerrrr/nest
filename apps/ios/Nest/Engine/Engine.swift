@@ -14,6 +14,8 @@ actor Engine {
     enum Entry: String, Sendable {
         case estimateTax
         case summariseHousehold
+        case cashFlow
+        case sankeyLayout
         case projectGoalQueue
         case summariseBreakdowns
         case budgetOverview
@@ -95,6 +97,16 @@ actor Engine {
     /// The household's reconciled Summary, including the fortnightly buffer.
     func summariseHousehold(_ input: some Encodable) throws -> BudgetSummary {
         try call(.summariseHousehold, input)
+    }
+
+    /// The Summary's cash-flow graphs on both bases, grouped and drilled.
+    func cashFlow(_ input: some Encodable) throws -> CashFlowGraphs {
+        try call(.cashFlow, input)
+    }
+
+    /// A cash-flow graph's Sankey frame and geometry at a chart width.
+    func sankeyLayout(_ input: SankeyLayoutInput) throws -> SankeyChartLayout {
+        try call(.sankeyLayout, input)
     }
 
     /// The savings-goal queue's projected start and completion dates.

@@ -11,6 +11,14 @@ enum ScreenEngine {
         }
     }
 
+    static func cashFlow(_ input: SummaryInput) async throws -> CashFlowGraphs {
+        do { return try await shared.value.cashFlow(input) } catch { throw NestError(.unknown) }
+    }
+
+    static func sankeyLayout(_ input: SankeyLayoutInput) async throws -> SankeyChartLayout {
+        do { return try await shared.value.sankeyLayout(input) } catch { throw NestError(.unknown) }
+    }
+
     static func summariseBreakdowns(_ input: BreakdownsInput) async throws -> BreakdownRollups {
         do { return try await shared.value.summariseBreakdowns(input) } catch {
             throw NestError(.unknown)

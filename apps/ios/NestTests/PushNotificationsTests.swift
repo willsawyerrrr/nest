@@ -4,8 +4,6 @@ import Testing
 @testable import Nest
 
 @Suite struct PushNotificationsTests {
-    private static let base = URL(string: "https://nest.willsawyerrrr.dev")!
-
     private final class RequestBox: @unchecked Sendable {
         var requests: [URLRequest] = []
     }
@@ -23,45 +21,72 @@ import Testing
         #expect(DeviceToken.hex(Data([0x00, 0xAB, 0x0F, 0xFF])) == "00ab0fff")
     }
 
-    @Test func opensAPathWithinTheWebApp() {
-        let url = NotificationRoute.url(from: ["url": "/gifts?x=1"], base: Self.base)
-        #expect(url == URL(string: "https://nest.willsawyerrrr.dev/gifts?x=1"))
+    @Test(arguments: [
+        ("/summary", Route.summary), ("/goals", .goals), ("/budget", .budget), ("/tax", .tax),
+        ("/gifts", .gifts), ("/settings/connections", .connections), ("/household", .household),
+        ("/", .summary), ("/gifts/", .gifts), ("/gifts?x=1#top", .gifts),
+    ])
+    func opensTheNativeRouteAPathNames(_ path: String, _ route: Route) {
+        #expect(NotificationDestination(userInfo: ["url": path]) == NotificationDestination(route: route))
+    }
+
+    @Test func opensEveryRouteByItsOwnPath() {
+        for route in Route.allCases {
+            #expect(NotificationDestination(userInfo: ["url": route.path])?.route == route)
+        }
     }
 
     @Test(arguments: [
         "https://evil.example/gifts", "//evil.example/gifts", "gifts", "", "javascript:alert(1)",
+        "/unknown", "/share/eofy/token",
     ])
-    func ignoresAnythingButAnInAppPath(_ value: String) {
-        #expect(NotificationRoute.url(from: ["url": value], base: Self.base) == nil)
+    func ignoresAnythingButAnInAppRoute(_ value: String) {
+        #expect(NotificationDestination(userInfo: ["url": value]) == nil)
     }
 
     @Test func ignoresAPayloadWithoutAURL() {
-        #expect(NotificationRoute.url(from: ["aps": [:]], base: Self.base) == nil)
-        #expect(NotificationRoute.url(from: ["url": 3], base: Self.base) == nil)
+        #expect(NotificationDestination(userInfo: ["aps": [:]]) == nil)
+        #expect(NotificationDestination(userInfo: ["url": 3]) == nil)
+    }
+
+    @Test(arguments: [Route.goals, .budget])
+    func carriesAPromoteDraftToGoalsAndBudget(_ route: Route) {
+        let destination = NotificationDestination(
+            userInfo: ["url": "\(route.path)?promoteName=New%20bike&promoteAmountCents=120000"])
+        #expect(
+            destination
+                == NotificationDestination(route: route, draft: PromoteDraft(name: "New bike", amountCents: 1_200_00)))
+    }
+
+    @Test(arguments: [
+        "/gifts?promoteName=Bike&promoteAmountCents=100", "/goals?promoteName=Bike",
+        "/goals?promoteName=&promoteAmountCents=100", "/goals?promoteName=Bike&promoteAmountCents=0",
+        "/goals?promoteName=Bike&promoteAmountCents=1.5",
+    ])
+    func dropsADraftAScreenCannotTake(_ value: String) {
+        #expect(NotificationDestination(userInfo: ["url": value])?.draft == nil)
     }
 
     // MARK: Router
 
-    @MainActor @Test func holdsAPageUntilTheWebViewTakesIt() {
+    @MainActor @Test func holdsADestinationUntilTheShellTakesIt() {
         let router = NotificationRouter()
-        let url = URL(string: "https://nest.willsawyerrrr.dev/gifts")!
+        let destination = NotificationDestination(route: .gifts)
 
-        router.open(url)
+        router.open(destination)
 
-        #expect(router.take() == url)
+        #expect(router.pending == destination)
+        #expect(router.take() == destination)
         #expect(router.take() == nil)
     }
 
-    @MainActor @Test func handsAPageStraightToAShowingWebView() {
+    @MainActor @Test func keepsOnlyTheLatestTappedDestination() {
         let router = NotificationRouter()
-        var opened: [URL] = []
-        router.handler = { opened.append($0) }
-        let url = URL(string: "https://nest.willsawyerrrr.dev/gifts")!
 
-        router.open(url)
+        router.open(NotificationDestination(route: .gifts))
+        router.open(NotificationDestination(route: .budget))
 
-        #expect(opened == [url])
-        #expect(router.take() == nil)
+        #expect(router.take() == NotificationDestination(route: .budget))
     }
 
     // MARK: Service

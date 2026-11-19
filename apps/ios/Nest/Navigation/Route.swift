@@ -139,14 +139,15 @@ enum Route: String, CaseIterable, Identifiable, Hashable {
         }
     }
 
-    /// The route's native screen.
-    var content: RouteContent {
+    /// The route's native screen, opening Goals or Budget with `draft` prefilled
+    /// in its add form.
+    func content(draft: PromoteDraft? = nil) -> RouteContent {
         switch self {
         case .summary: .native(AnyView(SummaryScreen()))
         case .breakdowns: .native(AnyView(BreakdownsScreen()))
         case .inflows: .native(AnyView(InflowsScreen()))
-        case .budget: .native(AnyView(BudgetScreen()))
-        case .goals: .native(AnyView(GoalsScreen()))
+        case .budget: .native(AnyView(BudgetScreen(draft: draft)))
+        case .goals: .native(AnyView(GoalsScreen(draft: draft)))
         case .gifts: .native(AnyView(GiftsScreen()))
         case .allowance: .native(AnyView(AllowanceScreen()))
         case .planning: .native(AnyView(PlanningScreen()))

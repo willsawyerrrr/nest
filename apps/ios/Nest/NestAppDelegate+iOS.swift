@@ -34,17 +34,16 @@ final class NestAppDelegate: NSObject, UIApplicationDelegate, UNUserNotification
         Task { @MainActor in completionHandler([.banner, .sound]) }
     }
 
-    /// Opens the page a tapped notification names in the web view, then
-    /// completes on the main thread.
+    /// Opens the screen a tapped notification names, then completes on the main
+    /// thread.
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping @Sendable () -> Void
     ) {
-        let userInfo = response.notification.request.content.userInfo
-        let url = NotificationRoute.url(from: userInfo, base: WebApp.url)
+        let destination = NotificationDestination(userInfo: response.notification.request.content.userInfo)
         Task { @MainActor in
-            if let url { NotificationRouter.shared.open(url) }
+            if let destination { NotificationRouter.shared.open(destination) }
             completionHandler()
         }
     }

@@ -10,8 +10,14 @@ struct NavigationShell: View {
     #endif
 
     @State private var selection: Route = .summary
+    /// Context a tapped notification passed to the selected route's screen.
+    @State private var draft: PromoteDraft?
+    /// Bumped per tapped notification, so opening one recreates the stack even
+    /// when its route is already showing.
+    @State private var notificationVisit = 0
     @State private var drawerOpen = false
     private let planning = PlanningStore.shared
+    private let notifications = NotificationRouter.shared
 
     private var isCompact: Bool {
         #if os(iOS)
@@ -41,22 +47,39 @@ struct NavigationShell: View {
         .onChange(of: planning.isActive) { _, active in
             if !active && selection == .planning { selection = .summary }
         }
+        .onChange(of: notifications.pending, initial: true) { _, _ in
+            if let destination = notifications.take() { open(destination) }
+        }
     }
 
     private func select(_ route: Route) {
         selection = route
+        draft = nil
         drawerOpen = false
+    }
+
+    /// Shows the screen a tapped notification names; Planning falls back to
+    /// Summary while planning mode is off.
+    private func open(_ destination: NotificationDestination) {
+        select(destination.route == .planning && !planning.isActive ? .summary : destination.route)
+        draft = destination.draft
+        notificationVisit += 1
     }
 
     /// The selected route's screen in its own stack, so pushed details have a
     /// back button; the stack is recreated when the route changes.
     private var content: some View {
         NavigationStack {
-            RouteScreen(route: selection)
+            RouteScreen(route: selection, draft: draft)
                 .navigationDestination(for: Route.self) { RouteScreen(route: $0) }
                 .toolbar { if isCompact { topBar } }
         }
-        .id(selection)
+        .id(ContentID(route: selection, visit: notificationVisit))
+    }
+
+    private struct ContentID: Hashable {
+        let route: Route
+        let visit: Int
     }
 
     @ToolbarContentBuilder
@@ -181,10 +204,11 @@ private struct WhatsNewButton: View {
 /// Renders a route's content: its native screen, or the web fallback.
 struct RouteScreen: View {
     let route: Route
+    var draft: PromoteDraft?
 
     var body: some View {
         Group {
-            switch route.content {
+            switch route.content(draft: draft) {
             case .native(let view):
                 view
             case .web(let path):

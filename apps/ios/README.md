@@ -49,13 +49,13 @@ and Spotlight still work on both platforms.
   - `Auth.swift` — `@Observable` `AuthModel`: session state, native Google sign-in, and
     the `authStateChanges` observation behind the gate.
   - `PushNotifications.swift` — APNs token registration (`PushRegistrar`,
-    `PushDeviceService`) and the page a tapped notification opens
-    (`NotificationRoute`, `NotificationRouter`).
+    `PushDeviceService`) and the native screen a tapped notification opens
+    (`NotificationDestination`, `NotificationRouter`).
   - `NestAppDelegate+iOS.swift` / `NestAppDelegate+macOS.swift` — the
     `UIApplicationDelegate` / `NSApplicationDelegate` `NestAppDelegate`, and a
     `PlatformAppDelegateAdaptor` typealias so `NestApp` attaches it with no
-    platform-specific syntax; only the iOS one receives the APNs token and the
-    member's taps on notifications.
+    platform-specific syntax; both open the screen a tapped notification names,
+    and only the iOS one receives the APNs token.
   - `NestApp+iOS.swift` / `NestApp+macOS.swift` — the per-platform half of
     `requestNotificationAuthorization()`: iOS registers for remote
     notifications once authorised (skipped under Mac Catalyst), macOS does

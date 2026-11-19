@@ -23,41 +23,61 @@ enum DeviceToken {
     }
 }
 
-enum NotificationRoute {
-    /// The page a notification opens, from the `url` its payload carries.
+/// The native screen a notification opens, with any context that screen takes.
+struct NotificationDestination: Equatable, Sendable {
+    var route: Route
+    /// A wishlist item to promote, prefilling the Goals or Budget add form.
+    var draft: PromoteDraft?
+
+    /// Paths the web app redirects to a route, which notifications may carry.
+    private static let aliases: [String: Route] = ["/": .summary, "/household": .household]
+
+    /// The destination for the in-app path in a payload's `url`, optionally with
+    /// a query; nil for anything outside the app or naming no route.
     ///
-    /// Only a path within the web app is honoured, so a payload can never send
-    /// the web view off-site; anything else yields nil.
-    static func url(from userInfo: [AnyHashable: Any], base: URL) -> URL? {
-        guard let path = userInfo["url"] as? String,
-            path.hasPrefix("/"), !path.hasPrefix("//"),
-            let url = URL(string: path, relativeTo: base)?.absoluteURL,
-            url.host == base.host
+    /// A `promoteName` and positive integer `promoteAmountCents` in the query
+    /// carry a promote draft to Goals or Budget, as they do for the web app.
+    init?(userInfo: [AnyHashable: Any]) {
+        guard let value = userInfo["url"] as? String,
+            value.hasPrefix("/"), !value.hasPrefix("//"),
+            let components = URLComponents(string: value),
+            components.scheme == nil, components.host == nil
         else { return nil }
-        return url
+        let path = components.path.count > 1 && components.path.hasSuffix("/")
+            ? String(components.path.dropLast()) : components.path
+        guard let route = Route(rawValue: path) ?? Self.aliases[path] else { return nil }
+        self.route = route
+        draft = [.goals, .budget].contains(route) ? Self.draft(from: components.queryItems ?? []) : nil
+    }
+
+    init(route: Route, draft: PromoteDraft? = nil) {
+        self.route = route
+        self.draft = draft
+    }
+
+    private static func draft(from items: [URLQueryItem]) -> PromoteDraft? {
+        func value(_ name: String) -> String? { items.first { $0.name == name }?.value }
+        guard let name = value("promoteName"), !name.isEmpty,
+            let amount = value("promoteAmountCents").flatMap(Int.init), amount > 0
+        else { return nil }
+        return PromoteDraft(name: name, amountCents: amount)
     }
 }
 
-/// Holds the page a tapped notification asked for until the web view can open
-/// it, and hands it over directly once one is showing.
-@MainActor
+/// Holds the destination a tapped notification asked for until the navigation
+/// shell opens it: at once while the shell is showing, or once it appears after
+/// launch or sign-in.
+@MainActor @Observable
 final class NotificationRouter {
     static let shared = NotificationRouter()
 
-    private(set) var pending: URL?
+    private(set) var pending: NotificationDestination?
 
-    /// Set by the web view while it is showing.
-    var handler: ((URL) -> Void)?
-
-    func open(_ url: URL) {
-        if let handler {
-            handler(url)
-        } else {
-            pending = url
-        }
+    func open(_ destination: NotificationDestination) {
+        pending = destination
     }
 
-    func take() -> URL? {
+    func take() -> NotificationDestination? {
         defer { pending = nil }
         return pending
     }

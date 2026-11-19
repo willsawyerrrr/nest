@@ -232,7 +232,7 @@ private enum BudgetFixtures {
     }
 
     @Test func anOverdrawRefusalReadsAsTheFixedCopy() {
-        let refused = NestError(.invalidRequest, refusal: .allowanceOverdrawn)
+        let refused = NestError(.invalidRequest, refusal: AllowanceCopy.refusal)
         #expect(BudgetLineFormState.failureMessage(refused) == AllowanceCopy.itemOverdraws)
         #expect(MemberAllowanceFormState.failureMessage(refused) == AllowanceCopy.belowDrawn)
         #expect(

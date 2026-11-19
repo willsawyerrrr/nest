@@ -18,9 +18,9 @@ struct GiftsContent: Equatable, Sendable {
     }
 }
 
-/// The purchase columns a form writes. A `nil` field is left out; `.null`
+/// The gift columns a form writes. A `nil` field is left out; `.null`
 /// clears the column, as the PWA's explicit `null` does.
-struct GiftPurchaseValues: Encodable, Sendable, Equatable {
+struct GiftValues: Encodable, Sendable, Equatable {
     enum Field: Equatable, Sendable {
         case text(String), cents(Int), null
     }
@@ -151,7 +151,7 @@ final class GiftsViewModel {
     }
 
     /// Records a purchase; the household is added here.
-    func createPurchase(_ values: GiftPurchaseValues) async -> Bool {
+    func createPurchase(_ values: GiftValues) async -> Bool {
         guard let household else { return false }
         return await write("Could not save this purchase. Please try again.") {
             try await data.insert(
@@ -161,7 +161,7 @@ final class GiftsViewModel {
     }
 
     /// Changes the given columns of a purchase.
-    func updatePurchase(id: String, _ values: GiftPurchaseValues) async -> Bool {
+    func updatePurchase(id: String, _ values: GiftValues) async -> Bool {
         await write("Could not save this purchase. Please try again.") {
             try await data.update(
                 GiftPurchase.self, values: values, filters: [.eq("id", id)], also: ["transactions"])
@@ -173,6 +173,98 @@ final class GiftsViewModel {
             try await data.delete(
                 GiftPurchase.self, filters: [.eq("id", id)], also: ["transactions"])
         }
+    }
+
+    // MARK: Recipients, occasions and budgets
+
+    /// Adds an external recipient: members are permanent recipients made with
+    /// the member, so a recipient added here is never linked to one.
+    func createRecipient(name: String) async -> Bool {
+        guard let household else { return false }
+        return await write("Could not save. Please try again.") {
+            try await data.insert(
+                GiftRecipient.self,
+                values: GiftValues(fields: [
+                    "household_id": .text(household), "name": .text(name), "member_id": .null,
+                ]), also: ["budget_line"])
+        }
+    }
+
+    /// Renames an external recipient.
+    func updateRecipient(id: String, name: String) async -> Bool {
+        await write("Could not save. Please try again.") {
+            try await data.update(
+                GiftRecipient.self,
+                values: GiftValues(fields: ["name": .text(name), "member_id": .null]),
+                filters: [.eq("id", id)], also: ["budget_line"])
+        }
+    }
+
+    /// Deletes an external recipient, cascading to its budgets and their purchases.
+    func deleteRecipient(id: String) async -> Bool {
+        await write("Could not delete this recipient. Please try again.") {
+            try await data.delete(
+                GiftRecipient.self, filters: [.eq("id", id)], also: Self.cascade)
+        }
+    }
+
+    func createOccasion(name: String, date: String?) async -> Bool {
+        guard let household else { return false }
+        return await write("Could not save. Please try again.") {
+            try await data.insert(
+                GiftOccasion.self,
+                values: Self.occasion(name: name, date: date).with("household_id", .text(household)),
+                also: ["budget_line"])
+        }
+    }
+
+    func updateOccasion(id: String, name: String, date: String?) async -> Bool {
+        await write("Could not save. Please try again.") {
+            try await data.update(
+                GiftOccasion.self, values: Self.occasion(name: name, date: date),
+                filters: [.eq("id", id)], also: ["budget_line"])
+        }
+    }
+
+    /// Deletes an occasion, cascading to its budgets and their purchases.
+    func deleteOccasion(id: String) async -> Bool {
+        await write("Could not delete this occasion. Please try again.") {
+            try await data.delete(GiftOccasion.self, filters: [.eq("id", id)], also: Self.cascade)
+        }
+    }
+
+    /// Adds a gift budget from a checked draft; the household is added here.
+    func createBudget(_ check: GiftBudgetDraftCheck) async -> Bool {
+        guard let household else { return false }
+        return await write("Could not save this gift budget. Please try again.") {
+            try await data.insert(
+                GiftBudget.self, values: check.values.with("household_id", .text(household)),
+                also: ["budget_line"])
+        }
+    }
+
+    /// Saves a gift budget's amount and date. A recipient may edit the agreed
+    /// amount of their own gift, as the PWA allows.
+    func updateBudget(id: String, _ check: GiftBudgetDraftCheck) async -> Bool {
+        await write("Could not save this gift budget. Please try again.") {
+            try await data.update(
+                GiftBudget.self, values: check.values, filters: [.eq("id", id)],
+                also: ["budget_line"])
+        }
+    }
+
+    /// Deletes a gift budget, cascading to its purchases.
+    func deleteBudget(id: String) async -> Bool {
+        await write("Could not delete this gift budget. Please try again.") {
+            try await data.delete(GiftBudget.self, filters: [.eq("id", id)], also: Self.cascade)
+        }
+    }
+
+    /// Every table a recipient, occasion or budget delete reaches.
+    private static let cascade: Set<String> = ["budget_line", "gift_budget", "gift_purchase", "transactions"]
+
+    private static func occasion(name: String, date: String?) -> GiftValues {
+        GiftValues(fields: ["name": .text(name), "occasion_date": date.map { .text($0) } ?? .null])
     }
 
     /// Creates the household's ad hoc buffer row, or replaces its amount.

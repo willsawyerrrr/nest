@@ -45,6 +45,60 @@ export function pairKey(recipientId: string, occasionId: string): string {
   return `${recipientId}:${occasionId}`
 }
 
+/** What the gift budget form holds: a pairing, the typed budget, and an optional own date. */
+export interface GiftBudgetDraft {
+  recipientId: string
+  occasionId: string
+  /** The typed budget in cents, or null while the field is blank. */
+  budgetedAmountCents: number | null
+  eventDate: string | null
+}
+
+/** The gift budget form's validation and the row it writes. */
+export interface GiftBudgetDraftCheck {
+  /** The chosen occasion's own date, which governs the gift's date when set. */
+  occasionDate: string | null
+  /** The pairing already has a budget (an edit keeping its own pairing never does). */
+  duplicate: boolean
+  canSubmit: boolean
+  recipient_id: string
+  occasion_id: string
+  budgeted_amount_cents: number
+  /** Null whenever the occasion carries its own date. */
+  event_date: string | null
+}
+
+/**
+ * Checks a gift budget draft: a recipient, an occasion and an amount are
+ * required, a new pairing must be unique, and an occasion with its own date
+ * overrides the gift's date.
+ */
+export function checkGiftBudgetDraft(
+  draft: GiftBudgetDraft,
+  occasions: GiftOccasion[],
+  takenPairs: Set<string>,
+  initial?: Pick<GiftBudget, 'recipient_id' | 'occasion_id'>,
+): GiftBudgetDraftCheck {
+  const occasionDate =
+    occasions.find((occasion) => occasion.id === draft.occasionId)?.occasion_date ?? null
+  const key = pairKey(draft.recipientId, draft.occasionId)
+  const isNewPair = key !== (initial ? pairKey(initial.recipient_id, initial.occasion_id) : '')
+  const duplicate = isNewPair && takenPairs.has(key)
+  return {
+    occasionDate,
+    duplicate,
+    canSubmit:
+      draft.recipientId !== '' &&
+      draft.occasionId !== '' &&
+      draft.budgetedAmountCents !== null &&
+      !duplicate,
+    recipient_id: draft.recipientId,
+    occasion_id: draft.occasionId,
+    budgeted_amount_cents: draft.budgetedAmountCents ?? 0,
+    event_date: occasionDate !== null ? null : draft.eventDate,
+  }
+}
+
 /** Total cents spent against a single gift budget. */
 export function spentCents(budgetId: string, purchases: GiftPurchase[]): number {
   return purchases

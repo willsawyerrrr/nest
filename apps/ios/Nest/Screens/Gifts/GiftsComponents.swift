@@ -255,11 +255,13 @@ struct GiftSegmented<Value: Hashable>: View {
 /// A labelled money field taking dollars as typed; `cents` reads it back.
 struct GiftAmountField: View {
     let label: String
+    var description: String?
     @Binding var text: String
 
     var body: some View {
         VStack(alignment: .leading, spacing: NestSpacing.xxs) {
             Text(label).font(.system(size: 14, weight: .medium)).foregroundStyle(NestColor.text)
+            if let description { GiftCaption(text: description) }
             HStack(spacing: 4) {
                 Text("$").foregroundStyle(NestColor.dimmedText)
                 TextField("", text: $text)
@@ -297,7 +299,7 @@ enum GiftMoneyInput {
     }
 }
 
-/// A labelled option menu in the theme's input look, with an optional blank.
+/// A labelled option menu in the theme's input look, with an optional Clear.
 struct GiftSelect: View {
     let label: String
     var description: String?
@@ -305,13 +307,14 @@ struct GiftSelect: View {
     let options: [GiftLinkOption]
     @Binding var selection: String?
     var isDisabled = false
+    var isClearable = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: NestSpacing.xxs) {
             Text(label).font(.system(size: 14, weight: .medium)).foregroundStyle(NestColor.text)
             if let description { GiftCaption(text: description) }
             Menu {
-                if selection != nil {
+                if isClearable, selection != nil {
                     Button("Clear") { selection = nil }
                 }
                 ForEach(options) { option in

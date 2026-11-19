@@ -463,24 +463,30 @@ the Total, "Unassigned purchases" (add, edit, delete, assign to a gift or the ad
 hoc buffer) and "Ad hoc gifts" (edit the buffer amount, add, edit, delete a
 purchase with an optional recipient tag) cards, the By occasion / By person
 control (persisted in `UserDefaults` as `gift-group-by`), and a collapsible card
-per group whose rows expand to their purchases (add, edit, delete). Refresh calls
-the `up-sync` function, as the PWA does, then reloads. Writes are the PWA's own
-PostgREST calls (`gift_purchase`, `gift_transaction_dismissal`,
-`gift_discretionary_budget`) with the same field rules.
+per group whose rows expand to their purchases (add, edit, delete) and budget
+edit and delete, with "Add gift budget" fixed to the group's occasion or person.
+Manage reveals `GiftManagementView`, the PWA's `GiftManagement`: members'
+permanent recipients as fixed rows, then external recipients and occasions (an
+optional date) to add, rename and delete, each delete confirmed with its cascade
+warning. `GiftBudgetForm` hides the pairing on an edit, blocks a duplicate
+pairing, and swaps the date field for the occasion's own date where it has one.
+Refresh calls the `up-sync` function, as the PWA does, then reloads. Writes are
+the PWA's own PostgREST calls (`gift_recipient`, `gift_occasion`, `gift_budget`,
+`gift_purchase`, `gift_transaction_dismissal`, `gift_discretionary_budget`) with
+the same field rules.
 
-Totals, grouping, ordering, the inbox and the link choices are plain arithmetic,
-so `GiftsPresentation` ports `lib/gifts.ts` and `lib/giftCandidates.ts` to Swift
+Totals, grouping, ordering, the inbox, the link choices and the gift budget form's
+check (`checkGiftBudgetDraft`) are plain arithmetic, so `GiftsPresentation` ports
+`lib/gifts.ts` and `lib/giftCandidates.ts` to Swift
 rather than adding an engine entry point. `apps/pwa/src/lib/giftsParity.test.ts`
 snapshots rows and those figures into `apps/ios/NestTests/Fixtures/gifts-parity.json`;
 `GiftsParityTests` presents the same rows and asserts identical figures.
 
-Still on the web: adding, editing and deleting recipients, occasions and gift
-budgets. Manage opens a `WebHandoffCard` for them.
-
 ### Privacy
 
-A member's own gift (a budget for a recipient linked to them) is not editable by
-them, and purchases for it, or ad hoc purchases tagged to that recipient, are
+A member's own recipient is permanent and has no edit or delete. On their own gift
+(a budget for that recipient) they may edit the agreed amount, as the PWA allows,
+but purchases for it, or ad hoc purchases tagged to that recipient, are
 hidden by row-level security (`private_gift`). The device never widens that:
 
 - `gift_purchase` and `transactions` (the tables RLS withholds) bypass `RowCache`
@@ -497,7 +503,8 @@ hidden by row-level security (`private_gift`). The device never widens that:
 
 `GiftsViewModelTests` covers hidden rows never reaching the content or
 presentation, the cache never serving another user's rows, purchases and
-transactions never being cached, and the no-spend budget.
+transactions never being cached, the no-spend budget, members' recipients staying
+fixed, and a recipient editing their own gift's agreed amount without its spend.
 
 ## Pay splits
 

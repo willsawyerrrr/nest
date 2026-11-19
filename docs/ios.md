@@ -5,7 +5,7 @@ sources: `Nest` (iOS and Mac Catalyst destinations) and `NestMac` (a native
 AppKit/SwiftUI macOS app). It is a SwiftUI app built on:
 
 - a burger-menu [navigation shell](#navigation-shell) over a route registry
-  (`Route.swift`) that renders each route natively or in a web view;
+  (`Route.swift`) that renders every route natively;
 - native screens following one [pattern](native-screens.md), drawn with the
   [native design system](#native-design-system);
 - a [data layer](#native-data-layer) over the same tables, RPCs and edge
@@ -17,10 +17,8 @@ AppKit/SwiftUI macOS app). It is a SwiftUI app built on:
   after saving, its savings-goal progress, how much a named budget line is
   planned at, and its recommended pay split.
 
-A route that is not native loads the PWA (`https://nest.willsawyerrrr.dev`) in a
-`WKWebView`, and a native screen hands what it leaves to the web app off to that
-page in a sheet (`WebHandoffCard`). The PWA stays in service in its own right,
-in the browser and installed via Safari.
+Every route is native. The PWA stays in service in its own right, in the
+browser and installed via Safari.
 
 Nothing about how the PWA is built, deployed, or served changes because this
 app exists. `Nest`'s two destinations differ only by
@@ -56,10 +54,10 @@ the route changes, so pushed details keep a back button.
 
 `Route.content` returns `.native(AnyView)` or `.web(path:)` per route. Every
 route is `.native` (see [`native-screens.md`](native-screens.md) for the screen
-pattern and the screens); `.web` renders `WebRouteView`, which loads `WebApp.url`
-plus the path in `WebView` (with its session mirroring) and shows `ErrorView` with
-a retry on failure, and also backs the web hand-off cards and tapped notifications. The
-shell shows one web view at a time, recreated when the route changes.
+pattern and the screens). `.web`, which no route uses, renders `WebRouteView`:
+it loads `WebApp.url` plus the path in `WebView` (with its session mirroring),
+shows `ErrorView` with a retry on failure, and opens the page a tapped
+notification names (see [Push notifications](#push-notifications)).
 
 ### Native design system
 
@@ -114,8 +112,7 @@ voice invocation of an App Shortcut is unavailable on macOS (see above).
 - `ContentView.swift` — a blocking sign-in gate: `SignInView` while signed out,
   `NavigationShell` once signed in.
 - `WebView.swift` — a `UIViewRepresentable` (`NSViewRepresentable` on macOS)
-  around `WKWebView`, used by `WebRouteView` for non-native routes and web
-  hand-offs. It loads the production PWA URL directly (no local build, no
+  around `WKWebView`, used by `WebRouteView` for a `.web` route. It loads the production PWA URL directly (no local build, no
   bundled assets) on the default persistent `WKWebsiteDataStore`, and mirrors
   the native session into the page (below).
 
@@ -218,9 +215,9 @@ the backend.
 
 Signed out, `ContentView` shows `SignInView` — a Nest lockup and one "Continue
 with Google" button running `signIn()`, with the last error beneath it. Signed
-in, it shows the web view. Sign-out from the web app (Household settings) posts
-to the `nestAuth` handler, which clears the native session; the gate then swaps
-back to `SignInView`.
+in, it shows `NavigationShell`. Signing out from the native Household screen
+clears the native session (as does the web app's sign-out, posted to the
+`nestAuth` handler); the gate then swaps back to `SignInView`.
 
 ## Engines in JavaScriptCore
 
@@ -445,13 +442,14 @@ with Web Push (see [`architecture.md`](architecture.md#push-notifications)).
   as soon as it has both a token and a session (retrying after a failed call
   and on each sign-in or foreground). The
   environment is `sandbox` in Debug builds and `production` otherwise. Before the
-  page's sign-out request signs out, the app deletes its own `apns_device` row, so
+  app signs out, it deletes its own `apns_device` row, so
   a signed-out install stops receiving the member's notifications.
 - **Tap.** The payload carries `url`, an in-app path. `NestAppDelegate`
   resolves it against the web app's origin (`NotificationRoute` ignores anything
   that is not a same-origin path) and hands it to `NotificationRouter` on the
   main actor, which loads it in the web view: directly when one is showing,
-  otherwise it is held and used as the first load once the member is signed in.
+  otherwise it is held as that web view's first load. No native screen shows a
+  web view, so the page stays held and the tap opens the app where it was.
   Notifications that arrive in the foreground are shown as banners. The delegate
   uses the completion-handler forms of `didReceive` and `willPresent` and calls
   the completion handler on the main thread: UserNotifications calls them on a

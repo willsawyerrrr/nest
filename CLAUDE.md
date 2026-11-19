@@ -15,13 +15,11 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   own macOS share extension) is a SwiftUI app: a navigation shell (burger menu
   and drawer on iPhone, persistent sidebar on iPad and Mac, both the PWA's
   collapsible nav groups) over a route registry (`Route.swift`) whose every route
-  is a native screen, with a `WKWebView` of the PWA for web hand-offs and tapped
-  notifications. Native screens (Summary, Budget, Allowance, Breakdowns, Goals, Payslips, Deductions, Planning mode, Wishlist, Tax estimate, EOFY, Inflows, Gifts, Pay splits, Members, Household, Connections, Notifications, What's new, Equity, Net worth, Super, Investments and HELP debt) follow
+  is a native screen. Native screens (Summary, Budget, Allowance, Breakdowns, Goals, Payslips, Deductions, Planning mode, Wishlist, Tax estimate, EOFY, Inflows, Gifts, Pay splits, Members, Household, Connections, Notifications, What's new, Equity, Net worth, Super, Investments and HELP debt) follow
   the pattern in [`docs/native-screens.md`](docs/native-screens.md) on the native
   design system (`apps/ios/Nest/DesignSystem/`) and data layer (typed Supabase
   access, a per-user row cache, `NestError`; see
-  [`docs/ios.md`](docs/ios.md#native-data-layer)), and hand anything they leave
-  to the web app off to it in a sheet (`WebHandoffCard`). The app
+  [`docs/ios.md`](docs/ios.md#native-data-layer)). The app
   runs the tax, plan and household engines in JavaScriptCore (`packages/js-core`
   bundles them into `apps/ios/Nest/Engine/nest-engines.js`, called through the
   Swift `Engine` actor) so native screens compute the PWA's figures, and
@@ -30,8 +28,8 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   amount so far, and how much of the pay goes to a named account; budget lines and
   pay-split accounts are named inline in the Siri phrase and indexed in Spotlight. The native app is the single session owner: one Google OAuth at
   launch (`supabase-swift`, Keychain-stored), so an in-process App Shortcut can
-  answer with the app closed, and it mirrors that session into the `WKWebView`
-  (a `.atDocumentStart` `window.__NEST_NATIVE_SHELL__` marker, `setSession` on
+  answer with the app closed, and it mirrors that session into its `WKWebView`
+  of the PWA (`WebRouteView`, kept for a `.web` route though none uses one; a `.atDocumentStart` `window.__NEST_NATIVE_SHELL__` marker, `setSession` on
   every `authStateChanges`, sign-out via a `nestAuth` message handler) so the
   member signs in once. Every shell branch in the PWA is gated on the marker, so
   a browser or Safari-PWA user is byte-identical. A free personal Apple team
@@ -1032,8 +1030,9 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   the caller's own devices of both kinds, pruning a row only on a dead-device
   response and reporting `{ devices, sent, pruned, failed }`. The payload is
   `{ title, body, url }`, the URL being where `notificationclick` navigates and
-  where a tapped native notification opens the web view (an in-app path only; the
-  app ignores anything else). The native app's web view reports its device as on
+  the page a tapped native notification hands to the web view (an in-app path
+  only; the app ignores anything else). No native screen shows a web view, so
+  the app holds that page and the tap opens the app where it was. The native app's web view reports its device as on
   in the Notifications settings (status `native`, gated on
   `__NEST_NATIVE_SHELL__`), with no web opt-in; the native Notifications screen
   shows the same state, reads and upserts `notification_preference` on

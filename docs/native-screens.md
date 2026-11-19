@@ -2,8 +2,7 @@
 
 How a screen in `apps/ios` is built. Each native screen is one route that
 returns `.native` from `Route.content` (see [`ios.md`](ios.md#navigation-shell)).
-Every route is native; the `WKWebView` serves the web hand-off cards and tapped
-notifications.
+Every route is native.
 
 ## The pattern
 

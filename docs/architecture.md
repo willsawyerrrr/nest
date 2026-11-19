@@ -9,8 +9,7 @@
 - **Clients:** a **React PWA** (TypeScript) serving both iOS (installed via
   Safari → Add to Home Screen) and web, and a **native SwiftUI app**
   (`apps/ios`: iOS, Mac Catalyst and macOS) that renders every screen natively,
-  with the PWA in a web view for web hand-offs and tapped notifications, on the
-  same backend and RLS. See
+  on the same backend and RLS. See
   [`ios.md`](ios.md).
 - **Frontend hosting:** [Vercel](https://vercel.com/) — the PWA's static build is
   deployed from the repo (Root Directory `apps/pwa`, Vite preset). Merges to
@@ -308,7 +307,8 @@ channel:
   `register_apns_device` RPC (keyed on the unique token, with the `sandbox` or
   `production` environment its build was signed for; a token registered by a
   different member is reassigned to the caller). It deletes the row before
-  signing out, and a tap opens the payload's `url` in the web view. Like a
+  signing out, and a tap hands the payload's `url` to its web view, which no
+  native screen shows, so the tap opens the app where it was. Like a
   subscription, a token is readable and deletable only by its member.
 - `push-key` returns the VAPID public key for
   `pushManager.subscribe({ applicationServerKey })`. Serving it beats baking it

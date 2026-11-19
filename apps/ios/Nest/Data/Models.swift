@@ -683,6 +683,25 @@ struct AccountWithBalance: NestRow {
     }
 }
 
+/// Row of `account_balance`: an account's latest balance.
+struct AccountBalance: NestRow {
+    static let table = "account_balance"
+
+    let accountId: String
+    let balanceCents: Int
+    let householdId: String
+    let updatedAt: String
+
+    var id: String { accountId }
+
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case accountId = "account_id"
+        case balanceCents = "balance_cents"
+        case householdId = "household_id"
+        case updatedAt = "updated_at"
+    }
+}
+
 /// Row of the `account_directory` view: an account's identity without its
 /// balance, including every member's spending accounts. The view's columns are
 /// all nullable.

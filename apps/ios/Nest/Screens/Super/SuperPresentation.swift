@@ -60,6 +60,7 @@ struct SuperMemberSection: Equatable, Identifiable, Sendable {
 /// `SuperCapsSummary`, `SuperContributionList` and `RetirementProjection` so both
 /// surfaces label identically. Figures come from the engine.
 struct SuperPresentation: Sendable {
+    static let deleteTitle = "Delete contribution?"
     static let intro =
         "Each member’s balance is held as an account and counts toward net worth. Concessional contributions reduce their taxable income on the Tax tab."
     static let projectionNote =

@@ -32,6 +32,9 @@ struct SuperRows: Codable, Sendable, Equatable {
         return accounts.first { $0.id == id }
     }
 
+    /// The household new rows belong to (every member row shares it).
+    var householdID: String? { members.first?.householdId }
+
     /// The `summariseSuper` input at `now`: each member's confirmed balance from
     /// their linked account, with the rows the cap summary reads.
     func input(now: Date) -> SuperInput {
@@ -126,4 +129,130 @@ struct SuperProjection: Codable, Equatable, Sendable {
     var nominalCents: Int64
     var realCents: Int64
     var yearsToRetirement: Int
+}
+
+/// The values the super profile form submits for one member, as the PWA's
+/// `SuperFormValues`: the fund name (empty when none) and the confirmed balance.
+struct SuperProfileValues: Equatable, Sendable {
+    let fundName: String
+    let balanceCents: Int
+}
+
+/// The fields a contribution form supplies, as the PWA's `SuperContributionInput`.
+/// Exactly one of `amountCents` (mode `amount`) or `percentBp` (mode `percent`) is set.
+struct SuperContributionInput: Encodable, Equatable, Sendable {
+    let memberID: String
+    let kind: SuperContributionKind
+    let mode: SuperContributionMode
+    let amountCents: Int?
+    let percentBp: Int?
+    let frequency: Frequency
+    let intervalCount: Int?
+    let fhssEligible: Bool
+    let contributorMemberID: String?
+
+    enum CodingKeys: String, CodingKey {
+        case kind, mode, frequency
+        case memberID = "member_id"
+        case amountCents = "amount_cents"
+        case percentBp = "percent_bp"
+        case intervalCount = "interval_count"
+        case fhssEligible = "fhss_eligible"
+        case contributorMemberID = "contributor_member_id"
+    }
+
+    /// Encodes every column, nulls included, so an update clears what the form unset.
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(memberID, forKey: .memberID)
+        try container.encode(kind, forKey: .kind)
+        try container.encode(mode, forKey: .mode)
+        try container.encode(amountCents, forKey: .amountCents)
+        try container.encode(percentBp, forKey: .percentBp)
+        try container.encode(frequency, forKey: .frequency)
+        try container.encode(intervalCount, forKey: .intervalCount)
+        try container.encode(fhssEligible, forKey: .fhssEligible)
+        try container.encode(contributorMemberID, forKey: .contributorMemberID)
+    }
+}
+
+/// A contribution insert body: the input plus its household and financial year.
+struct SuperContributionInsert: Encodable, Sendable {
+    let householdID: String
+    let financialYear: Int
+    let input: SuperContributionInput
+
+    enum CodingKeys: String, CodingKey {
+        case householdID = "household_id"
+        case financialYear = "financial_year"
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(householdID, forKey: .householdID)
+        try container.encode(financialYear, forKey: .financialYear)
+        try input.encode(to: encoder)
+    }
+}
+
+/// A super profile upsert body, keyed on `member_id, financial_year`.
+struct SuperProfileUpsert: Encodable, Sendable {
+    let householdID: String
+    let financialYear: Int
+    let memberID: String
+    let fundName: String?
+    let linkedAccountID: String
+    let balanceAsOf: String
+
+    enum CodingKeys: String, CodingKey {
+        case householdID = "household_id"
+        case financialYear = "financial_year"
+        case memberID = "member_id"
+        case fundName = "fund_name"
+        case linkedAccountID = "linked_account_id"
+        case balanceAsOf = "balance_as_of"
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(householdID, forKey: .householdID)
+        try container.encode(financialYear, forKey: .financialYear)
+        try container.encode(memberID, forKey: .memberID)
+        try container.encode(fundName, forKey: .fundName)
+        try container.encode(linkedAccountID, forKey: .linkedAccountID)
+        try container.encode(balanceAsOf, forKey: .balanceAsOf)
+    }
+}
+
+/// A manual account created to hold a member's super balance.
+struct SuperAccountInsert: Encodable, Sendable {
+    let householdID: String
+    let ownerMemberID: String
+    let name: String
+    let source = LedgerSource.manual
+    let type = AccountType.savings
+
+    enum CodingKeys: String, CodingKey {
+        case name, source, type
+        case householdID = "household_id"
+        case ownerMemberID = "owner_member_id"
+    }
+}
+
+/// A renamed account.
+struct AccountRename: Encodable, Sendable {
+    let name: String
+}
+
+/// An `account_balance` upsert body, keyed on `account_id`.
+struct AccountBalanceUpsert: Encodable, Sendable {
+    let accountID: String
+    let householdID: String
+    let balanceCents: Int
+
+    enum CodingKeys: String, CodingKey {
+        case accountID = "account_id"
+        case householdID = "household_id"
+        case balanceCents = "balance_cents"
+    }
 }

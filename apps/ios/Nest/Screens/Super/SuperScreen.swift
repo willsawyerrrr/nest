@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The native Super route: each member's profile, contribution caps and
-/// contributions, then the retirement projection. Editing stays in the web app.
+/// contributions, each editable inline, then the retirement projection.
 struct SuperScreen: View {
     @State private var model: SuperViewModel
 
@@ -23,43 +23,119 @@ struct SuperScreen: View {
     }
 }
 
+/// What the inline forms are doing: one profile or contribution form at a time.
+enum SuperEditing: Equatable {
+    case none
+    case profile(memberID: String)
+    case adding(memberID: String)
+    case contribution(String)
+}
+
 struct SuperContentView: View {
     let presentation: SuperPresentation
     let model: SuperViewModel
 
+    @State private var editing = SuperEditing.none
+    @State private var deleting: SuperContributionRow?
+    @State private var deleteFailed = false
+
     var body: some View {
         NestPageSection(title: presentation.title, intro: SuperPresentation.intro) {
             ForEach(presentation.sections) { section in
-                MemberBlock(section: section)
+                MemberBlock(
+                    section: section, rows: presentation.content.rows, editing: $editing,
+                    model: model, onDelete: { deleting = $0 })
             }
-            WebHandoffCard(
-                title: "Edit super",
-                message: "Editing profiles and contributions happens in the web app.",
-                action: "Open Super on the web", path: Route.superannuation.path)
             RetirementBlock(presentation: presentation, model: model)
+        }
+        .alert(
+            SuperPresentation.deleteTitle,
+            isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }),
+            presenting: deleting
+        ) { row in
+            Button("Delete", role: .destructive) {
+                Task {
+                    do { try await model.removeContribution(id: row.id) } catch { deleteFailed = true }
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: { row in
+            Text("Delete \(row.kind)? This cannot be undone.")
+        }
+        .alert("Couldn't delete", isPresented: $deleteFailed) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Something went wrong. Try again.")
         }
     }
 }
 
 private struct MemberBlock: View {
     let section: SuperMemberSection
+    let rows: SuperRows
+    @Binding var editing: SuperEditing
+    let model: SuperViewModel
+    let onDelete: (SuperContributionRow) -> Void
+
+    private var member: Member? { rows.members.first { $0.id == section.id } }
 
     var body: some View {
         VStack(alignment: .leading, spacing: NestSpacing.xs) {
-            ProfileRow(row: section.profile)
+            if editing == .profile(memberID: section.id), let member {
+                SuperProfileForm(
+                    memberName: member.name,
+                    draft: SuperProfileDraft(
+                        fundName: rows.profile(of: member)?.fundName,
+                        hasAccount: rows.account(of: member) != nil,
+                        effectiveCents: section.profile.effectiveCents,
+                        isTrueUp: section.profile.isEstimated),
+                    onSubmit: { values in
+                        try await model.saveProfile(values, for: member)
+                        editing = .none
+                    },
+                    onCancel: { editing = .none })
+            } else {
+                ProfileRow(row: section.profile) { editing = .profile(memberID: section.id) }
+            }
             if let caps = section.caps { CapsBlock(caps: caps) }
             Text("Contributions").font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(NestColor.text).accessibilityAddTraits(.isHeader)
-            if section.contributions.isEmpty {
+            if section.contributions.isEmpty && editing != .adding(memberID: section.id) {
                 NestEmptyState(text: "No contributions yet.")
             }
-            ForEach(section.contributions) { ContributionRowView(row: $0) }
+            ForEach(section.contributions) { row in
+                if editing == .contribution(row.id),
+                    let stored = rows.contributions.first(where: { $0.id == row.id })
+                {
+                    contributionForm(editing: stored)
+                } else {
+                    ContributionRowView(
+                        row: row, onEdit: { editing = .contribution(row.id) },
+                        onDelete: { onDelete(row) })
+                }
+            }
+            if editing == .adding(memberID: section.id) {
+                contributionForm(editing: nil)
+            } else {
+                AddButton(label: "Add contribution") { editing = .adding(memberID: section.id) }
+            }
         }
+    }
+
+    private func contributionForm(editing stored: SuperContribution?) -> some View {
+        SuperContributionForm(
+            memberID: section.id, members: rows.members, editing: stored,
+            onSubmit: { input in
+                try await model.saveContribution(input, id: stored?.id)
+                editing = .none
+            },
+            onCancel: { editing = .none })
     }
 }
 
 private struct ProfileRow: View {
     let row: SuperProfileRow
+    let onEdit: () -> Void
 
     var body: some View {
         NestCard(padding: NestSpacing.sm) {
@@ -84,13 +160,14 @@ private struct ProfileRow: View {
                     Spacer(minLength: NestSpacing.sm)
                     MoneyText(cents: row.effectiveCents, colouring: false)
                         .font(.system(size: 14, weight: .bold))
+                    EditDeleteActions(onEdit: onEdit, editLabel: "Edit \(row.memberName)")
                 }
                 if let caption = row.caption {
                     Text(caption).font(NestFont.caption).foregroundStyle(NestColor.dimmedText)
                 }
             }
         }
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .contain)
     }
 }
 
@@ -119,16 +196,65 @@ private struct CapsBlock: View {
 
 private struct ContributionRowView: View {
     let row: SuperContributionRow
+    let onEdit: () -> Void
+    let onDelete: () -> Void
+
+    #if os(iOS)
+        @Environment(\.horizontalSizeClass) private var sizeClass
+        private var wide: Bool { sizeClass != .compact }
+    #else
+        private let wide = true
+    #endif
+
+    private var badges: some View {
+        HStack(spacing: 6) {
+            NestPill(text: row.frequency)
+            if row.isFHSS { NestPill(text: "FHSS", tone: .positive) }
+        }
+    }
+
+    private var value: some View {
+        Text(row.value).font(.system(size: 14, weight: .bold)).monospacedDigit()
+            .foregroundStyle(NestColor.text)
+    }
+
+    private var kind: some View {
+        Text(row.kind).font(.system(size: 14, weight: .semibold))
+            .foregroundStyle(NestColor.text).lineLimit(1)
+    }
 
     var body: some View {
+        if wide { rowBody } else { cardBody }
+    }
+
+    /// The dense table-like row from 768pt: kind and badges, the value in a fixed
+    /// column, the controls, and the contributor on a caption line beneath.
+    private var rowBody: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: NestSpacing.sm) {
+                HStack(spacing: 6) {
+                    kind
+                    badges
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                value.frame(width: 144, alignment: .trailing)
+                EditDeleteActions(onEdit: onEdit, onDelete: onDelete)
+            }
+            if let contributor = row.contributor {
+                Text(contributor).font(NestFont.caption).foregroundStyle(NestColor.dimmedText)
+            }
+        }
+        .padding(.vertical, 6)
+        .overlay(alignment: .bottom) { Rectangle().fill(NestColor.border).frame(height: 1) }
+    }
+
+    private var cardBody: some View {
         NestCard(padding: NestSpacing.xs) {
             HStack(spacing: NestSpacing.sm) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(row.kind).font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(NestColor.text).lineLimit(1)
+                    kind
                     HStack(spacing: 6) {
-                        NestPill(text: row.frequency)
-                        if row.isFHSS { NestPill(text: "FHSS", tone: .positive) }
+                        badges
                         if let contributor = row.contributor {
                             Text(contributor).font(NestFont.caption)
                                 .foregroundStyle(NestColor.dimmedText)
@@ -136,11 +262,10 @@ private struct ContributionRowView: View {
                     }
                 }
                 Spacer(minLength: NestSpacing.sm)
-                Text(row.value).font(.system(size: 14, weight: .bold)).monospacedDigit()
-                    .foregroundStyle(NestColor.text)
+                value
+                EditDeleteActions(onEdit: onEdit, onDelete: onDelete)
             }
         }
-        .accessibilityElement(children: .combine)
     }
 }
 

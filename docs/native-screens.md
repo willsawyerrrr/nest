@@ -751,8 +751,21 @@ and each member's age are inputs persisted in `UserDefaults` under
 keys and shapes; the retirement age defaults to the preservation age until saved.
 Editing a field re-runs `projectSuper`.
 
-Editing profiles and contributions stays in the web app: the screen ends in a
-`WebHandoffCard`.
+Profiles and contributions are edited inline, as the PWA's: a profile row's
+pencil opens `SuperProfileForm` in its place (fund name and balance, prefilled
+with the effective balance today; a dated baseline reads as a true-up, with the
+`Update actual balance` button and its note), and each contribution row has edit
+and delete controls beneath an **Add contribution** button opening
+`SuperContributionForm` (kind, contributor for a spouse contribution, amount or
+percent of salary, frequency with its interval, FHSS). `SuperProfileDraft` and
+`SuperContributionDraft` hold the PWA forms' rules. Writes use the PWA's calls: a
+profile save renames the linked account (or `POST`s a manual savings account
+named `<member> Super` when the fund is blank), upserts `account_balance`, then
+upserts `super_profile` on `member_id,financial_year` with `balance_as_of` today;
+contributions `POST`, `PATCH` and `DELETE` on `super_contribution` (delete behind
+a **Delete contribution?** confirmation). Every save reloads, so the cap warnings
+re-run through `summariseSuper`. The frequency control is the design system's
+`FrequencyInput`.
 
 `apps/pwa/src/lib/superParity.test.ts` computes the cap summaries, net contributions,
 effective balances and projections with the PWA's own functions (at a fixed date)

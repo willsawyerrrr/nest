@@ -27,7 +27,13 @@ private enum SuperStub {
             [{"id":"m1","household_id":"h","name":"Ada","email":null,"user_id":"u","date_of_birth":null,\
             "up_connected_at":null,"up_sync_failed_at":null,\
             "created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}]
-            """
+            """,
+        "accounts": """
+            [{"id":"a1","household_id":"h","name":"Ada Super","currency":"AUD",\
+            "deleted_from_source_at":null,"exclude_from_net_worth":false,"external_id":null,\
+            "owner_member_id":"m1","source":"manual","type":"savings",\
+            "created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}]
+            """,
     ]
 }
 
@@ -37,8 +43,16 @@ private enum SuperStub {
         var failing: Set<String> = []
         private let lock = NSLock()
         private var recorded: [String] = []
+        private var recordedWrites: [String] = []
         var paths: [String] { lock.withLock { recorded } }
-        func record(_ path: String) { lock.withLock { recorded.append(path) } }
+        /// Each non-`GET` request as `METHOD table`, in order.
+        var writes: [String] { lock.withLock { recordedWrites } }
+        func record(_ path: String, method: String) {
+            lock.withLock {
+                recorded.append(path)
+                if method != "GET" { recordedWrites.append("\(method) \(path)") }
+            }
+        }
     }
 
     private func makeData(_ server: Server, directory: URL) -> NestData {
@@ -48,7 +62,7 @@ private enum SuperStub {
                 accessToken: { "t" },
                 send: { request in
                     let table = request.url!.path.split(separator: "/").last.map(String.init) ?? ""
-                    server.record(table)
+                    server.record(table, method: request.httpMethod ?? "GET")
                     let failed = server.failing.contains(table)
                     return (
                         Data((failed ? "{}" : SuperStub.bodies[table] ?? "[]").utf8),
@@ -119,6 +133,30 @@ private enum SuperStub {
         #expect(error?.code == .server)
     }
 
+    @Test func savingAProfileWithoutALinkedAccountCreatesOne() async throws {
+        let server = Server()
+        let model = model(makeData(server, directory: directory()), defaults: defaults())
+        await model.load()
+        let member = try #require(model.state.value?.rows.members.first)
+        try await model.saveProfile(.init(fundName: "", balanceCents: 1_000_00), for: member)
+        #expect(server.writes == ["POST accounts", "POST account_balance", "POST super_profile"])
+    }
+
+    @Test func contributionsAreAddedChangedAndDeleted() async throws {
+        let server = Server()
+        let model = model(makeData(server, directory: directory()), defaults: defaults())
+        await model.load()
+        let input = try #require(
+            SuperContributionDraft.with(amount: "100").input(memberID: "m1"))
+        try await model.saveContribution(input)
+        try await model.saveContribution(input, id: "c1")
+        try await model.removeContribution(id: "c1")
+        #expect(
+            server.writes == [
+                "POST super_contribution", "PATCH super_contribution", "DELETE super_contribution",
+            ])
+    }
+
     @Test func assumptionsDefaultToThePreservationAgeThenPersist() async {
         let store = defaults()
         let model = model(makeData(Server(), directory: directory()), defaults: store)
@@ -181,5 +219,52 @@ private enum SuperStub {
         #expect(SuperPresentation.growthShare(currentCents: 250, nominalCents: 1_000) == (25, 75))
         #expect(SuperPresentation.growthShare(currentCents: 2_000, nominalCents: 1_000) == (100, 0))
         #expect(SuperPresentation.growthShare(currentCents: 5, nominalCents: 0) == (0, 0))
+    }
+}
+
+extension SuperContributionDraft {
+    fileprivate static func with(amount: String) -> Self {
+        var draft = Self()
+        draft.amount = amount
+        return draft
+    }
+}
+
+@Suite struct SuperDraftTests {
+    @Test func accountNameFallsBackToTheMember() {
+        #expect(SuperViewModel.accountName(fundName: "  ", memberName: "Ada") == "Ada Super")
+        #expect(SuperViewModel.accountName(fundName: " Aware ", memberName: "Ada") == "Aware")
+    }
+
+    @Test func contributionDraftNeedsItsModeValueIntervalAndContributor() {
+        var draft = SuperContributionDraft()
+        #expect(!draft.canSubmit)
+        draft.amount = "50"
+        #expect(draft.input(memberID: "m1")?.amountCents == 50_00)
+        draft.frequency = .everyNWeeks
+        #expect(!draft.canSubmit)
+        draft.interval = "3"
+        #expect(draft.input(memberID: "m1")?.intervalCount == 3)
+        draft.kind = .spouse
+        #expect(!draft.canSubmit)
+        draft.contributorID = "m2"
+        #expect(draft.input(memberID: "m1")?.contributorMemberID == "m2")
+        draft.mode = .percent
+        draft.percent = "10.5"
+        let input = draft.input(memberID: "m1")
+        #expect(input?.percentBp == 1_050 && input?.amountCents == nil)
+    }
+
+    @Test func percentTextDropsTrailingZeros() {
+        #expect(SuperContributionDraft.percentText(1_000) == "10")
+        #expect(SuperContributionDraft.percentText(1_050) == "10.5")
+    }
+
+    @Test func aDatedBaselineSavesAsATrueUp() {
+        let draft = SuperProfileDraft(
+            fundName: nil, hasAccount: true, effectiveCents: 1_234_56, isTrueUp: true)
+        #expect(draft.balance == "1234.56")
+        #expect(draft.submitLabel == "Update actual balance")
+        #expect(draft.values == .init(fundName: "", balanceCents: 1_234_56))
     }
 }

@@ -266,3 +266,39 @@ struct EditDeleteActions: View {
         }
     }
 }
+
+/// A frequency select over every cadence (the PWA's `FREQUENCY_OPTIONS`), with a
+/// whole-number interval input beneath it when the cadence is every N weeks or months.
+struct FrequencyInput: View {
+    var label = "Frequency"
+    @Binding var frequency: Frequency
+    @Binding var interval: String
+    /// The interval input's label for the selected cadence.
+    var intervalLabel: (Frequency) -> String = {
+        "\($0 == .everyNMonths ? "Months" : "Weeks") between payments"
+    }
+
+    /// Every cadence, fixed ones first, then the interval ones.
+    static let cadences: [Frequency] = [
+        .weekly, .fortnightly, .monthly, .quarterly, .biannual, .annual, .everyNWeeks,
+        .everyNMonths,
+    ]
+
+    /// Whether `frequency` takes an interval.
+    static func takesInterval(_ frequency: Frequency) -> Bool {
+        frequency == .everyNWeeks || frequency == .everyNMonths
+    }
+
+    var body: some View {
+        SelectInput(
+            label: label,
+            options: Self.cadences.map { ($0, $0.label(interval: nil)) },
+            selection: $frequency)
+        if Self.takesInterval(frequency) {
+            TextInput(label: intervalLabel(frequency), text: $interval)
+                #if os(iOS)
+                    .keyboardType(.numberPad)
+                #endif
+        }
+    }
+}

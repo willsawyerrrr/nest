@@ -89,6 +89,74 @@ final class SuperViewModel {
         await load()
     }
 
+    /// Saves a member's profile as the PWA's `useSaveSuperProfile` does: renames
+    /// their linked account (or creates a manual one), writes its balance, then
+    /// upserts the profile with the balance confirmed as of today. Then reloads.
+    func saveProfile(_ values: SuperProfileValues, for member: Member) async throws {
+        guard let content = state.value, let household = content.rows.householdID else {
+            throw NestError(.invalidRequest)
+        }
+        let fundName = values.fundName.isEmpty ? nil : values.fundName
+        let name = Self.accountName(fundName: fundName, memberName: member.name)
+        let accountTables: Set<String> = [AccountWithBalance.table, AccountDirectoryEntry.table]
+        let accountID: String
+        if let linked = content.rows.profile(of: member)?.linkedAccountId {
+            try await data.update(
+                Account.self, values: AccountRename(name: name), filters: [.eq("id", linked)],
+                also: accountTables)
+            accountID = linked
+        } else {
+            let inserted = try await data.insert(
+                Account.self,
+                values: SuperAccountInsert(householdID: household, ownerMemberID: member.id, name: name),
+                also: accountTables)
+            guard let id = inserted.first?.id else { throw NestError(.unknown) }
+            accountID = id
+        }
+        try await data.upsert(
+            AccountBalance.self,
+            values: AccountBalanceUpsert(
+                accountID: accountID, householdID: household, balanceCents: values.balanceCents),
+            onConflict: "account_id", also: accountTables)
+        try await data.upsert(
+            SuperProfile.self,
+            values: SuperProfileUpsert(
+                householdID: household, financialYear: content.financialYear, memberID: member.id,
+                fundName: fundName, linkedAccountID: accountID,
+                balanceAsOf: PayslipDraft.todayIso(now())),
+            onConflict: "member_id,financial_year")
+        await load()
+    }
+
+    /// Adds a contribution (or, with `id`, changes it), then reloads.
+    func saveContribution(_ input: SuperContributionInput, id: String? = nil) async throws {
+        if let id {
+            try await data.update(SuperContribution.self, values: input, filters: [.eq("id", id)])
+        } else {
+            guard let content = state.value, let household = content.rows.householdID else {
+                throw NestError(.invalidRequest)
+            }
+            try await data.insert(
+                SuperContribution.self,
+                values: SuperContributionInsert(
+                    householdID: household, financialYear: content.financialYear, input: input))
+        }
+        await load()
+    }
+
+    /// Deletes a contribution, then reloads.
+    func removeContribution(id: String) async throws {
+        try await data.delete(SuperContribution.self, filters: [.eq("id", id)])
+        await load()
+    }
+
+    /// The account name for a member's super, as the PWA's `superAccountName`: the
+    /// trimmed fund name, else `<member> Super`.
+    nonisolated static func accountName(fundName: String?, memberName: String) -> String {
+        let trimmed = fundName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return trimmed.isEmpty ? "\(memberName) Super" : trimmed
+    }
+
     /// Sets one assumption (an empty field is 0, as in the PWA), saves it and re-projects.
     func setAssumption(_ keyPath: WritableKeyPath<RetirementAssumptions, Double>, to value: Double?) async {
         guard var next = effectiveAssumptions else { return }

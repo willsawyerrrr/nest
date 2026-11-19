@@ -71,6 +71,7 @@ import Testing
         check(TemporaryItem.self)
         check(MemberAllowance.self)
         check(AccountWithBalance.self)
+        check(AccountBalance.self)
         check(Breakdown.self)
         check(BreakdownItem.self)
         check(WishlistItem.self)

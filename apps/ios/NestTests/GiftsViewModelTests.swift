@@ -44,6 +44,9 @@ private enum GiftFixtures {
         """
         {"id":"\(id)","household_id":"h","account_id":"a","amount_cents":-500,\
         "category_id":null,"description":"\(id)","external_category":"gifts-and-charity",\
+        "external_category_since":"2026-03-01T12:00:00+00:00","external_parent_category":null,\
+        "is_categorizable":true,"transaction_type":null,"deep_link_url":null,\
+        "up_message":null,"up_note":null,"performing_customer_name":null,\
         "external_id":null,"kind":"expense","member_id":null,"notes":null,\
         "posted_at":"2026-03-01T12:00:00+00:00","source":"up","status":"settled",\(stamp)}
         """

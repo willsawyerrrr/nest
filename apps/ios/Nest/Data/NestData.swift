@@ -15,13 +15,17 @@ struct NestData: Sendable {
     /// The signed-in user's id, the cache scope. Throws when signed out.
     var userID: @Sendable () async throws -> String
 
+    /// `id` as Postgres writes a `uuid`: lower case, so it matches the user ids
+    /// rows carry (`UUID.uuidString` is upper case).
+    static func userID(_ id: UUID) -> String { id.uuidString.lowercased() }
+
     /// The app's instance. Creating it starts clearing the cache on sign-out
     /// (cache entries are also scoped per user id).
     static let live: NestData = {
         let data = NestData(
             api: .live,
             cache: RowCache(),
-            userID: { try await supabaseAuth.session.user.id.uuidString }
+            userID: { try await NestData.userID(supabaseAuth.session.user.id) }
         )
         Task {
             await data.clearCacheOnSignOut(

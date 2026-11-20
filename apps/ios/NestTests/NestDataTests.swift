@@ -4,6 +4,11 @@ import Testing
 @testable import Nest
 
 @Suite struct NestDataTests {
+    @Test func userIDMatchesPostgresUUIDText() {
+        let id = UUID(uuidString: "8D8B2FFB-3B87-491E-8DE2-3A1694A5FF36")!
+        #expect(NestData.userID(id) == "8d8b2ffb-3b87-491e-8de2-3a1694a5ff36")
+    }
+
     private final class Server: @unchecked Sendable {
         var requests: [URLRequest] = []
         var status = 200

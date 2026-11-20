@@ -100,6 +100,7 @@ import Testing
             modelled == columns(of: ShareGrant.table).subtracting([
                 "token_hash", "created_by_member_id",
             ]))
+        #expect(Set(ShareGrant.columns.split(separator: ",").map(String.init)) == modelled)
         check(TradeDocument.self)
     }
 

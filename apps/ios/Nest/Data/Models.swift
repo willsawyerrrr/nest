@@ -921,17 +921,25 @@ struct GiftTransaction: NestRow {
     let amountCents: Int
     let categoryId: String?
     let createdAt: String
+    let deepLinkUrl: String?
     let description: String
     let externalCategory: String?
+    let externalCategorySince: String
     let externalId: String?
+    let externalParentCategory: String?
     let householdId: String
     let id: String
+    let isCategorizable: Bool?
     let kind: String
     let memberId: String?
     let notes: String?
+    let performingCustomerName: String?
     let postedAt: String
     let source: LedgerSource
     let status: String
+    let transactionType: String?
+    let upMessage: String?
+    let upNote: String?
     let updatedAt: String
 
     enum CodingKeys: String, CodingKey, CaseIterable {
@@ -939,17 +947,25 @@ struct GiftTransaction: NestRow {
         case amountCents = "amount_cents"
         case categoryId = "category_id"
         case createdAt = "created_at"
+        case deepLinkUrl = "deep_link_url"
         case description
         case externalCategory = "external_category"
+        case externalCategorySince = "external_category_since"
         case externalId = "external_id"
+        case externalParentCategory = "external_parent_category"
         case householdId = "household_id"
         case id
+        case isCategorizable = "is_categorizable"
         case kind
         case memberId = "member_id"
         case notes
+        case performingCustomerName = "performing_customer_name"
         case postedAt = "posted_at"
         case source
         case status
+        case transactionType = "transaction_type"
+        case upMessage = "up_message"
+        case upNote = "up_note"
         case updatedAt = "updated_at"
     }
 }

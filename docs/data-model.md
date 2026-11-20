@@ -1046,17 +1046,30 @@ stays unpopulated and a synced row's `category_id` is null.
     write grant.
 - **transactions** — a single ledger entry.
   - `id`, `household_id`, `account_id`, `member_id` (nullable, attribution),
-    `category_id` (nullable), `external_category` (nullable), `posted_at`,
+    `category_id` (nullable), `external_category` (nullable),
+    `external_category_since`, `external_parent_category`, `posted_at`,
     `amount_cents` (signed, negative = outflow), `description`,
     `kind` (`income` | `expense` | `transfer`),
     `status` (`pending` | `settled`), `source` (`up` | `manual`),
-    `external_id` (dedupe key), `notes`, `created_at`, `updated_at`.
+    `external_id` (dedupe key), `is_categorizable`, `transaction_type`,
+    `deep_link_url`, `up_message`, `up_note`, `performing_customer_name`,
+    `notes`, `created_at`, `updated_at`.
     `unique (source, external_id)` is the sync's dedupe key, and
     `unique (id, household_id)` lets a gift purchase or dismissal reference a
     transaction without leaving the household.
-  - `external_category` is the category the *source* assigned — Up's
-    `gifts-and-charity` for every row the gift poll lands — as distinct from
-    `category_id`, which points at the household's own (unpopulated) taxonomy.
+  - `external_category` is the category the *source* assigned (Up's child
+    category, e.g. `gifts-and-charity`), and `external_parent_category` its
+    parent — as distinct from `category_id`, which points at the household's own
+    (unpopulated) taxonomy. `external_category_since` is when the sync first saw
+    the row carry its current `external_category` (its insert, or the sync that
+    saw it change), which is when a gift candidate arrived.
+  - The Up-side columns mirror Up's own attributes: `is_categorizable`
+    (false for a transfer), `transaction_type`, `deep_link_url` (the `up://`
+    link), `up_message` (a transfer's message), `up_note` (the owner's note in
+    the Up app), and `performing_customer_name` (the cardholder, telling 2Up
+    partners apart). A transaction naming a `transferAccount` lands as
+    `kind = 'transfer'`.
+  - `notes` is the household's own: the sync never writes it.
   - RLS gates each transaction to the balance-visible account set, so a member
     reads and writes transactions only on accounts whose balance they can see: a
     co-member's spending account is outside that set, so their gift-category spend
@@ -1284,13 +1297,16 @@ that live in Vault:
   one transaction, so identity and balance never diverge. Each row carries its
   own `source` (`'up'` or `'redbark'`) as data, so the one RPC serves both
   syncs.
-- `sync_up_gift_transactions(household_id, account_ids, since, rows jsonb)` —
-  settles one member's gift-category window in a single transaction: upserts
-  every row Up returned (on `(source, external_id)`), holds each linked
-  `gift_purchase` to its transaction's amount, then prunes the gift-category rows
-  the pass did not return — over exactly `account_ids` and from `since` forward,
-  keeping any transaction a purchase links to. An empty `rows` clears the window,
-  the case where the last gift candidate was recategorised away in the Up app.
+- `sync_up_transactions(p_household_id, p_rows jsonb)` → `table(id, inserted)`
+  — `up-sync`'s transaction upsert: lands each row in the household on
+  `(source, external_id)`, reporting whether it inserted it (`xmax = 0`). It
+  never writes `notes`, `category_id`, or `created_at`, restamps
+  `external_category_since` only when the category changes, holds each linked
+  `gift_purchase` to its transaction's amount, and leaves a conflicting row in
+  another household alone.
+- `delete_up_transactions(p_household_id, p_external_ids text[])` — deletes the
+  household's named Up rows, the ones the gift rescan found Up no longer has,
+  keeping any a `gift_purchase` links.
 - `reconcile_source_accounts(household_id, owner_member_id, source, present_external_ids text[])`
   — the `up-sync` / `redbark-sync` per-member account reconcile: over one
   member's individually-owned accounts of the given `source`, clears

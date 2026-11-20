@@ -947,20 +947,27 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   shared row (`owner_member_id` null), while individual accounts are attributed
   to their owner; an individual spending account's name is stored prefixed with
   the owner's name in possessive form (e.g. "Alex's Spending") to disambiguate
-  the household's two spending accounts. Transaction ingestion covers one Up
-  category: the same poll lands each member's `gifts-and-charity` transactions in
-  `transactions` (Up's category in `external_category`, the household's own
-  `category_id` null) via the `sync_up_gift_transactions` RPC, so a gift purchase
-  can be linked to real card spend (`gift_purchase.transaction_id`) or set aside
-  as not a gift (`gift_transaction_dismissal`). It rescans a fixed 365-day
-  trailing window each run rather than following a cursor, because Up raises no
-  event when a transaction is recategorised — which is how most gift spend gets
-  categorised — and prunes the candidates Up no longer reports in the category,
-  keeping any a purchase links to. The ledger's per-account privacy applies: a
-  co-member's gift candidates on their own spending account stay invisible, and
-  joint-account spend is a candidate for both partners until it is claimed as one
-  partner's gift, at which point it is withheld from them. A general ledger
-  (every category, spend reconciliation, actual tax paid) is deferred.
+  the household's two spending accounts. Transaction ingestion covers every Up
+  category: the same poll lands every transaction on each member's Up accounts in
+  `transactions` via the `sync_up_transactions` RPC (Up's category in
+  `external_category` and its parent in `external_parent_category`, the
+  household's own `category_id` null; a transfer between the owner's accounts as
+  `kind = 'transfer'`; Up's message, note, transaction type, deep link,
+  categorisability and performing customer in their own columns). Each account
+  resumes 24 hours behind its latest synced non-gift `posted_at`, an account with none
+  backfilling from the start of the prior financial year. `notes` is the
+  household's own and the sync never writes it. Because Up raises no event when a
+  transaction is recategorised — which is how most gift spend gets categorised —
+  each run also rescans the `gifts-and-charity` category over a 365-day trailing
+  window: a stored gift row Up no longer lists there is re-read and refreshed in
+  place with its new category, and one Up no longer has is deleted unless a
+  purchase links it. A gift purchase can be linked to real card spend
+  (`gift_purchase.transaction_id`) or a candidate set aside as not a gift
+  (`gift_transaction_dismissal`). The ledger's per-account privacy applies: a
+  co-member's transactions on their own spending account stay invisible, and
+  joint-account spend is a gift candidate for both partners until it is claimed
+  as one partner's gift, at which point it is withheld from them. Spend
+  reconciliation and actual tax paid are deferred.
   Sources (Up Bank API + Redbark + manual entry) are
   source-agnostic. Edge functions (`up-connect` / `up-disconnect` / `up-sync` /
   `up-webhook` / `changelog`) live under `supabase/functions/` and auto-deploy to
@@ -1044,8 +1051,9 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   `target_date`, a `temporary_item` within 14 days of its target date,
   within 14 days of 30 June, a `gift_purchase` from the last 7 days that
   counts against no gift budget or discretionary buffer, and a `transactions`
-  row the hourly `up-sync` landed in the last 7 days (`external_category =
-  'gifts-and-charity'`) that no `gift_purchase` links and no
+  row that entered `external_category = 'gifts-and-charity'` in the last 7
+  days (`external_category_since`) and was posted within the last 365, that no
+  `gift_purchase` links and no
   `gift_transaction_dismissal` sets aside, and a member whose `up-sync` token
   read was rejected (`members.up_sync_failed_at` set) — and pushes to each
   member with a device (Web Push or APNs) who has left that trigger on and

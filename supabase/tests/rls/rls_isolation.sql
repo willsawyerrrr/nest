@@ -1416,30 +1416,27 @@ rollback to savepoint pay_account_delete;
 -- both. A dismissal is household-scoped and resolves only through the
 -- transaction, so it names nothing its reader cannot already see.
 
--- The sync RPC is service-role-only: no client may settle a window itself.
+-- The sync RPCs are service-role-only: no client may land transactions itself.
 do $$ begin
   assert not has_function_privilege('authenticated',
-    'public.sync_up_gift_transactions(uuid, uuid[], timestamptz, jsonb)', 'execute'),
-    'authenticated must not execute sync_up_gift_transactions';
+    'public.sync_up_transactions(uuid, jsonb)', 'execute'),
+    'authenticated must not execute sync_up_transactions';
   assert has_function_privilege('service_role',
-    'public.sync_up_gift_transactions(uuid, uuid[], timestamptz, jsonb)', 'execute'),
-    'service_role should execute sync_up_gift_transactions';
+    'public.sync_up_transactions(uuid, jsonb)', 'execute'),
+    'service_role should execute sync_up_transactions';
+  assert not has_function_privilege('authenticated',
+    'public.delete_up_transactions(uuid, text[])', 'execute'),
+    'authenticated must not execute delete_up_transactions';
 end $$;
 
--- One window for Privacy House, as up-sync settles it: a gift on the joint
--- account, one on Bob's private spending account, and one on Alice's private
--- spending account. The RPC is SECURITY DEFINER, so service_role reaches
--- `transactions` through it alone and needs no grant on the table.
+-- Gift-category rows for Privacy House, as up-sync lands them: a gift on the
+-- joint account, one on Bob's private spending account, and one on Alice's
+-- private spending account. The RPC is SECURITY DEFINER, so service_role writes
+-- `transactions` through it alone and needs no write grant on the table.
 reset role;
 set local role service_role;
-select public.sync_up_gift_transactions(
+select from public.sync_up_transactions(
   current_setting('test.priv_hid')::uuid,
-  array[
-    current_setting('test.priv_shared')::uuid,
-    current_setting('test.priv_bob_spending')::uuid,
-    current_setting('test.priv_alice_spending')::uuid
-  ],
-  now() - interval '365 days',
   jsonb_build_array(
     jsonb_build_object(
       'household_id', current_setting('test.priv_hid'),
@@ -1609,63 +1606,76 @@ do $$ begin
 end $$;
 rollback to savepoint blind_dismissal;
 
--- The next window reports only the joint candidate — the two private ones were
--- recategorised away in the Up app, and Up sends no event for that, which is why
--- the poll rescans the window instead of following a cursor. The prune drops
--- them, the dismissal cascades away with its transaction (out of the category it
--- is no longer a candidate to dismiss), and the claimed candidate stays and pulls
--- its purchase to the settled amount.
+-- The next rescan finds the two private candidates recategorised away in the Up
+-- app; up-sync re-reads them and refreshes each in place with its new category,
+-- so the rows — and the dismissal on one — stay, out of the gift inbox. The
+-- claimed candidate pulls its purchase to the settled amount.
 reset role;
 set local role service_role;
-select public.sync_up_gift_transactions(
+select from public.sync_up_transactions(
   current_setting('test.priv_hid')::uuid,
-  array[
-    current_setting('test.priv_shared')::uuid,
-    current_setting('test.priv_bob_spending')::uuid,
-    current_setting('test.priv_alice_spending')::uuid
-  ],
-  now() - interval '365 days',
-  jsonb_build_array(jsonb_build_object(
-    'household_id', current_setting('test.priv_hid'),
-    'account_id', current_setting('test.priv_shared'),
-    'member_id', null,
-    'posted_at', now() - interval '2 days',
-    'amount_cents', -150_00,
-    'description', 'Gift shop',
-    'kind', 'expense',
-    'status', 'settled',
-    'external_id', 'up-tx-gift-joint',
-    'external_category', 'gifts-and-charity'
-  ))
+  jsonb_build_array(
+    jsonb_build_object(
+      'account_id', current_setting('test.priv_shared'),
+      'member_id', null,
+      'posted_at', now() - interval '2 days',
+      'amount_cents', -150_00,
+      'description', 'Gift shop',
+      'kind', 'expense',
+      'status', 'settled',
+      'external_id', 'up-tx-gift-joint',
+      'external_category', 'gifts-and-charity'
+    ),
+    jsonb_build_object(
+      'account_id', current_setting('test.priv_bob_spending'),
+      'member_id', current_setting('test.priv_bob_mid'),
+      'posted_at', now() - interval '3 days',
+      'amount_cents', -60_00,
+      'description', 'Bookshop',
+      'kind', 'expense',
+      'status', 'settled',
+      'external_id', 'up-tx-gift-bob',
+      'external_category', 'books'
+    ),
+    jsonb_build_object(
+      'account_id', current_setting('test.priv_alice_spending'),
+      'member_id', current_setting('test.priv_alice_mid'),
+      'posted_at', now() - interval '4 days',
+      'amount_cents', -30_00,
+      'description', 'Charity donation',
+      'kind', 'expense',
+      'status', 'settled',
+      'external_id', 'up-tx-charity-alice',
+      'external_category', 'restaurants-and-cafes'
+    )
+  )
 );
 reset role;
 do $$ begin
-  assert exists (select 1 from public.transactions where id = current_setting('test.priv_tx_joint')::uuid),
-    'the claimed candidate should survive the prune';
-  assert not exists (select 1 from public.transactions where id = current_setting('test.priv_tx_bob')::uuid),
-    'a candidate Up no longer reports in the category should be pruned';
-  assert not exists (select 1 from public.transactions where id = current_setting('test.priv_tx_alice')::uuid),
-    'a dismissed candidate Up no longer reports should be pruned';
-  assert (select count(*) from public.gift_transaction_dismissal) = 0,
-    'a dismissal should cascade away with its transaction';
+  assert (select external_category from public.transactions
+    where id = current_setting('test.priv_tx_bob')::uuid) = 'books',
+    'a candidate recategorised away is refreshed in place';
+  assert (select external_category from public.transactions
+    where id = current_setting('test.priv_tx_alice')::uuid) = 'restaurants-and-cafes',
+    'a dismissed candidate recategorised away is refreshed in place';
+  assert (select count(*) from public.gift_transaction_dismissal) = 1,
+    'a dismissal stays with its refreshed transaction';
   assert (select amount_cents from public.gift_purchase
     where transaction_id = current_setting('test.priv_tx_joint')::uuid) = 150_00,
     'a linked purchase should follow its transaction''s settled amount';
 end $$;
 
--- An empty window prunes what is left of it, and still keeps the claimed
--- candidate: the household has already made that transaction a purchase.
+-- A claimed candidate Up no longer has is kept: the household has already made
+-- that transaction a purchase.
 set local role service_role;
-select public.sync_up_gift_transactions(
+select public.delete_up_transactions(
   current_setting('test.priv_hid')::uuid,
-  array[current_setting('test.priv_shared')::uuid],
-  now() - interval '365 days',
-  null
+  array['up-tx-gift-joint']
 );
 reset role;
 do $$ begin
   assert exists (select 1 from public.transactions where id = current_setting('test.priv_tx_joint')::uuid),
-    'an empty window must not drop a claimed candidate';
+    'deleting must not drop a claimed candidate';
 end $$;
 set local role authenticated;
 
@@ -1675,10 +1685,8 @@ set local role authenticated;
 -- the gift-privacy predicate is the only thing that can tell them apart.
 reset role;
 set local role service_role;
-select public.sync_up_gift_transactions(
+select from public.sync_up_transactions(
   current_setting('test.priv_hid')::uuid,
-  array[current_setting('test.priv_shared')::uuid],
-  now() - interval '365 days',
   jsonb_build_array(
     jsonb_build_object(
       'household_id', current_setting('test.priv_hid'),

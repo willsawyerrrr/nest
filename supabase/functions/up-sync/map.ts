@@ -15,17 +15,27 @@ export interface AccountUpsert {
   source: 'up'
 }
 
-/** A row shaped for the `sync_up_gift_transactions` RPC (source = 'up'). */
+/**
+ * A row shaped for the `sync_up_transactions` RPC (source = 'up'). It carries no
+ * `notes`: that column belongs to the household, and the sync never writes it.
+ */
 export interface TransactionUpsert {
   household_id: string
   account_id: string
   member_id: string | null
   external_id: string
   external_category: string | null
+  external_parent_category: string | null
+  is_categorizable: boolean
+  transaction_type: string | null
+  deep_link_url: string
+  up_message: string | null
+  up_note: string | null
+  performing_customer_name: string | null
   posted_at: string
   amount_cents: number
   description: string
-  kind: 'income' | 'expense'
+  kind: 'income' | 'expense' | 'transfer'
   status: 'pending' | 'settled'
 }
 
@@ -68,7 +78,9 @@ export function mapAccount(account: UpAccount): AccountUpsert {
  *
  * Amounts stay exactly as Up signs them, a debit negative, so a `HELD` amount
  * revised on settlement carries through unchanged. `posted_at` is the settlement
- * instant once there is one and the creation instant while the hold stands.
+ * instant once there is one and the creation instant while the hold stands. A
+ * transaction naming a `transferAccount` moved money between the owner's own
+ * accounts and is a `transfer`; otherwise its sign makes it an expense or income.
  */
 export function mapTransaction(
   tx: UpTransaction,
@@ -77,17 +89,25 @@ export function mapTransaction(
   const account = accounts.get(tx.relationships.account.data.id)
   if (!account) return null
 
-  const amountCents = tx.attributes.amount.valueInBaseUnits
+  const { attributes, relationships } = tx
+  const amountCents = attributes.amount.valueInBaseUnits
   return {
     household_id: account.household_id,
     account_id: account.id,
     member_id: account.owner_member_id,
     external_id: tx.id,
-    external_category: tx.relationships.category.data?.id ?? null,
-    posted_at: tx.attributes.settledAt ?? tx.attributes.createdAt,
+    external_category: relationships.category.data?.id ?? null,
+    external_parent_category: relationships.parentCategory.data?.id ?? null,
+    is_categorizable: attributes.isCategorizable,
+    transaction_type: attributes.transactionType,
+    deep_link_url: attributes.deepLinkURL,
+    up_message: attributes.message,
+    up_note: attributes.note?.text ?? null,
+    performing_customer_name: attributes.performingCustomer?.displayName ?? null,
+    posted_at: attributes.settledAt ?? attributes.createdAt,
     amount_cents: amountCents,
-    description: tx.attributes.description,
-    kind: amountCents < 0 ? 'expense' : 'income',
-    status: tx.attributes.status === 'SETTLED' ? 'settled' : 'pending',
+    description: attributes.description,
+    kind: relationships.transferAccount.data ? 'transfer' : amountCents < 0 ? 'expense' : 'income',
+    status: attributes.status === 'SETTLED' ? 'settled' : 'pending',
   }
 }

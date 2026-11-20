@@ -2310,17 +2310,25 @@ export type Database = {
           amount_cents: number
           category_id: string | null
           created_at: string
+          deep_link_url: string | null
           description: string
           external_category: string | null
+          external_category_since: string
           external_id: string | null
+          external_parent_category: string | null
           household_id: string
           id: string
+          is_categorizable: boolean | null
           kind: Database['public']['Enums']['transaction_kind']
           member_id: string | null
           notes: string | null
+          performing_customer_name: string | null
           posted_at: string
           source: Database['public']['Enums']['ledger_source']
           status: Database['public']['Enums']['transaction_status']
+          transaction_type: string | null
+          up_message: string | null
+          up_note: string | null
           updated_at: string
         }
         ComputedFields: never
@@ -2329,17 +2337,25 @@ export type Database = {
           amount_cents: number
           category_id?: string | null
           created_at?: string
+          deep_link_url?: string | null
           description?: string
           external_category?: string | null
+          external_category_since?: string
           external_id?: string | null
+          external_parent_category?: string | null
           household_id: string
           id?: string
+          is_categorizable?: boolean | null
           kind: Database['public']['Enums']['transaction_kind']
           member_id?: string | null
           notes?: string | null
+          performing_customer_name?: string | null
           posted_at: string
           source?: Database['public']['Enums']['ledger_source']
           status?: Database['public']['Enums']['transaction_status']
+          transaction_type?: string | null
+          up_message?: string | null
+          up_note?: string | null
           updated_at?: string
         }
         Update: {
@@ -2347,17 +2363,25 @@ export type Database = {
           amount_cents?: number
           category_id?: string | null
           created_at?: string
+          deep_link_url?: string | null
           description?: string
           external_category?: string | null
+          external_category_since?: string
           external_id?: string | null
+          external_parent_category?: string | null
           household_id?: string
           id?: string
+          is_categorizable?: boolean | null
           kind?: Database['public']['Enums']['transaction_kind']
           member_id?: string | null
           notes?: string | null
+          performing_customer_name?: string | null
           posted_at?: string
           source?: Database['public']['Enums']['ledger_source']
           status?: Database['public']['Enums']['transaction_status']
+          transaction_type?: string | null
+          up_message?: string | null
+          up_note?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -2605,6 +2629,10 @@ export type Database = {
         Returns: number
       }
       current_member_ids: { Args: Record<PropertyKey, never>; Returns: string[] }
+      delete_up_transactions: {
+        Args: { p_external_ids: string[]; p_household_id: string }
+        Returns: undefined
+      }
       fail_up_token: { Args: { p_member_id: string }; Returns: undefined }
       hidden_gift_budget_ids_for_current_member: {
         Args: Record<PropertyKey, never>
@@ -2664,9 +2692,12 @@ export type Database = {
         Returns: undefined
       }
       store_up_token: { Args: { p_member_id: string; p_token: string }; Returns: undefined }
-      sync_up_gift_transactions: {
-        Args: { p_account_ids: string[]; p_household_id: string; p_since: string; rows: Json }
-        Returns: undefined
+      sync_up_transactions: {
+        Args: { p_household_id: string; p_rows: Json }
+        Returns: {
+          id: string
+          inserted: boolean
+        }[]
       }
       up_token_for_member: { Args: { p_member_id: string }; Returns: string }
       upsert_accounts: { Args: { rows: Json }; Returns: undefined }

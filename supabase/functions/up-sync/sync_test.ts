@@ -3,17 +3,21 @@ import {
   accountName,
   type AccountReconcile,
   type AccountRow,
+  backfillStart,
   buildAccountRows,
   type ConnectedMember,
   GIFT_WINDOW_DAYS,
-  type GiftTransactionWindow,
   giftWindowStart,
   type JointAccountReconcile,
+  ledgerSince,
   membersToSync,
   runSync,
+  type StoredGiftQuery,
+  SYNC_BATCH_SIZE,
   type SyncDeps,
   UP_GIFT_CATEGORY,
 } from './sync.ts'
+import type { TransactionUpsert } from './map.ts'
 import { UpApiError } from '../_shared/up.ts'
 import type { UpAccount, UpTransaction } from '../_shared/up.ts'
 
@@ -89,20 +93,32 @@ Deno.test('membersToSync is empty when the caller household has no connected mem
   assertEquals(membersToSync([member, otherMember], 'h-3'), [])
 })
 
-/** A gift-category Up transaction on `accountId`. */
-function transaction(id = 'tx-1', accountId = 'acc-1'): UpTransaction {
+/** An Up transaction on `accountId`, in the gift category unless told otherwise. */
+function transaction(
+  id = 'tx-1',
+  accountId = 'acc-1',
+  category: string | null = UP_GIFT_CATEGORY,
+): UpTransaction {
   return {
     id,
     attributes: {
       status: 'SETTLED',
       description: 'Gift shop',
+      message: null,
+      isCategorizable: true,
       amount: { currencyCode: 'AUD', value: '-40.00', valueInBaseUnits: -40_00 },
       createdAt: '2026-06-01T08:00:00+10:00',
       settledAt: '2026-06-01T09:00:00+10:00',
+      transactionType: 'Purchase',
+      deepLinkURL: `up://transaction/${id}`,
+      note: null,
+      performingCustomer: null,
     },
     relationships: {
       account: { data: { id: accountId } },
-      category: { data: { id: UP_GIFT_CATEGORY } },
+      category: { data: category === null ? null : { id: category } },
+      parentCategory: { data: null },
+      transferAccount: { data: null },
     },
   }
 }
@@ -114,7 +130,6 @@ function deps(overrides: Partial<SyncDeps> = {}): SyncDeps {
     tokenFor: () => Promise.resolve('tok'),
     listAccounts: () => Promise.resolve([account()]),
     upsertAccounts: () => Promise.resolve(),
-    listGiftTransactions: () => Promise.resolve([]),
     reconcileAccounts: () => Promise.resolve(),
     reconcileJointAccounts: () => Promise.resolve(),
     // Every Up account resolves to a local row named after it.
@@ -125,20 +140,37 @@ function deps(overrides: Partial<SyncDeps> = {}): SyncDeps {
         household_id: 'h-1',
         owner_member_id: 'm-1',
       }))),
-    syncGiftTransactions: () => Promise.resolve(),
+    latestPostedAt: () => Promise.resolve(null),
+    listAccountTransactions: () => Promise.resolve([]),
+    listGiftTransactions: () => Promise.resolve([]),
+    listStoredGiftTransactionIds: () => Promise.resolve([]),
+    getTransaction: () => Promise.resolve(null),
+    syncTransactions: () => Promise.resolve([]),
+    deleteTransactions: () => Promise.resolve(),
     disconnectMember: () => Promise.resolve(),
     ...overrides,
   }
 }
 
-/** Records every gift window a run settles. */
-function recordWindows(windows: GiftTransactionWindow[]): Partial<SyncDeps> {
+/** One `sync_up_transactions` call. */
+interface SyncCall {
+  householdId: string
+  rows: TransactionUpsert[]
+}
+
+/** Records every `sync_up_transactions` call a run makes. */
+function recordSyncs(calls: SyncCall[]): Partial<SyncDeps> {
   return {
-    syncGiftTransactions: (window) => {
-      windows.push(window)
-      return Promise.resolve()
+    syncTransactions: (householdId, rows) => {
+      calls.push({ householdId, rows })
+      return Promise.resolve(rows.map((row) => ({ id: `id-${row.external_id}`, inserted: true })))
     },
   }
+}
+
+/** The Up ids a run landed, across every call, in order. */
+function landedIds(calls: SyncCall[]): string[] {
+  return calls.flatMap((call) => call.rows.map((row) => row.external_id))
 }
 
 /** Records every account reconcile a run runs. */
@@ -347,104 +379,224 @@ Deno.test('giftWindowStart is a fixed span back from now, not a moving cursor', 
   )
 })
 
-Deno.test('runSync polls the gift window from the same instant it prunes from', async () => {
-  const windows: GiftTransactionWindow[] = []
-  let polledSince: Date | undefined
+Deno.test('backfillStart is midnight AEST on 1 July of the prior financial year', () => {
+  // 20 Nov 2026 is in FY2027, so the prior year, FY2026, began 1 Jul 2025.
+  assertEquals(
+    backfillStart(new Date('2026-11-20T00:00:00Z')).toISOString(),
+    '2025-06-30T14:00:00.000Z',
+  )
+  // 30 Jun 2026 is still FY2026, so the prior year began 1 Jul 2024.
+  assertEquals(
+    backfillStart(new Date('2026-06-30T00:00:00Z')).toISOString(),
+    '2024-06-30T14:00:00.000Z',
+  )
+})
+
+Deno.test('ledgerSince backfills an account with no rows, else overlaps a day', () => {
+  const now = new Date('2026-11-20T00:00:00Z')
+  assertEquals(ledgerSince(null, now).toISOString(), '2025-06-30T14:00:00.000Z')
+  assertEquals(
+    ledgerSince('2026-11-19T12:00:00+00:00', now).toISOString(),
+    '2026-11-18T12:00:00.000Z',
+  )
+})
+
+Deno.test('runSync lands each account from its own high-water mark', async () => {
+  const calls: SyncCall[] = []
+  const polled: { accountId: string; since: string }[] = []
+  const result = await runSync(deps({
+    listAccounts: () => Promise.resolve([account({}, 'acc-1'), account({}, 'acc-2')]),
+    latestPostedAt: (accountId) =>
+      Promise.resolve(accountId === 'local-acc-1' ? '2026-11-19T12:00:00Z' : null),
+    listAccountTransactions: (_token, accountId, since) => {
+      polled.push({ accountId, since: since.toISOString() })
+      return Promise.resolve([transaction(`tx-${accountId}`, accountId, 'groceries')])
+    },
+    ...recordSyncs(calls),
+  }))
+
+  assertEquals(polled[0], { accountId: 'acc-1', since: '2026-11-18T12:00:00.000Z' })
+  assertEquals(polled[1].accountId, 'acc-2')
+  assertEquals(polled[1].since, backfillStart().toISOString())
+  assertEquals(landedIds(calls), ['tx-acc-1', 'tx-acc-2'])
+  assertEquals(calls.map((call) => call.householdId), ['h-1', 'h-1'])
+  assertEquals(result.transactions, 2)
+})
+
+Deno.test('runSync lands a joint account once, through the first token that sees it', async () => {
+  const sam: ConnectedMember = { memberId: 'm-2', householdId: 'h-1', name: 'Sam' }
+  const joint = account({ ownershipType: 'JOINT', displayName: '2Up' }, 'joint-1')
+  const polled: string[] = []
   await runSync(deps({
-    ...recordWindows(windows),
-    listGiftTransactions: (_token, since) => {
-      polledSince = since
+    listConnectedMembers: () => Promise.resolve([member, sam]),
+    tokenFor: (id) => Promise.resolve(`tok-${id}`),
+    listAccounts: (token) => Promise.resolve([joint, account({}, `${token}-own`)]),
+    listAccountTransactions: (token, accountId) => {
+      polled.push(`${token}:${accountId}`)
       return Promise.resolve([])
     },
   }))
 
-  // Both the Up filter and the prune's floor are the one trailing window start.
-  assertEquals(polledSince?.toISOString(), windows[0].since)
-  const drift = Math.abs(new Date(windows[0].since).getTime() - giftWindowStart().getTime())
+  assertEquals(polled, ['tok-m-1:joint-1', 'tok-m-1:tok-m-1-own', 'tok-m-2:tok-m-2-own'])
+})
+
+Deno.test('runSync lands a backfill in batches', async () => {
+  const calls: SyncCall[] = []
+  const many = Array.from({ length: SYNC_BATCH_SIZE + 1 }, (_, i) => transaction(`tx-${i}`))
+  await runSync(deps({
+    listAccountTransactions: () => Promise.resolve(many),
+    ...recordSyncs(calls),
+  }))
+
+  assertEquals(calls.map((call) => call.rows.length), [SYNC_BATCH_SIZE, 1])
+})
+
+Deno.test('runSync lands an account oldest first, so a failed batch leaves a safe mark', async () => {
+  const calls: SyncCall[] = []
+  const newer = { ...transaction('tx-newer') }
+  const older = {
+    ...transaction('tx-older'),
+    attributes: { ...transaction('tx-older').attributes, settledAt: '2026-05-01T09:00:00+10:00' },
+  }
+  await runSync(deps({
+    // Up lists newest first.
+    listAccountTransactions: () => Promise.resolve([newer, older]),
+    ...recordSyncs(calls),
+  }))
+
+  assertEquals(landedIds(calls), ['tx-older', 'tx-newer'])
+})
+
+Deno.test('runSync skips a transaction on an account the pass did not sync', async () => {
+  const calls: SyncCall[] = []
+  const result = await runSync(deps({
+    listSyncedAccounts: () =>
+      Promise.resolve([{
+        external_id: 'acc-1',
+        id: 'local-acc-1',
+        household_id: 'h-1',
+        owner_member_id: 'm-1',
+      }]),
+    listAccountTransactions: () =>
+      Promise.resolve([transaction('tx-1'), transaction('tx-2', 'acc-unsynced')]),
+    ...recordSyncs(calls),
+  }))
+
+  assertEquals(landedIds(calls), ['tx-1'])
+  assertEquals(result.transactions, 1)
+})
+
+Deno.test('runSync still rescans gifts when the ledger pass fails', async () => {
+  const calls: SyncCall[] = []
+  await runSync(deps({
+    listAccountTransactions: () => Promise.reject(new Error('Up API 500')),
+    listGiftTransactions: () => Promise.resolve([transaction('tx-gift')]),
+    ...recordSyncs(calls),
+  }))
+
+  assertEquals(landedIds(calls), ['tx-gift'])
+})
+
+Deno.test('runSync rescans the gift category from the trailing window start', async () => {
+  let polledSince: Date | undefined
+  let query: StoredGiftQuery | undefined
+  await runSync(deps({
+    listGiftTransactions: (_token, since) => {
+      polledSince = since
+      return Promise.resolve([])
+    },
+    listStoredGiftTransactionIds: (q) => {
+      query = q
+      return Promise.resolve([])
+    },
+  }))
+
+  // Both the Up filter and the stored rows' floor are the one window start.
+  assertEquals(polledSince?.toISOString(), query?.since)
+  assertEquals(query?.accountIds, ['local-acc-1'])
+  const drift = Math.abs(polledSince!.getTime() - giftWindowStart().getTime())
   assertEquals(drift < 1000, true)
 })
 
-Deno.test('runSync settles one gift window per member, scoped to that member', async () => {
-  const sam: ConnectedMember = { memberId: 'm-2', householdId: 'h-1', name: 'Sam' }
-  const joint = account({ ownershipType: 'JOINT', displayName: '2Up' }, 'joint-1')
-  const windows: GiftTransactionWindow[] = []
+Deno.test('runSync refreshes a stored gift row Up recategorised away, in place', async () => {
+  const calls: SyncCall[] = []
+  const fetched: string[] = []
+  let deleted: string[] | undefined
   await runSync(deps({
-    listConnectedMembers: () => Promise.resolve([member, sam]),
-    listAccounts: (token) => Promise.resolve([joint, account({}, `${token}-own`)]),
-    tokenFor: (id) => Promise.resolve(`tok-${id}`),
-    ...recordWindows(windows),
+    listGiftTransactions: () => Promise.resolve([transaction('tx-still-gift')]),
+    listStoredGiftTransactionIds: () => Promise.resolve(['tx-still-gift', 'tx-moved']),
+    getTransaction: (_token, id) => {
+      fetched.push(id)
+      return Promise.resolve(transaction(id, 'acc-1', 'clothing-and-accessories'))
+    },
+    deleteTransactions: (_householdId, ids) => {
+      deleted = ids
+      return Promise.resolve()
+    },
+    ...recordSyncs(calls),
   }))
 
-  assertEquals(windows.length, 2)
-  // Each window covers exactly the accounts that member's token can see — the
-  // joint account plus their own — so the prune reaches neither less nor more.
-  // The joint account is in both, though the account upsert deduped it to one row.
-  assertEquals(windows[0].accountIds, ['local-joint-1', 'local-tok-m-1-own'])
-  assertEquals(windows[1].accountIds, ['local-joint-1', 'local-tok-m-2-own'])
-  assertEquals(windows.map((w) => w.householdId), ['h-1', 'h-1'])
+  // Only the row Up stopped listing is re-read, and it lands with its new
+  // category rather than being deleted.
+  assertEquals(fetched, ['tx-moved'])
+  const moved = calls.flatMap((call) => call.rows).find((row) => row.external_id === 'tx-moved')
+  assertEquals(moved?.external_category, 'clothing-and-accessories')
+  assertEquals(deleted, undefined)
 })
 
-Deno.test('runSync maps the polled transactions into the window and counts them', async () => {
-  const windows: GiftTransactionWindow[] = []
-  const result = await runSync(deps({
-    listGiftTransactions: () =>
-      Promise.resolve([transaction('tx-1'), transaction('tx-2', 'acc-unsynced')]),
-    ...recordWindows(windows),
+Deno.test('runSync deletes a stored gift row Up no longer has', async () => {
+  const deletions: { householdId: string; ids: string[] }[] = []
+  await runSync(deps({
+    listStoredGiftTransactionIds: () => Promise.resolve(['tx-dropped']),
+    getTransaction: () => Promise.resolve(null),
+    deleteTransactions: (householdId, ids) => {
+      deletions.push({ householdId, ids })
+      return Promise.resolve()
+    },
   }))
 
-  // The transaction on an account the pass did not sync is skipped, not fatal.
-  assertEquals(result.transactions, 1)
-  assertEquals(windows[0].rows.map((row) => row.external_id), ['tx-1'])
-  assertEquals(windows[0].rows[0], {
-    household_id: 'h-1',
-    account_id: 'local-acc-1',
-    member_id: 'm-1',
-    external_id: 'tx-1',
-    external_category: 'gifts-and-charity',
-    posted_at: '2026-06-01T09:00:00+10:00',
-    amount_cents: -40_00,
-    description: 'Gift shop',
-    kind: 'expense',
-    status: 'settled',
-  })
+  assertEquals(deletions, [{ householdId: 'h-1', ids: ['tx-dropped'] }])
 })
 
-Deno.test('runSync settles an empty window so the prune still runs', async () => {
-  const windows: GiftTransactionWindow[] = []
-  // Nothing in the category means the window holds no candidates at all — the
-  // case where the last gift purchase was recategorised away in the Up app.
-  const result = await runSync(deps(recordWindows(windows)))
+Deno.test('runSync lands a transaction once when both passes return it', async () => {
+  const calls: SyncCall[] = []
+  await runSync(deps({
+    listAccountTransactions: () => Promise.resolve([transaction('tx-1')]),
+    listGiftTransactions: () => Promise.resolve([transaction('tx-1')]),
+    ...recordSyncs(calls),
+  }))
 
-  assertEquals(result.transactions, 0)
-  assertEquals(windows.length, 1)
-  assertEquals(windows[0].rows, [])
-  assertEquals(windows[0].accountIds, ['local-acc-1'])
+  // Once per pass; within a single call each Up id appears only once.
+  for (const call of calls) {
+    assertEquals(new Set(call.rows.map((row) => row.external_id)).size, call.rows.length)
+  }
 })
 
-Deno.test('runSync settles no gift window for a member whose token is unreadable', async () => {
-  const windows: GiftTransactionWindow[] = []
-  await runSync(deps({ tokenFor: () => Promise.resolve(null), ...recordWindows(windows) }))
-  assertEquals(windows.length, 0)
+Deno.test('runSync syncs no transactions for a member whose token is unreadable', async () => {
+  const calls: SyncCall[] = []
+  await runSync(deps({ tokenFor: () => Promise.resolve(null), ...recordSyncs(calls) }))
+  assertEquals(calls.length, 0)
 })
 
-Deno.test("runSync keeps going when one member's gift window fails", async () => {
+Deno.test("runSync keeps going when one member's transaction passes fail", async () => {
   const sam: ConnectedMember = { memberId: 'm-2', householdId: 'h-1', name: 'Sam' }
-  const windows: GiftTransactionWindow[] = []
+  const calls: SyncCall[] = []
   const result = await runSync(deps({
     listConnectedMembers: () => Promise.resolve([member, sam]),
     tokenFor: (id) => Promise.resolve(`tok-${id}`),
     listAccounts: (token) => Promise.resolve([account({}, `${token}-own`)]),
-    listGiftTransactions: (token) =>
+    listAccountTransactions: (token, accountId) =>
       token === 'tok-m-1'
-        ? Promise.reject(new Error('Up API 429'))
-        : Promise.resolve([transaction('tx-1', 'tok-m-2-own')]),
-    ...recordWindows(windows),
+        ? Promise.reject(new UpApiError(429, '/accounts', ''))
+        : Promise.resolve([transaction('tx-1', accountId)]),
+    listGiftTransactions: (token) =>
+      token === 'tok-m-1' ? Promise.reject(new Error('Up API 429')) : Promise.resolve([]),
+    ...recordSyncs(calls),
   }))
 
-  // Alex's window is lost; Sam's is settled and both members' balances stand.
+  // Alex's transactions are lost; Sam's land and both members' balances stand.
   assertEquals(result, { members: 2, accounts: 2, transactions: 1 })
-  assertEquals(windows.length, 1)
-  assertEquals(windows[0].rows.map((row) => row.external_id), ['tx-1'])
+  assertEquals(landedIds(calls), ['tx-1'])
 })
 
 Deno.test('runSync reconciles each synced member against the ids their token returned', async () => {
@@ -487,7 +639,7 @@ Deno.test('runSync does not reconcile a member whose token is unreadable', async
 
 Deno.test("runSync keeps going when one member's reconcile fails", async () => {
   const sam: ConnectedMember = { memberId: 'm-2', householdId: 'h-1', name: 'Sam' }
-  const windows: GiftTransactionWindow[] = []
+  const calls: SyncCall[] = []
   const result = await runSync(deps({
     listConnectedMembers: () => Promise.resolve([member, sam]),
     tokenFor: (id) => Promise.resolve(`tok-${id}`),
@@ -496,12 +648,14 @@ Deno.test("runSync keeps going when one member's reconcile fails", async () => {
       reconcile.memberId === 'm-1'
         ? Promise.reject(new Error('reconcile RPC 500'))
         : Promise.resolve(),
-    ...recordWindows(windows),
+    listAccountTransactions: (_token, accountId) =>
+      Promise.resolve([transaction(`tx-${accountId}`, accountId)]),
+    ...recordSyncs(calls),
   }))
 
-  // Both members' balances and gift windows still land.
-  assertEquals(result, { members: 2, accounts: 2, transactions: 0 })
-  assertEquals(windows.length, 2)
+  // Both members' balances and transactions still land.
+  assertEquals(result, { members: 2, accounts: 2, transactions: 2 })
+  assertEquals(landedIds(calls), ['tx-tok-m-1-own', 'tx-tok-m-2-own'])
 })
 
 Deno.test("runSync reconciles a household's joint accounts against the union of its members' ids", async () => {

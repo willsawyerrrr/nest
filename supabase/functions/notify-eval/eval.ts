@@ -44,17 +44,24 @@ export const EXPIRY_WINDOW_DAYS = 14
 export const UNASSIGNED_GIFT_WINDOW_DAYS = 7
 
 /**
- * A gift candidate is announced for this many days after it first lands in
- * `transactions`, the same retry-without-backlog rationale as
+ * A gift candidate is announced for this many days after the sync first sees it
+ * in the gift category, the same retry-without-backlog rationale as
  * {@link UNASSIGNED_GIFT_WINDOW_DAYS}.
  */
 export const NEW_GIFT_CANDIDATE_WINDOW_DAYS = 7
+
+/**
+ * Only a purchase posted within this many days is announced as a candidate,
+ * matching the window `up-sync` rescans the gift category over, so history the
+ * ledger backfills in the gift category is never announced as new.
+ */
+export const GIFT_CANDIDATE_MAX_AGE_DAYS = 365
 
 /** After this long a still-negative buffer is notified again. */
 export const BUFFER_RENOTIFY_DAYS = 14
 
 /** The Up category `up-sync` ingests as gift candidates. */
-const UP_GIFT_CATEGORY = 'gifts-and-charity'
+export const UP_GIFT_CATEGORY = 'gifts-and-charity'
 
 /** The `savings_goal` columns the goal trigger reads. */
 export interface SavingsGoalRow {
@@ -96,7 +103,8 @@ export interface TransactionRow {
   description: string
   amount_cents: number
   external_category: string | null
-  created_at: string
+  external_category_since: string
+  posted_at: string
 }
 
 /** The `accounts` columns the new-gift-candidate trigger reads, to resolve who can see a transaction. */
@@ -434,11 +442,14 @@ function isRecentUnassignedGiftPurchase(purchase: GiftPurchaseRow, now: Date): b
 /**
  * A synced transaction that is still an unclaimed gift candidate — Up filed it
  * under the gift category, no purchase has linked it, and the household has
- * not dismissed it as "not a gift" — created within the window.
+ * not dismissed it as "not a gift" — that entered the category within the
+ * window and was posted within {@link GIFT_CANDIDATE_MAX_AGE_DAYS}.
  *
- * `created_at` is the row's first-insert time: `sync_up_gift_transactions`'s
- * upsert never touches it on a later rescan, so it marks when the candidate
- * actually arrived, not when it was last reconfirmed in the category.
+ * `external_category_since` is when the sync first saw the row in its current
+ * category: a later rescan that finds it unchanged leaves it alone, so it marks
+ * when the candidate actually arrived — on insert, or when the household
+ * recategorised an already-synced purchase into gifts — not when it was last
+ * reconfirmed.
  */
 function isNewGiftCandidate(
   transaction: TransactionRow,
@@ -449,8 +460,10 @@ function isNewGiftCandidate(
   if (transaction.external_category !== UP_GIFT_CATEGORY) return false
   if (linkedTransactionIds.has(transaction.id)) return false
   if (dismissedTransactionIds.has(transaction.id)) return false
-  const ageMs = now.getTime() - Date.parse(transaction.created_at)
-  return ageMs <= NEW_GIFT_CANDIDATE_WINDOW_DAYS * 86_400_000
+  const arrivedMs = now.getTime() - Date.parse(transaction.external_category_since)
+  const postedMs = now.getTime() - Date.parse(transaction.posted_at)
+  return arrivedMs <= NEW_GIFT_CANDIDATE_WINDOW_DAYS * 86_400_000 &&
+    postedMs <= GIFT_CANDIDATE_MAX_AGE_DAYS * 86_400_000
 }
 
 /** Whether a `(member, trigger, dedupeKey)` was already sent inside its window. */

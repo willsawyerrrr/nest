@@ -14,11 +14,10 @@
  * name to disambiguate them. The token is read server-side only, via the
  * service-role-only Vault RPC.
  *
- * It then ingests one slice of the ledger: each member's gift-category Up
- * transactions over a trailing window, which the Gifts screen offers as
- * candidate purchases to link against a gift budget. A general transaction
- * ledger — every category, spend reconciliation, actual tax paid — is a separate
- * phase (see docs/up-ledger-sync.md).
+ * It then lands every Up transaction on those accounts in `transactions`, each
+ * account resuming from its latest synced transaction, and rescans the
+ * gift category over a trailing window so a transaction recategorised into or
+ * out of gifts in the Up app is refreshed (see docs/up-ledger-sync.md).
  */
 
 import { createClient } from '@supabase/supabase-js'
@@ -26,7 +25,8 @@ import { UpClient } from '../_shared/up.ts'
 import { handlePreflight, json, requirePost } from '../_shared/http.ts'
 import { resolveCaller } from '../_shared/caller.ts'
 import { isServiceRoleToken } from './auth.ts'
-import { type AccountRow, type GiftTransactionWindow, runSync, UP_GIFT_CATEGORY } from './sync.ts'
+import type { TransactionUpsert } from './map.ts'
+import { type AccountRow, runSync, type StoredGiftQuery, UP_GIFT_CATEGORY } from './sync.ts'
 
 Deno.serve(async (request) => {
   const preflight = handlePreflight(request)
@@ -117,8 +117,6 @@ Deno.serve(async (request) => {
       })
       if (error) throw new Error(`Failed to reconcile joint accounts: ${error.message}`)
     },
-    listGiftTransactions: (token, since) =>
-      new UpClient(token).listTransactions({ since, category: UP_GIFT_CATEGORY }),
     // The account rows the pass above upserted, read back for their local ids:
     // a transaction names its Up account, and the ledger row it becomes needs
     // the local account, household, and owning member.
@@ -131,19 +129,55 @@ Deno.serve(async (request) => {
       if (error) throw new Error(`Failed to resolve synced accounts: ${error.message}`)
       return data ?? []
     },
-    // A SECURITY DEFINER RPC settles the whole window in one transaction: upsert
-    // what Up returned, hold linked purchases to their transaction's amount, and
-    // prune the candidates Up no longer reports in the gift category.
-    syncGiftTransactions: async (
-      { householdId, accountIds, since, rows }: GiftTransactionWindow,
-    ) => {
-      const { error } = await supabase.rpc('sync_up_gift_transactions', {
+    latestPostedAt: async (accountId: string) => {
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('posted_at')
+        .eq('source', 'up')
+        .eq('account_id', accountId)
+        .or(`external_category.is.null,external_category.neq.${UP_GIFT_CATEGORY}`)
+        .order('posted_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (error) throw new Error(`Failed to read the latest transaction: ${error.message}`)
+      return data?.posted_at ?? null
+    },
+    listAccountTransactions: (token, accountId, since) =>
+      new UpClient(token).listAccountTransactions(accountId, since),
+    listGiftTransactions: (token, since) =>
+      new UpClient(token).listTransactions({ since, category: UP_GIFT_CATEGORY }),
+    listStoredGiftTransactionIds: async ({ accountIds, since }: StoredGiftQuery) => {
+      if (accountIds.length === 0) return []
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('external_id')
+        .eq('source', 'up')
+        .eq('external_category', UP_GIFT_CATEGORY)
+        .in('account_id', accountIds)
+        .gte('posted_at', since)
+      if (error) throw new Error(`Failed to list stored gift transactions: ${error.message}`)
+      return (data ?? []).map((row) => row.external_id as string)
+    },
+    getTransaction: (token, id) => new UpClient(token).getTransaction(id),
+    // A SECURITY DEFINER RPC: service_role holds no write grant on
+    // `transactions`. It upserts on (source, external_id), keeps a linked gift
+    // purchase at its transaction's amount, and never writes `notes`.
+    syncTransactions: async (householdId: string, rows: TransactionUpsert[]) => {
+      const { data, error } = await supabase.rpc('sync_up_transactions', {
         p_household_id: householdId,
-        p_account_ids: accountIds,
-        p_since: since,
-        rows,
+        p_rows: rows,
       })
-      if (error) throw new Error(`Failed to sync gift transactions: ${error.message}`)
+      if (error) throw new Error(`Failed to sync transactions: ${error.message}`)
+      return data ?? []
+    },
+    // A SECURITY DEFINER RPC, for the same reason: deletes the rows Up no
+    // longer has, keeping any a gift purchase links.
+    deleteTransactions: async (householdId: string, externalIds: string[]) => {
+      const { error } = await supabase.rpc('delete_up_transactions', {
+        p_household_id: householdId,
+        p_external_ids: externalIds,
+      })
+      if (error) throw new Error(`Failed to delete transactions: ${error.message}`)
     },
     // A SECURITY DEFINER RPC: clears the member's connection and stamps the
     // failure, called only when their token is rejected with 401/403.

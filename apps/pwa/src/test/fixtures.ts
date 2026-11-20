@@ -310,6 +310,8 @@ export function makeGiftTransaction(overrides: Partial<GiftTransaction> = {}): G
     up_message: null,
     up_note: null,
     performing_customer_name: null,
+    reviewed_at: null,
+    reviewed_by_member_id: null,
     created_at: '',
     updated_at: '',
     ...overrides,

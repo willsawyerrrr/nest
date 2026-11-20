@@ -47,6 +47,7 @@ private enum GiftFixtures {
         "external_category_since":"2026-03-01T12:00:00+00:00","external_parent_category":null,\
         "is_categorizable":true,"transaction_type":null,"deep_link_url":null,\
         "up_message":null,"up_note":null,"performing_customer_name":null,\
+        "reviewed_at":null,"reviewed_by_member_id":null,\
         "external_id":null,"kind":"expense","member_id":null,"notes":null,\
         "posted_at":"2026-03-01T12:00:00+00:00","source":"up","status":"settled",\(stamp)}
         """

@@ -67,8 +67,10 @@ and deployed.
   `kind` (`income`/`expense`/`transfer`), `status` (`pending`/`settled`),
   `source` (`up`/`manual`), `external_id`, `is_categorizable`,
   `transaction_type`, `deep_link_url`, `up_message`, `up_note`,
-  `performing_customer_name`, and `notes` — the household's own, which the sync
-  never writes. `unique (source, external_id)` and `unique (id, household_id)`;
+  `performing_customer_name`, and `notes`, `reviewed_at` and
+  `reviewed_by_member_id` — the household's own, which the sync never writes and
+  members set through `review_transaction`, their only write path to the
+  table. `unique (source, external_id)` and `unique (id, household_id)`;
   RLS gates each row on the balance-visible account set and withholds a row
   claimed as a gift for the caller
   (`hidden_gift_transaction_ids_for_current_member()`: the spend behind
@@ -189,7 +191,7 @@ below).
 **`sync_up_transactions(p_household_id, p_rows)`** upserts on `(source,
 external_id)` and returns `table(id, inserted)` (`xmax = 0` on a fresh insert),
 so a caller can act on newly arrived transactions. It never writes `notes`,
-`category_id`, or `created_at`; it restamps `external_category_since` only when
+the review columns, `category_id`, or `created_at`; it restamps `external_category_since` only when
 `external_category` changes, so the gift-candidate notification fires for a
 recategorisation into gifts; it holds a linked `gift_purchase` to its
 transaction's amount; and it leaves a conflicting row in another household
@@ -282,7 +284,7 @@ lookup it takes is resolved in the sync layer, so the mapper stays I/O-free:
 | `up_message` | `tx.attributes.message` |
 | `up_note` | `tx.attributes.note?.text` |
 | `performing_customer_name` | `tx.attributes.performingCustomer?.displayName` |
-| `notes` | never written — the household's own |
+| `notes`, `reviewed_at`, `reviewed_by_member_id` | never written — the household's own |
 | `category_id` | null — see below |
 
 **Categories/tags.** Up's category is a fixed child-under-parent taxonomy;

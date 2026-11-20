@@ -10,6 +10,7 @@ import {
   setAccountNetWorthExclusion,
   setMemberDateOfBirth,
   setPayAccount,
+  setTransactionNote,
 } from './ledger.ts'
 
 async function failure(run: Promise<unknown>): Promise<ToolError> {
@@ -215,12 +216,29 @@ describe('listTransactions', () => {
     kind: 'expense',
     status: 'settled',
     external_category: null,
+    transaction_type: 'Purchase',
+    is_categorizable: true,
+    up_message: null,
+    up_note: null,
+    notes: null,
+    reviewed_at: null,
+    reviewed_by_member_id: null,
     ...extra,
   })
   const transactions = [
-    row('t1', '2026-09-01T00:00:00Z'),
-    row('t2', '2026-10-01T00:00:00Z', { external_category: 'gifts-and-charity' }),
-    row('t3', '2026-09-15T00:00:00Z', { account_id: 'a-joint', kind: 'income' }),
+    row('t1', '2026-09-01T00:00:00Z', { notes: 'Dinner with Sam' }),
+    row('t2', '2026-10-01T00:00:00Z', {
+      external_category: 'gifts-and-charity',
+      notes: "Sam's birthday",
+      reviewed_at: '2026-10-02T00:00:00Z',
+      reviewed_by_member_id: 'm-self',
+    }),
+    row('t3', '2026-09-15T00:00:00Z', {
+      account_id: 'a-joint',
+      kind: 'income',
+      transaction_type: null,
+      up_message: 'Rent',
+    }),
   ]
 
   it('lists newest first with a limit and reports the total', async () => {
@@ -228,6 +246,14 @@ describe('listTransactions', () => {
     const result = await listTransactions(ctx, { limit: 2 })
     expect(result.total).toBe(3)
     expect(result.transactions.map((t) => t.id)).toEqual(['t2', 't3'])
+    expect(result.transactions[0]).toMatchObject({
+      transaction_type: 'Purchase',
+      is_categorizable: true,
+      notes: "Sam's birthday",
+      reviewed_at: '2026-10-02T00:00:00Z',
+      reviewed_by_member_id: 'm-self',
+    })
+    expect(result.transactions[1]).toMatchObject({ up_message: 'Rent', up_note: null })
   })
 
   it('filters by account, kind, source category, and dates', async () => {
@@ -238,5 +264,46 @@ describe('listTransactions', () => {
     expect(await ids({ kind: 'expense' })).toEqual(['t2', 't1'])
     expect(await ids({ external_category: 'gifts-and-charity' })).toEqual(['t2'])
     expect(await ids({ from: '2026-09-10', to: '2026-09-30' })).toEqual(['t3'])
+    expect(await ids({ unreviewed: true })).toEqual(['t3', 't1'])
+    expect(await ids({ note: 'SAM' })).toEqual(['t2', 't1'])
+    expect(await ids({ note: 'sam', unreviewed: true })).toEqual(['t1'])
+  })
+})
+
+describe('setTransactionNote', () => {
+  const id = '11111111-1111-4111-8111-111111111111'
+  const visible = { tables: { ...tables, transactions: [{ id, notes: null }] } }
+
+  it('sets the note and marks the transaction reviewed through the RPC', async () => {
+    const reviewed = {
+      id,
+      notes: 'Dinner',
+      reviewed_at: '2026-11-20T00:00:00Z',
+      reviewed_by_member_id: 'm-self',
+    }
+    const { ctx, state } = fakeContext({
+      ...visible,
+      rpcResults: { review_transaction: reviewed },
+    })
+    expect(await setTransactionNote(ctx, { transaction_id: id, note: ' Dinner ' })).toEqual(
+      reviewed,
+    )
+    await setTransactionNote(ctx, { transaction_id: id, note: null })
+    expect(state.rpcCalls).toEqual([
+      { fn: 'review_transaction', args: { p_transaction_id: id, p_note: ' Dinner ' } },
+      { fn: 'review_transaction', args: { p_transaction_id: id, p_note: '' } },
+    ])
+  })
+
+  it('refuses a transaction the member cannot see and reports a failed save', async () => {
+    const hidden = fakeContext({ tables })
+    expect(
+      (await failure(setTransactionNote(hidden.ctx, { transaction_id: id, note: 'x' }))).code,
+    ).toBe('not_found')
+    expect(hidden.state.rpcCalls).toEqual([])
+    const failing = fakeContext({ ...visible, rpcError: true })
+    expect(
+      (await failure(setTransactionNote(failing.ctx, { transaction_id: id, note: 'x' }))).code,
+    ).toBe('save_failed')
   })
 })

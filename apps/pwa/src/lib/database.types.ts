@@ -2324,6 +2324,8 @@ export type Database = {
           notes: string | null
           performing_customer_name: string | null
           posted_at: string
+          reviewed_at: string | null
+          reviewed_by_member_id: string | null
           source: Database['public']['Enums']['ledger_source']
           status: Database['public']['Enums']['transaction_status']
           transaction_type: string | null
@@ -2351,6 +2353,8 @@ export type Database = {
           notes?: string | null
           performing_customer_name?: string | null
           posted_at: string
+          reviewed_at?: string | null
+          reviewed_by_member_id?: string | null
           source?: Database['public']['Enums']['ledger_source']
           status?: Database['public']['Enums']['transaction_status']
           transaction_type?: string | null
@@ -2377,6 +2381,8 @@ export type Database = {
           notes?: string | null
           performing_customer_name?: string | null
           posted_at?: string
+          reviewed_at?: string | null
+          reviewed_by_member_id?: string | null
           source?: Database['public']['Enums']['ledger_source']
           status?: Database['public']['Enums']['transaction_status']
           transaction_type?: string | null
@@ -2423,6 +2429,13 @@ export type Database = {
           {
             foreignKeyName: 'transactions_member_id_household_id_fkey'
             columns: ['member_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'members'
+            referencedColumns: ['id', 'household_id']
+          },
+          {
+            foreignKeyName: 'transactions_reviewed_by_member_id_fkey'
+            columns: ['reviewed_by_member_id', 'household_id']
             isOneToOne: false
             referencedRelation: 'members'
             referencedColumns: ['id', 'household_id']
@@ -2710,6 +2723,43 @@ export type Database = {
       }
       register_apns_device: { Args: { p_environment: string; p_token: string }; Returns: undefined }
       resend_api_key: { Args: Record<PropertyKey, never>; Returns: string }
+      review_transaction: {
+        Args: { p_note?: string; p_reviewed?: boolean; p_transaction_id: string }
+        Returns: {
+          account_id: string
+          amount_cents: number
+          category_id: string | null
+          created_at: string
+          deep_link_url: string | null
+          description: string
+          external_category: string | null
+          external_category_since: string
+          external_id: string | null
+          external_parent_category: string | null
+          household_id: string
+          id: string
+          is_categorizable: boolean | null
+          kind: Database['public']['Enums']['transaction_kind']
+          member_id: string | null
+          notes: string | null
+          performing_customer_name: string | null
+          posted_at: string
+          reviewed_at: string | null
+          reviewed_by_member_id: string | null
+          source: Database['public']['Enums']['ledger_source']
+          status: Database['public']['Enums']['transaction_status']
+          transaction_type: string | null
+          up_message: string | null
+          up_note: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: '*'
+          to: 'transactions'
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       revoke_calendar_feed_token: { Args: Record<PropertyKey, never>; Returns: undefined }
       revoke_invite_code: { Args: Record<PropertyKey, never>; Returns: undefined }
       revoke_share_grant: { Args: Record<PropertyKey, never>; Returns: undefined }

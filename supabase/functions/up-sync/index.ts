@@ -17,7 +17,8 @@
  * It then lands every Up transaction on those accounts in `transactions`, each
  * account resuming from its latest synced transaction, and rescans the
  * gift category over a trailing window so a transaction recategorised into or
- * out of gifts in the Up app is refreshed (see docs/up-ledger-sync.md).
+ * out of gifts in the Up app is refreshed (see docs/up-ledger-sync.md). Once
+ * per run it also refreshes `up_category` from Up's category taxonomy.
  */
 
 import { createClient } from '@supabase/supabase-js'
@@ -178,6 +179,13 @@ Deno.serve(async (request) => {
         p_external_ids: externalIds,
       })
       if (error) throw new Error(`Failed to delete transactions: ${error.message}`)
+    },
+    listCategories: (token) => new UpClient(token).listCategories(),
+    // A SECURITY DEFINER RPC: service_role holds no write grant on
+    // `up_category`. Upserts Up's taxonomy, parents first.
+    syncCategories: async (rows) => {
+      const { error } = await supabase.rpc('sync_up_categories', { p_rows: rows })
+      if (error) throw new Error(`Failed to sync categories: ${error.message}`)
     },
     // A SECURITY DEFINER RPC: clears the member's connection and stamps the
     // failure, called only when their token is rejected with 401/403.

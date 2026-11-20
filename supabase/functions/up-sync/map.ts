@@ -3,7 +3,7 @@
  * server-free module so they can be unit-tested without starting the function.
  */
 
-import type { UpAccount, UpTransaction } from '../_shared/up.ts'
+import type { UpAccount, UpCategory, UpTransaction } from '../_shared/up.ts'
 
 /** A row shaped for upsert into public.accounts (source = 'up'). */
 export interface AccountUpsert {
@@ -109,5 +109,21 @@ export function mapTransaction(
     description: attributes.description,
     kind: relationships.transferAccount.data ? 'transfer' : amountCents < 0 ? 'expense' : 'income',
     status: attributes.status === 'SETTLED' ? 'settled' : 'pending',
+  }
+}
+
+/** A row shaped for the `sync_up_categories` RPC. */
+export interface CategoryUpsert {
+  id: string
+  name: string
+  parent_id: string | null
+}
+
+/** Maps an Up category onto its `up_category` row; a parent has a null `parent_id`. */
+export function mapCategory(category: UpCategory): CategoryUpsert {
+  return {
+    id: category.id,
+    name: category.attributes.name,
+    parent_id: category.relationships.parent.data?.id ?? null,
   }
 }

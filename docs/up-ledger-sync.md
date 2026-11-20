@@ -15,7 +15,8 @@ two reconciliation layers that consume the synced data.
 
 ## What exists
 
-The account sync and the transaction poll are built and deployed.
+The account sync, the transaction poll, and recategorising from Nest are built
+and deployed.
 
 - **`_shared/up.ts`** — a typed Up client (JSON:API, bearer per-member token). It
   models `UpTransaction` (status `HELD`/`SETTLED`, `description`, `message`,
@@ -24,10 +25,13 @@ The account sync and the transaction poll are built and deployed.
   `category`, `parentCategory`, `transferAccount`) and exposes
   `listTransactions({ since, category })`, `listAccountTransactions(accountId,
   since)` and `getTransaction(id)` (null on a `404`), each list with
-  `page[size]=100`, walking `links.next` to completion. A `429` is retried up to
-  three times after Up's `Retry-After` (else an exponential backoff from one
-  second), each wait capped at 30 seconds. It does **not** model tags, category
-  writes, or webhook registration.
+  `page[size]=100`, walking `links.next` to completion. A `429` on a read is
+  retried up to three times after Up's `Retry-After` (else an exponential
+  backoff from one second), each wait capped at 30 seconds. `listCategories()`
+  reads the unpaginated taxonomy, and `categoriseTransaction(id, categoryId)`
+  `PATCH`es a transaction's category (a child id, or null to clear it; `204` on
+  success, a `429` thrown rather than retried). It does **not** model tags or
+  webhook registration.
 - **`up-sync/map.ts`** — `mapTransaction(tx, accounts)` maps an `UpTransaction`
   onto the row `sync_up_transactions` takes (see the field mapping below),
   resolving the account from a lookup the sync layer passes in and returning
@@ -41,7 +45,12 @@ The account sync and the transaction poll are built and deployed.
   `role` claim. Accounts dedupe on `(source, external_id)`, collapsing joint
   accounts to one shared row (`owner_member_id` null), attributing individual
   accounts to their owner, and prefixing individual spending-account names.
+  Once per run, through the first member whose token lists their accounts, it
+  refreshes `up_category` from `GET /categories` via `sync_up_categories`.
   Idempotent throughout.
+- **`up-categorise/`** — recategorises one Up transaction from Nest (see
+  [Recategorising from Nest](#recategorising-from-nest-up-categorise)). The MCP
+  server's `categorise_transaction` tool calls it.
 - **`up-webhook/`** — deployed with `verify_jwt = false` (Up calls it
   unauthenticated) and a working `X-Up-Authenticity-Signature` HMAC-SHA256 check
   (`signature.ts`, constant-time compare). The handler switches on `PING` /
@@ -65,15 +74,19 @@ The account sync and the transaction poll are built and deployed.
   (`hidden_gift_transaction_ids_for_current_member()`: the spend behind
   someone's surprise stays out of their ledger view too); indexed on household,
   account, category, posted_at. **Populated with every Up transaction.**
+- **`public.up_category`** — Up's category taxonomy (`id`, `name`,
+  `parent_id`, null for a parent), shared by every household; `authenticated`
+  reads it, and only `sync_up_categories` writes it.
 - **`public.categories`** — hierarchical income/expense taxonomy per household
   (`parent_id`, `kind`, `is_archived`). Exists but unpopulated; not linked to Up's
   category taxonomy, so a synced row's `category_id` is null and its Up category
   sits in `external_category`.
 - **`service_role` grants** — surgical: `select` on `members`,
   `select`/`insert`/`update` on `accounts` and on `account_balance`, and
-  `select` on `transactions`. The poll writes `transactions` only through the
-  `sync_up_transactions` and `delete_up_transactions` SECURITY DEFINER RPCs, so
-  it holds no write grant on the table (per the surgical grant policy,
+  `select` on `transactions`. `transactions` and `up_category` are written only
+  through the `sync_up_transactions`, `delete_up_transactions`,
+  `sync_up_categories`, and `set_up_transaction_category` SECURITY DEFINER RPCs,
+  so `service_role` holds no write grant on either table (per the surgical grant policy,
   [`operations.md`](operations.md#service_role-grants)).
 
 ## Up API facts that shape the design
@@ -92,8 +105,9 @@ transaction's category and tags and for webhooks:
   webhook path's fetch; `404` once Up no longer has the transaction.
 - **Category write:** `PATCH /transactions/{id}/relationships/category` sets a
   categorisable transaction's child category (`data: {type: 'categories', id}`),
-  or clears it (`data: null`). Tags are added and removed through
-  `/transactions/{id}/relationships/tags`. Nest writes neither.
+  or clears it (`data: null`), answering `204`. Tags are added and removed
+  through `/transactions/{id}/relationships/tags`. Nest writes the category
+  (`up-categorise`), never tags.
 - **Transaction resource:** `status` (`HELD`/`SETTLED`), `amount`
   (`valueInBaseUnits` signed int cents), `description`, `message`, `rawText`,
   `createdAt`, `settledAt` (null while `HELD`), `isCategorizable`,
@@ -114,7 +128,7 @@ transaction's category and tags and for webhooks:
   client retries after `Retry-After`, else with exponential backoff.
 - **Categories:** `GET /categories` — non-paginated, fixed parent/child taxonomy
   (e.g. child `restaurants-and-cafes` under parent `good-life`). Child only can be
-  assigned to a transaction.
+  assigned to a transaction. Mirrored into `up_category` each sync run.
 - **Tags:** `GET /tags` — paginated custom labels, max 6 per transaction.
 
 ## 1. Transaction sync (foundation)
@@ -167,8 +181,10 @@ the inbox — and one Up answers `404` for is deleted through
 claimed it). A row recategorised away once older than the window keeps its gift
 category; dismissing it as "not a gift" clears it from the inbox.
 
-Recategorisation between two non-gift categories behind the mark is not caught;
-nothing reads those categories until the category mirror (stage 3).
+Recategorisation in the Up app between two non-gift categories behind the mark
+is not caught; nothing reads those categories until the category mirror
+(stage 3). A recategorisation made from Nest is recorded on the row at once (see
+below).
 
 **`sync_up_transactions(p_household_id, p_rows)`** upserts on `(source,
 external_id)` and returns `table(id, inserted)` (`xmax = 0` on a fresh insert),
@@ -178,6 +194,35 @@ so a caller can act on newly arrived transactions. It never writes `notes`,
 recategorisation into gifts; it holds a linked `gift_purchase` to its
 transaction's amount; and it leaves a conflicting row in another household
 alone.
+
+### Recategorising from Nest (`up-categorise`)
+
+A member changes an Up transaction's category from Nest, and the change is
+written back to Up so Up's own insights stay correct. `up-categorise`
+(JWT-verified) takes `{ transaction_id, category_id }` — a Nest transaction id,
+and an Up child category id or null to clear the category:
+
+1. Reads the transaction through the caller's own RLS-scoped client, so a row
+   outside their balance-visible accounts (or claimed as a gift for them) is
+   `transaction_not_found`.
+2. Refuses a non-Up row (`not_up_transaction`) and one Up marks uncategorisable
+   (`is_categorizable = false`, e.g. a transfer: `not_categorisable`).
+3. Checks the category against `up_category`: unknown is `unknown_category`, a
+   parent is `parent_category`.
+4. Reads the caller's own token through `up_token_for_member`; a member without
+   one gets `up_not_connected`, whose copy points at Connections. The write uses
+   the caller's token even on a joint account, so Up decides what that token can
+   touch.
+5. `PATCH`es the category. A failure is a stable code with fixed copy from
+   `_shared/upFailure.ts` — `up_auth_failed` (401/403), `up_rate_limited` (429,
+   retryable), `up_transaction_not_found` (404), `up_rejected` (400/422), else
+   `up_unavailable` — and Up's body is only logged.
+6. Records the category on the row through `set_up_transaction_category`
+   (`external_category`, `external_parent_category` from `up_category`, and
+   `external_category_since` restamped on a change), so a transaction moved into
+   `gifts-and-charity` joins the Gifts inbox, and its gift-candidate
+   notification, straight away. A failure here is `save_failed`: Up has the
+   category, and the next sync's rescan or ledger pass brings the row in line.
 
 ### Webhook — near-real-time (`up-webhook`, next)
 
@@ -399,10 +444,10 @@ inferring it circularly from the estimate.
 - **Joint accounts.** A joint transaction fires two webhook deliveries and is seen
   by both tokens on poll; the upsert collapses to one row; `member_id` is null
   (mirrors the account). This is the same dedupe the account sync already proves.
-- **`service_role` grants.** The poll writes through SECURITY DEFINER RPCs and
-  holds only `select` on `transactions`; a category mirror would need its own
-  deliberate grant or RPC, per the surgical grant policy
-  ([`operations.md`](operations.md#service_role-grants)).
+- **`service_role` grants.** The poll and `up-categorise` write through
+  SECURITY DEFINER RPCs and hold only `select` on `transactions`; a category
+  mirror into `categories` would need its own deliberate grant or RPC, per the
+  surgical grant policy ([`operations.md`](operations.md#service_role-grants)).
 
 ## Open questions (for the user to resolve later — not blocking)
 

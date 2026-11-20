@@ -964,12 +964,12 @@ member can see — savers, spending accounts, and home loans alike — and by
 `redbark-sync` from every banking-category account under a member's Redbark
 connections (see the Up and Redbark integrations in
 [`architecture.md`](architecture.md)); a savings goal links to one
-via `savings_goal.linked_account_id`. `transactions` holds one slice of the
-ledger: the gift-category Up transactions `up-sync` polls, which the Gifts screen
-links purchases from — Redbark syncs accounts and balances only, never
-transactions. Every other Up category, manual entry, and spending-plan
+via `savings_goal.linked_account_id`. `transactions` holds every Up transaction
+`up-sync` polls, which the Gifts screen links purchases from — Redbark syncs
+accounts and balances only, never transactions. Manual entry and spending-plan
 reconciliation are a later phase, so `categories` — the household's own taxonomy —
-stays unpopulated and a synced row's `category_id` is null.
+stays unpopulated and a synced row's `category_id` is null; Up's own taxonomy is
+mirrored in `up_category`.
 
 - **accounts** — an identity-only bank or savings account; its balance lives in
   `account_balance`.
@@ -1085,6 +1085,12 @@ stays unpopulated and a synced row's `category_id` is null.
 - **categories** — hierarchical income/expense taxonomy.
   - `id`, `household_id`, `parent_id` (nullable, self-referential), `name`,
     `kind` (`income` | `expense`), `is_archived`, `created_at`, `updated_at`.
+- **up_category** — Up's category taxonomy, shared by every household.
+  - `id` (Up's category id, e.g. `restaurants-and-cafes`), `name`, `parent_id`
+    (nullable, self-referential; null for a parent category). Only a child is
+    assignable to a transaction.
+  - `up-sync` refreshes it from Up's `GET /categories` once per run through
+    `sync_up_categories`; `authenticated` can `select` every row and write none.
 
 ## Pay splits
 
@@ -1307,6 +1313,13 @@ that live in Vault:
 - `delete_up_transactions(p_household_id, p_external_ids text[])` — deletes the
   household's named Up rows, the ones the gift rescan found Up no longer has,
   keeping any a `gift_purchase` links.
+- `sync_up_categories(p_rows jsonb)` — `up-sync`'s refresh of `up_category`:
+  upserts every category, parents first; a category Up stops listing is kept.
+- `set_up_transaction_category(p_transaction_id, p_category text)` → `boolean`
+  — `up-categorise`'s record of a category written back to Up: sets an Up row's
+  `external_category` and, from `up_category`, its `external_parent_category`,
+  restamping `external_category_since` only on a change; false when no Up row
+  has the id. Both are SECURITY DEFINER and `service_role`-only.
 - `reconcile_source_accounts(household_id, owner_member_id, source, present_external_ids text[])`
   — the `up-sync` / `redbark-sync` per-member account reconcile: over one
   member's individually-owned accounts of the given `source`, clears

@@ -113,6 +113,8 @@ describe('the server', () => {
         'attach_payslip_document',
         'remove_payslip_document',
         'create_payslip_from_document',
+        'list_up_categories',
+        'categorise_transaction',
       ]),
     )
   })

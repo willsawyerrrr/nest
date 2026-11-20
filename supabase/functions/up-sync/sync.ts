@@ -14,13 +14,24 @@
  * connected member of the household to have synced with a readable token in the
  * same run, so they are reconciled once per household after the member loop,
  * against the union of the ids those members' tokens returned.
+ *
+ * Once per run, the first member whose token lists their accounts also
+ * refreshes `up_category` from Up's category taxonomy, which is the same for
+ * every token.
  */
 
 import { financialYearBounds, financialYearForDate } from '@nest/tax'
-import { isUpAuthError, type UpAccount, type UpTransaction } from '../_shared/up.ts'
+import {
+  isUpAuthError,
+  type UpAccount,
+  type UpCategory,
+  type UpTransaction,
+} from '../_shared/up.ts'
 import {
   type AccountUpsert,
+  type CategoryUpsert,
   mapAccount,
+  mapCategory,
   mapTransaction,
   type SyncedAccount,
   type TransactionUpsert,
@@ -207,6 +218,10 @@ export interface SyncDeps {
   syncTransactions: (householdId: string, rows: TransactionUpsert[]) => Promise<SyncedTransaction[]>
   /** Deletes a household's Up rows Up no longer has, keeping any a gift purchase links. */
   deleteTransactions: (householdId: string, externalIds: string[]) => Promise<void>
+  /** Lists Up's category taxonomy with the token. */
+  listCategories: (token: string) => Promise<UpCategory[]>
+  /** Upserts the taxonomy into `up_category`. */
+  syncCategories: (rows: CategoryUpsert[]) => Promise<void>
   /**
    * Clears a member's Up connection and stamps the failure, so they are
    * prompted to reconnect rather than retried forever. Called only when the
@@ -417,6 +432,10 @@ async function syncGiftWindow(
  * account a transaction can name is already in the ledger, and a failure in one
  * costs only that pass for that member.
  *
+ * The category taxonomy is refreshed once per run, through the first member
+ * whose token lists their accounts; a failure there is logged and the next
+ * member's token tries again.
+ *
  * `householdId` scopes the run to one household's connected members (a caller's
  * manual refresh); null syncs every connected member (the cron path).
  */
@@ -431,6 +450,7 @@ export async function runSync(
   const settledAccounts = new Set<string>()
   let accounts = 0
   let transactions = 0
+  let categoriesRefreshed = false
 
   // Per household in scope: how many connected members it has, how many of them
   // synced with a readable token this run, and the union of the Up account ids
@@ -466,6 +486,15 @@ export async function runSync(
         }
       }
       continue
+    }
+
+    if (!categoriesRefreshed) {
+      try {
+        await deps.syncCategories((await deps.listCategories(token)).map(mapCategory))
+        categoriesRefreshed = true
+      } catch (error) {
+        console.error(`Category refresh failed for member ${member.memberId}:`, error)
+      }
     }
 
     const rows = buildAccountRows(upAccounts, member)

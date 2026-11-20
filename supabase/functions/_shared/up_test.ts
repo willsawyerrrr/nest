@@ -252,3 +252,74 @@ Deno.test('rateLimitWaitMs caps a long Retry-After', () => {
   const response = new Response(null, { status: 429, headers: { 'Retry-After': '600' } })
   assertEquals(rateLimitWaitMs(response, 0), 30_000)
 })
+
+Deno.test('listCategories reads the whole taxonomy in one request', async () => {
+  const calls: string[] = []
+  const fetchImpl: typeof fetch = (input) => {
+    calls.push(String(input))
+    return Promise.resolve(jsonResponse({
+      data: [
+        {
+          id: 'good-life',
+          attributes: { name: 'Good Life' },
+          relationships: { parent: { data: null } },
+        },
+        {
+          id: 'restaurants-and-cafes',
+          attributes: { name: 'Restaurants & Cafes' },
+          relationships: { parent: { data: { id: 'good-life' } } },
+        },
+      ],
+    }))
+  }
+
+  const categories = await new UpClient('token', 'https://up.test', fetchImpl).listCategories()
+  assertEquals(calls, ['https://up.test/categories'])
+  assertEquals(categories.map((c) => c.id), ['good-life', 'restaurants-and-cafes'])
+})
+
+Deno.test('categoriseTransaction PATCHes the child category', async () => {
+  let request: { url: string; init?: RequestInit } | null = null
+  const fetchImpl: typeof fetch = (input, init) => {
+    request = { url: String(input), init }
+    return Promise.resolve(new Response(null, { status: 204 }))
+  }
+
+  await new UpClient('token', 'https://up.test', fetchImpl).categoriseTransaction(
+    'tx-1',
+    'gifts-and-charity',
+  )
+  const sent = request!
+  assertEquals(sent.url, 'https://up.test/transactions/tx-1/relationships/category')
+  assertEquals(sent.init?.method, 'PATCH')
+  assertEquals(new Headers(sent.init?.headers).get('Authorization'), 'Bearer token')
+  assertEquals(JSON.parse(String(sent.init?.body)), {
+    data: { type: 'categories', id: 'gifts-and-charity' },
+  })
+})
+
+Deno.test('categoriseTransaction clears the category with null data', async () => {
+  let body = ''
+  const fetchImpl: typeof fetch = (_input, init) => {
+    body = String(init?.body)
+    return Promise.resolve(new Response(null, { status: 204 }))
+  }
+
+  await new UpClient('token', 'https://up.test', fetchImpl).categoriseTransaction('tx-1', null)
+  assertEquals(JSON.parse(body), { data: null })
+})
+
+Deno.test('categoriseTransaction throws an UpApiError on a 429 without retrying', async () => {
+  let calls = 0
+  const fetchImpl: typeof fetch = () => {
+    calls++
+    return Promise.resolve(new Response('slow down', { status: 429 }))
+  }
+
+  const error = await assertRejects(
+    () => new UpClient('token', 'https://up.test', fetchImpl).categoriseTransaction('tx-1', null),
+    UpApiError,
+  )
+  assertEquals(error.status, 429)
+  assertEquals(calls, 1)
+})

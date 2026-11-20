@@ -60,8 +60,10 @@ hold the account mapper and sync orchestration the way `up-sync/{map,sync}.ts` d
 The Up integration uses a per-member personal access token and near-real-time
 webhooks, with a scheduled poll as a backstop.
 
-- **`_shared/up.ts`** — typed Up API client (bearer auth) for pinging the API
-  and listing accounts and transactions.
+- **`_shared/up.ts`** — typed Up API client (bearer auth) for pinging the API,
+  listing accounts, transactions, and categories, and setting a transaction's
+  category. `_shared/upFailure.ts` maps a failed Up call to a stable `code` with
+  fixed copy, as `_shared/redbarkFailure.ts` does for Redbark.
 - **`up-connect`** — JWT-verified. Resolves the caller's member from the JWT
   (never the body), validates the posted `{ token }` with `UpClient.ping()`, and
   on success stores it encrypted in Vault via the service-role-only
@@ -86,7 +88,23 @@ webhooks, with a scheduled poll as a backstop.
   hourly cron presents the service-role key with no user and syncs every
   connected member. The token is read server-side only, via the service-role
   Vault RPC. The caller-scoping decision is the pure `membersToSync` in
-  `up-sync/sync.ts` (household-scoped vs all), unit-tested against fakes.
+  `up-sync/sync.ts` (household-scoped vs all), unit-tested against fakes. Once
+  per run it also refreshes `up_category` from Up's `GET /categories` through
+  the `sync_up_categories` RPC.
+- **`up-categorise`** — JWT-verified. Takes `{ transaction_id, category_id }`
+  (a Nest transaction id; an Up child category id, or null to clear it), reads
+  the transaction through the caller's own RLS-scoped client, refuses a non-Up
+  row, one Up marks uncategorisable, and an unknown or parent category, then
+  `PATCH`es the category to Up with the caller's own Vault token and records it
+  on the local row through the service-role-only `set_up_transaction_category`
+  RPC, so the Gifts inbox reflects it straight away. Failures are a stable
+  `code` with fixed copy: `invalid_request`, `transaction_not_found`,
+  `not_up_transaction`, `not_categorisable`, `unknown_category`,
+  `parent_category`, `save_failed` (Up took the category, the local write did
+  not), `server_error`, and from `_shared/upFailure.ts` `up_not_connected` (no
+  token: connect Up in Connections), `up_auth_failed`, `up_rate_limited`
+  (retryable), `up_transaction_not_found`, `up_rejected`, and `up_unavailable`.
+  The flow is `up-categorise/categorise.ts`, unit-tested against fakes.
 
 ### Secrets
 
@@ -126,7 +144,7 @@ side compares and why a function is dated by its bundle inputs rather than its
 directory.
 
 The per-function JWT posture lives in `config.toml`, so the "deploy all" is safe:
-`up-connect`, `up-disconnect`, `up-sync`, `changelog`, `push-key`, `push-test`,
+`up-connect`, `up-disconnect`, `up-sync`, `up-categorise`, `changelog`, `push-key`, `push-test`,
 `payslip-extract`, `deduction-extract`, `trade-extract`, `share-create`, `intent-summary`,
 `goal-progress`, `pay-split`, `notify-eval`, `redbark-connect`, `redbark-connect-complete`,
 `redbark-disconnect`, and `redbark-sync` are JWT-verified (the default, so they
@@ -152,6 +170,7 @@ supabase functions serve up-connect
 supabase functions serve up-disconnect
 supabase functions serve up-webhook
 supabase functions serve up-sync
+supabase functions serve up-categorise
 supabase functions serve payslip-extract
 supabase functions serve deduction-extract
 supabase functions serve trade-extract

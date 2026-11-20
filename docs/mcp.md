@@ -126,6 +126,8 @@ Money is always integer cents.
 | `set_pay_account` | write | `account` (id or name) or null, via `set_household_pay_account`. |
 | `list_categories` | read | Income and expense categories with parent; archived only with `include_archived`. |
 | `list_transactions` | read | Ledger transactions the member's RLS exposes, newest first (`limit` default 50, max 200), signed `amount_cents`; filters `account`, `kind`, `from` / `to`, and `external_category` (Up's category, e.g. `gifts-and-charity` for the synced gift candidates). |
+| `list_up_categories` | read | Up's category taxonomy from `up_category`: each parent with its children, sorted by name. Only a child is assignable. |
+| `categorise_transaction` | write | `transaction_id` (from `list_transactions`) and `category_id` (a child from `list_up_categories`, or null to clear it), through `up-categorise` with the member's own Up token: written to Up, then recorded in Nest, so a move into `gifts-and-charity` reaches the gift inbox at once. A non-Up or uncategorisable transaction (e.g. a transfer) is `not_categorisable`. |
 | `list_gifts` | read | The gift tracker: recipients (household members are permanent ones, flagged `is_member` / `is_you`), occasions, per-recipient budgets with `spent_cents` and `remaining_cents`, the ad hoc buffer with its spend, unassigned spend, and every purchase the member can see. A budget for the member's own gift reports `private: true` and null spent and remaining, because row-level security hides its purchases. |
 | `list_gift_candidates` | read | The "From your card" inbox: synced Up `gifts-and-charity` transactions no purchase claims and nobody dismissed (amount as a magnitude, local posting date, `pending`), and those dismissed with their `dismissal_id`. A co-member's spending account and a transaction claimed as a gift for the member are withheld by row-level security. |
 | `add_gift_recipient` / `update_gift_recipient` / `delete_gift_recipient` | write | External recipients only: `name`, or `id` to rename or delete (cascading to their budgets and purchases). A household member's recipient is refused (`member_recipient`). |
@@ -247,6 +249,13 @@ relayed.
 | `allowance_overdrawn`         | The write would leave an allowance with less than is drawn from it. |
 | `invalid_account`             | The account is unknown, not a synced saver for a goal, or not a transaction account for the pay account. |
 | `automatic_group`             | The donations group is automatic and cannot be filed into, renamed, or deleted. |
+| `not_categorisable`           | The transaction is not from Up, or Up does not let it be categorised. |
+| `invalid_category`            | Not an Up category, or a parent category (only a child is assignable). |
+| `up_not_connected`            | The member has not connected Up; they connect it in Nest's Connections. |
+| `up_auth_failed`              | Up rejected the member's token; they reconnect Up in Connections. |
+| `up_rejected`                 | Up refused the category for this transaction. |
+| `up_rate_limited`             | Up is rate limiting; try again shortly. |
+| `up_unavailable`              | Up could not be reached or failed. |
 | `query_failed`                | A read failed.                                                    |
 | `save_failed`                 | A write failed.                                                   |
 | `delete_failed`               | A delete failed.                                                  |

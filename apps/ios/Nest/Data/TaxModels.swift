@@ -214,6 +214,7 @@ struct DeductionReceipt: NestRow {
 /// is its identity.
 struct ShareGrant: NestRow {
     static let table = "share_grant"
+    static let columns = "created_at,expires_at,financial_year,household_id,recipient_email"
 
     let createdAt: String
     let expiresAt: String

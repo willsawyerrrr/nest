@@ -31,8 +31,10 @@ Clients talk to the database in the way that fits each job:
 - **Edge functions (Deno/TypeScript)** — only what needs trusted server compute.
   Auto-deployed to prod on merge (see
   *Local dev & delivery*): `up-connect` / `up-disconnect` (connect and clear a
-  member's Up token), `up-sync` (poll every Up account's balance, then the
-  gift-category transaction window), `up-webhook`
+  member's Up token), `up-sync` (poll every Up account's balance, then its
+  transactions and the gift-category rescan window, and refresh Up's category
+  taxonomy), `up-categorise` (write a transaction's category back to Up with the
+  caller's own token), `up-webhook`
   (near-real-time receiver), `redbark-connect` / `redbark-connect-complete` /
   `redbark-disconnect` (start, resolve, and revoke a member's Redbark bank
   connection via its hosted Link Session flow), `redbark-sync` (poll every

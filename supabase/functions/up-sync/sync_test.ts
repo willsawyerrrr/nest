@@ -147,6 +147,8 @@ function deps(overrides: Partial<SyncDeps> = {}): SyncDeps {
     getTransaction: () => Promise.resolve(null),
     syncTransactions: () => Promise.resolve([]),
     deleteTransactions: () => Promise.resolve(),
+    listCategories: () => Promise.resolve([]),
+    syncCategories: () => Promise.resolve(),
     disconnectMember: () => Promise.resolve(),
     ...overrides,
   }
@@ -762,4 +764,61 @@ Deno.test('runSync keeps going when a joint reconcile fails', async () => {
   assertEquals(jointReconciles, [
     { householdId: 'h-2', presentExternalIds: ['tok-m-3-own'] },
   ])
+})
+
+Deno.test('runSync refreshes the category taxonomy once per run', async () => {
+  const synced: unknown[] = []
+  let listed = 0
+  await runSync(deps({
+    listConnectedMembers: () => Promise.resolve([member, { ...member, memberId: 'm-2' }]),
+    listCategories: () => {
+      listed++
+      return Promise.resolve([
+        {
+          id: 'personal',
+          attributes: { name: 'Personal' },
+          relationships: { parent: { data: null } },
+        },
+        {
+          id: 'gifts-and-charity',
+          attributes: { name: 'Gifts & Charity' },
+          relationships: { parent: { data: { id: 'personal' } } },
+        },
+      ])
+    },
+    syncCategories: (rows) => {
+      synced.push(rows)
+      return Promise.resolve()
+    },
+  }))
+  assertEquals(listed, 1)
+  assertEquals(synced, [[
+    { id: 'personal', name: 'Personal', parent_id: null },
+    { id: 'gifts-and-charity', name: 'Gifts & Charity', parent_id: 'personal' },
+  ]])
+})
+
+Deno.test('runSync retries a failed category refresh with the next member and still syncs', async () => {
+  const original = console.error
+  console.error = () => {}
+  let attempts = 0
+  let refreshed = 0
+  try {
+    const result = await runSync(deps({
+      listConnectedMembers: () => Promise.resolve([member, { ...member, memberId: 'm-2' }]),
+      listCategories: () => {
+        attempts++
+        return attempts === 1 ? Promise.reject(new Error('Up down')) : Promise.resolve([])
+      },
+      syncCategories: () => {
+        refreshed++
+        return Promise.resolve()
+      },
+    }))
+    assertEquals(result.members, 2)
+  } finally {
+    console.error = original
+  }
+  assertEquals(attempts, 2)
+  assertEquals(refreshed, 1)
 })

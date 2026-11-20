@@ -67,7 +67,7 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   the balance-visible set; a co-member's spending account by name only), `list_members`,
   `get_household`, `list_categories`, `list_transactions` (what RLS exposes), `list_trades`, `list_holdings` (FIFO, valued at the last traded price), `list_payslips`, and the gift tracker's `list_gifts` and
   `list_gift_candidates` (a budget for the member's own gift reports no spend, as
-  RLS hides its purchases). Write
+  RLS hides its purchases), and `list_up_categories` (Up's taxonomy). Write
   tools: `set_account_net_worth_exclusion`, `set_member_date_of_birth`, `set_pay_account`, `add_budget_line` and `update_budget_line` (manual lines only; derived
   lines are refused; they also set a line's goal, funding account, and own-allowance draw), `delete_budget_line`,
   breakdown and breakdown-item CRUD (generic only), `update_member_allowance`
@@ -84,7 +84,8 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   external recipients, occasions, budgets, and purchases (hand-entered, card-linked,
   or ad hoc), `set_gift_discretionary_budget`, and `dismiss_gift_candidate` /
   `restore_gift_candidate`; a member's own recipient is not editable and a purchase
-  for their own gift is refused (`private_gift`). Credentials and outward-facing surfaces (Up/Redbark
+  for their own gift is refused (`private_gift`). `categorise_transaction`
+  recategorises an Up transaction through `up-categorise`. Credentials and outward-facing surfaces (Up/Redbark
   tokens, push, calendar tokens, share grants, invite codes, household create/join,
   Vault) are never exposed. Income, tax, super, and equity are managed in full:
   `list_inflows` / `add_inflow` / `update_inflow` / `delete_inflow` (recurring or
@@ -966,11 +967,16 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   (`gift_transaction_dismissal`). The ledger's per-account privacy applies: a
   co-member's transactions on their own spending account stay invisible, and
   joint-account spend is a gift candidate for both partners until it is claimed
-  as one partner's gift, at which point it is withheld from them. Spend
+  as one partner's gift, at which point it is withheld from them. A member
+  recategorises an Up transaction from Nest through `up-categorise`, which
+  writes the category back to Up with their own token (only a child category
+  from `up_category`, Up's taxonomy that `up-sync` refreshes each run, and never
+  a transaction Up marks uncategorisable) and records it on the row at once, so
+  a move into gifts reaches the inbox without waiting for a sync. Spend
   reconciliation and actual tax paid are deferred.
   Sources (Up Bank API + Redbark + manual entry) are
   source-agnostic. Edge functions (`up-connect` / `up-disconnect` / `up-sync` /
-  `up-webhook` / `changelog`) live under `supabase/functions/` and auto-deploy to
+  `up-categorise` / `up-webhook` / `changelog`) live under `supabase/functions/` and auto-deploy to
   prod on merge via `.github/workflows/deploy-functions.yml`, whose deploy step
   retries a bundle that fails because Docker could not start a container. Prod
   running every function in the directory is asserted, not assumed:

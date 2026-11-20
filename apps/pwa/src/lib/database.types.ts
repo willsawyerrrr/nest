@@ -2429,6 +2429,33 @@ export type Database = {
           },
         ]
       }
+      up_category: {
+        Row: {
+          id: string
+          name: string
+          parent_id: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          id: string
+          name: string
+          parent_id?: string | null
+        }
+        Update: {
+          id?: string
+          name?: string
+          parent_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'up_category_parent_id_fkey'
+            columns: ['parent_id']
+            isOneToOne: false
+            referencedRelation: 'up_category'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       wishlist_item: {
         Row: {
           amount_cents: number
@@ -2691,7 +2718,12 @@ export type Database = {
         Args: { p_date_of_birth: string; p_member_id: string }
         Returns: undefined
       }
+      set_up_transaction_category: {
+        Args: { p_category: string; p_transaction_id: string }
+        Returns: boolean
+      }
       store_up_token: { Args: { p_member_id: string; p_token: string }; Returns: undefined }
+      sync_up_categories: { Args: { p_rows: Json }; Returns: undefined }
       sync_up_transactions: {
         Args: { p_household_id: string; p_rows: Json }
         Returns: {

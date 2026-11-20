@@ -81,6 +81,13 @@ export interface UpTransaction {
   }
 }
 
+/** An Up category resource: a parent (no `parent`) or a child under one. */
+export interface UpCategory {
+  readonly id: string
+  readonly attributes: { readonly name: string }
+  readonly relationships: { readonly parent: UpRelationship }
+}
+
 /** Filters narrowing a transaction listing to the slice the ledger wants. */
 export interface ListTransactionsOptions {
   /** Only transactions created at or after this instant (`filter[since]`). */
@@ -179,6 +186,36 @@ export class UpClient {
       accounts.push(account)
     }
     return accounts
+  }
+
+  /** Lists Up's whole category taxonomy, parents and children (`GET /categories`, unpaginated). */
+  async listCategories(): Promise<UpCategory[]> {
+    const { data } = await this.get<{ data: UpCategory[] }>('/categories')
+    return data
+  }
+
+  /**
+   * Sets a transaction's category to the child category `categoryId`, or clears
+   * it with null (`PATCH /transactions/{id}/relationships/category`). Up answers
+   * `204`; any other status throws an {@link UpApiError}. A `429` is not
+   * retried: the caller reports it and the member tries again.
+   */
+  async categoriseTransaction(id: string, categoryId: string | null): Promise<void> {
+    const path = `/transactions/${encodeURIComponent(id)}/relationships/category`
+    const response = await this.fetchImpl(`${this.baseUrl}${path}`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${this.token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        data: categoryId === null ? null : { type: 'categories', id: categoryId },
+      }),
+    })
+    if (!response.ok) {
+      throw new UpApiError(response.status, path, await response.text())
+    }
+    await response.body?.cancel()
   }
 
   /** Reads one transaction, or null when Up has no transaction by that id (a `404`). */

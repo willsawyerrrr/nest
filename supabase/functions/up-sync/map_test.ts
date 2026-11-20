@@ -18,21 +18,34 @@ function account(overrides: Partial<UpAccount['attributes']> = {}): UpAccount {
 
 function transaction(
   attrs: Partial<UpTransaction['attributes']> = {},
-  { accountId = 'acc-1', category = 'gifts-and-charity' as string | null } = {},
+  {
+    accountId = 'acc-1',
+    category = 'gifts-and-charity' as string | null,
+    parentCategory = 'personal' as string | null,
+    transferAccount = null as string | null,
+  } = {},
 ): UpTransaction {
   return {
     id: 'tx-1',
     attributes: {
       status: 'SETTLED',
       description: 'Coffee',
+      message: null,
+      isCategorizable: true,
       amount: { currencyCode: 'AUD', value: '-4.50', valueInBaseUnits: -450 },
       createdAt: '2026-01-02T08:00:00+11:00',
       settledAt: '2026-01-02T09:00:00+11:00',
+      transactionType: 'Purchase',
+      deepLinkURL: 'up://transaction/tx-1',
+      note: null,
+      performingCustomer: { displayName: 'Alex' },
       ...attrs,
     },
     relationships: {
       account: { data: { id: accountId } },
       category: { data: category === null ? null : { id: category } },
+      parentCategory: { data: parentCategory === null ? null : { id: parentCategory } },
+      transferAccount: { data: transferAccount === null ? null : { id: transferAccount } },
     },
   }
 }
@@ -78,6 +91,13 @@ Deno.test('mapTransaction maps a settled expense, attributed to the account owne
     member_id: 'm-1',
     external_id: 'tx-1',
     external_category: 'gifts-and-charity',
+    external_parent_category: 'personal',
+    is_categorizable: true,
+    transaction_type: 'Purchase',
+    deep_link_url: 'up://transaction/tx-1',
+    up_message: null,
+    up_note: null,
+    performing_customer_name: 'Alex',
     posted_at: '2026-01-02T09:00:00+11:00',
     amount_cents: -450,
     description: 'Coffee',
@@ -125,6 +145,53 @@ Deno.test('mapTransaction skips a transaction whose account is not synced', () =
 Deno.test('mapTransaction carries a null category through', () => {
   assertEquals(
     mapTransaction(transaction({}, { category: null }), accounts)?.external_category,
+    null,
+  )
+})
+
+Deno.test('mapTransaction carries a null parent category through', () => {
+  assertEquals(
+    mapTransaction(transaction({}, { category: null, parentCategory: null }), accounts)
+      ?.external_parent_category,
+    null,
+  )
+})
+
+Deno.test('mapTransaction maps a transaction naming a transfer account to transfer', () => {
+  const row = mapTransaction(
+    transaction({ isCategorizable: false }, { category: null, transferAccount: 'acc-2' }),
+    accounts,
+  )
+  assertEquals(row?.kind, 'transfer')
+  assertEquals(row?.is_categorizable, false)
+})
+
+Deno.test('mapTransaction maps an incoming transfer to transfer, not income', () => {
+  assertEquals(
+    mapTransaction(
+      transaction(
+        { amount: { currencyCode: 'AUD', value: '50.00', valueInBaseUnits: 50_00 } },
+        { transferAccount: 'acc-2' },
+      ),
+      accounts,
+    )?.kind,
+    'transfer',
+  )
+})
+
+Deno.test("mapTransaction carries Up's message and note into their own columns", () => {
+  const row = mapTransaction(
+    transaction({ message: 'Rent share', note: { text: 'Split with Sam' } }),
+    accounts,
+  )
+  assertEquals(row?.up_message, 'Rent share')
+  assertEquals(row?.up_note, 'Split with Sam')
+  assertEquals('notes' in (row ?? {}), false)
+})
+
+Deno.test('mapTransaction leaves the performing customer null when Up omits it', () => {
+  assertEquals(
+    mapTransaction(transaction({ performingCustomer: null }), accounts)?.performing_customer_name,
     null,
   )
 })

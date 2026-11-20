@@ -414,7 +414,7 @@ export function createServer(ctx: NestContext, transport: 'stdio' | 'http' = 'st
     'list_transactions',
     {
       description:
-        'List ledger transactions visible to the member, newest first (limit default 50, max 200), with signed amount_cents (negative is an outflow). Filter by account (id or name), kind, from / to (YYYY-MM-DD), or external_category (e.g. gifts-and-charity, the synced gift-spend candidates).',
+        'List ledger transactions visible to the member, newest first (limit default 50, max 200), with signed amount_cents (negative is an outflow). Filter by account (id or name), kind, from / to (YYYY-MM-DD), or external_category (the Up category, e.g. gifts-and-charity for the synced gift-spend candidates).',
       inputSchema: listTransactionsInput.shape,
       annotations: { readOnlyHint: true },
     },

@@ -33,16 +33,39 @@ import {
   type HouseholdBundle,
   type LogRow,
   type MemberConnectionRow,
+  NEW_GIFT_CANDIDATE_WINDOW_DAYS,
   type PreferenceRow,
   runNotifyEval,
   type SavingsGoalRow,
   type SubscriptionRow,
   type TemporaryItemRow,
   type TransactionRow,
+  UP_GIFT_CATEGORY,
 } from './eval.ts'
 
 /** How far back `notification_log` is read for the dedupe check. */
 const LOG_LOOKBACK_DAYS = 40
+
+/**
+ * The household's gift-category transactions that entered the category inside
+ * the candidate window — the only rows the gift-candidate trigger can fire for.
+ */
+async function readGiftTransactions(
+  admin: SupabaseClient,
+  householdId: string,
+): Promise<TransactionRow[]> {
+  const since = new Date(Date.now() - NEW_GIFT_CANDIDATE_WINDOW_DAYS * 86_400_000).toISOString()
+  const { data, error } = await admin
+    .from('transactions')
+    .select(
+      'id, account_id, description, amount_cents, external_category, external_category_since, posted_at',
+    )
+    .eq('household_id', householdId)
+    .eq('external_category', UP_GIFT_CATEGORY)
+    .gte('external_category_since', since)
+  if (error) throw new Error(`Failed to read transactions: ${error.message}`)
+  return (data ?? []) as TransactionRow[]
+}
 
 /** Stands in for a sender that is not configured; its devices are never loaded. */
 const unconfigured = () => Promise.resolve({ delivered: false, gone: false } as const)
@@ -114,7 +137,9 @@ Deno.serve(async (request) => {
         loadBudgetSummaryBundle(admin, householdId, financialYear),
         readHouseholdTable(admin, householdId, 'account_balance'),
         readHouseholdTable(admin, householdId, 'gift_purchase'),
-        readHouseholdTable(admin, householdId, 'transactions'),
+        // Only gift-category rows can be candidates; the ledger holds every Up
+        // transaction, far more than one read returns.
+        readGiftTransactions(admin, householdId),
         readHouseholdTable(admin, householdId, 'accounts'),
         readHouseholdTable(admin, householdId, 'gift_transaction_dismissal'),
       ])
@@ -125,7 +150,7 @@ Deno.serve(async (request) => {
         temporaryItems: base.temporaryItems as TemporaryItemRow[],
         accountBalances: accountBalances as AccountBalanceRow[],
         giftPurchases: giftPurchases as GiftPurchaseRow[],
-        transactions: transactions as TransactionRow[],
+        transactions,
         accounts: accounts as AccountOwnerRow[],
         giftTransactionDismissals: giftTransactionDismissals as GiftTransactionDismissalRow[],
         // `base.members` already selected `*`, so up_sync_failed_at and name

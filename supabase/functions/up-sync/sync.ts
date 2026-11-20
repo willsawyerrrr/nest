@@ -3,9 +3,10 @@
  * logic is unit-tested without a network or database. `index.ts` wires the real
  * member enumeration, Vault token read, Up calls, and writes.
  *
- * Two passes per member, in order: every Up account's balance, then the
- * gift-category transactions over a trailing window. The account pass runs first
- * so a transaction resolves against an account that is certain to be present.
+ * Three passes per member, in order: every Up account's balance, every account's
+ * transactions since its own high-water mark, then a rescan of the gift category
+ * over a trailing window. The account pass runs first so a transaction resolves
+ * against an account that is certain to be present.
  * The account pass also reconciles: the ids a member's token returned are the
  * authoritative set for that member's individually-owned Up accounts, and one
  * the token no longer reports is deleted when nothing references it or flagged
@@ -15,6 +16,7 @@
  * against the union of the ids those members' tokens returned.
  */
 
+import { financialYearBounds, financialYearForDate } from '@nest/tax'
 import { isUpAuthError, type UpAccount, type UpTransaction } from '../_shared/up.ts'
 import {
   type AccountUpsert,
@@ -25,7 +27,7 @@ import {
 } from './map.ts'
 
 /**
- * The one Up category the poll ingests. Up files gifts and charity donations
+ * The Up category the gift rescan polls. Up files gifts and charity donations
  * together, so a candidate may be either; the household tells them apart by
  * linking one to a gift budget or dismissing it.
  */
@@ -34,33 +36,73 @@ export const UP_GIFT_CATEGORY = 'gifts-and-charity'
 /**
  * How far back each run rescans for gift-category transactions.
  *
- * The window is rescanned in full every run rather than advanced as a
- * high-water mark, because a transaction's category is not part of any cursor Up
- * offers: a transaction carries no `updatedAt`, no webhook event fires when
- * someone recategorises one in the Up app, and `filter[since]` filters on
- * `createdAt`, which never moves. Recategorising is the normal case rather than
- * the exception — Up files a purchase under its merchant's category
- * (`clothing-and-accessories` for a present bought at a clothes shop) until the
- * household moves it to gifts by hand, which can be long after the purchase — so
- * a cursor would step straight past the transactions this poll exists to find.
+ * The ledger pass follows a per-account high-water mark, which never revisits a
+ * transaction once it is behind the mark. A transaction's category is not part
+ * of any cursor Up offers: a transaction carries no `updatedAt`, no webhook
+ * event fires when someone recategorises one in the Up app, and `filter[since]`
+ * filters on `createdAt`, which never moves. Recategorising into gifts is the
+ * normal case rather than the exception — Up files a purchase under its
+ * merchant's category (`clothing-and-accessories` for a present bought at a
+ * clothes shop) until the household moves it to gifts by hand, which can be long
+ * after the purchase — so the gift category is rescanned in full every run over
+ * this window, catching what the mark has stepped past.
  *
  * A year keeps a full annual cycle of occasions in scope, and the window is
- * sized for that rather than for volume: `filter[category]` already narrows the
- * poll to gifts and charity, a handful of pages across a whole year.
+ * sized for that rather than for volume: `filter[category]` narrows the rescan
+ * to gifts and charity, a handful of pages across a whole year.
  *
- * Ageing out of the window is not deletion — the prune reaches only
- * `posted_at >= since` — so an older candidate stops being refreshed and stays
- * in the inbox. The corollary is that a transaction recategorised away from
- * gifts once it has aged out is never pruned automatically; dismissing it as
- * "not a gift" is what clears it.
+ * A row recategorised away from gifts once it is older than the window is not
+ * refreshed and keeps its gift category; dismissing it as "not a gift" is what
+ * clears it from the inbox.
  */
 export const GIFT_WINDOW_DAYS = 365
 
-const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000
+/**
+ * The overlap the ledger pass re-reads behind an account's latest synced
+ * transaction, so a hold that settles after a later transaction was synced, and
+ * clock skew between Up and the ledger, are not stepped past. The upsert makes
+ * re-reading harmless.
+ */
+export const LEDGER_OVERLAP_HOURS = 24
+
+/**
+ * Australian Eastern Standard Time's offset from UTC. Australia observes no
+ * daylight saving on 1 July, so a financial year starts at this offset in every
+ * eastern state.
+ */
+const AEST_OFFSET_MS = 10 * 60 * 60 * 1000
+
+const MILLISECONDS_PER_HOUR = 60 * 60 * 1000
+const MILLISECONDS_PER_DAY = 24 * MILLISECONDS_PER_HOUR
+
+/** Rows per `sync_up_transactions` call, keeping a backfill's payloads modest. */
+export const SYNC_BATCH_SIZE = 500
 
 /** The start of the trailing gift window ending at `now`. */
 export function giftWindowStart(now: Date = new Date()): Date {
   return new Date(now.getTime() - GIFT_WINDOW_DAYS * MILLISECONDS_PER_DAY)
+}
+
+/**
+ * Where an account with no synced transactions starts: midnight AEST on 1 July
+ * of the financial year before the one `now` falls in. Two financial years of
+ * history is all tax and budget reconciliation reads, and it bounds the first
+ * run's volume.
+ */
+export function backfillStart(now: Date = new Date()): Date {
+  const { start } = financialYearBounds(financialYearForDate(now) - 1)
+  return new Date(start.getTime() - AEST_OFFSET_MS)
+}
+
+/**
+ * Where the ledger pass resumes one account: {@link LEDGER_OVERLAP_HOURS} behind
+ * its latest synced transaction's `posted_at`, or {@link backfillStart} when it
+ * has none.
+ */
+export function ledgerSince(latestPostedAt: string | null, now: Date = new Date()): Date {
+  return latestPostedAt === null
+    ? backfillStart(now)
+    : new Date(Date.parse(latestPostedAt) - LEDGER_OVERLAP_HOURS * MILLISECONDS_PER_HOUR)
 }
 
 /** A connected member and the household its accounts belong to. */
@@ -77,14 +119,18 @@ export interface AccountRow extends AccountUpsert {
   owner_member_id: string | null
 }
 
-/** One member's gift-category window, as `sync_up_gift_transactions` takes it. */
-export interface GiftTransactionWindow {
-  householdId: string
-  /** The local account ids the window covers, and the prune's exact scope. */
+/** One row `sync_up_transactions` landed, and whether it was new to the ledger. */
+export interface SyncedTransaction {
+  id: string
+  inserted: boolean
+}
+
+/** The local gift-category Up rows a member's gift rescan covers. */
+export interface StoredGiftQuery {
+  /** The local account ids the member's token can see. */
   accountIds: string[]
-  /** The window's start, an RFC-3339 instant. */
+  /** The window's start, an RFC-3339 instant, bounding `posted_at`. */
   since: string
-  rows: TransactionUpsert[]
 }
 
 /** One member's authoritative Up-account set for the reconcile pass. */
@@ -134,12 +180,33 @@ export interface SyncDeps {
    * connected member of that household synced with a readable token this run.
    */
   reconcileJointAccounts: (reconcile: JointAccountReconcile) => Promise<void>
-  /** Lists the token owner's gift-category transactions created since `since`. */
-  listGiftTransactions: (token: string, since: Date) => Promise<UpTransaction[]>
   /** Resolves the local ledger rows for the given Up account ids. */
   listSyncedAccounts: (externalIds: string[]) => Promise<SyncedAccount[]>
-  /** Lands one member's gift window and prunes what Up no longer reports in it. */
-  syncGiftTransactions: (window: GiftTransactionWindow) => Promise<void>
+  /**
+   * The latest `posted_at` of a local account's synced Up transactions outside
+   * the gift category, or null when it has none. Gift-category rows are left
+   * out: the gift rescan lands them over its own year-long window, so they say
+   * nothing about how far the ledger pass has read. An account whose only
+   * transactions are gifts therefore re-reads from {@link backfillStart} each
+   * run, which costs a few pages.
+   */
+  latestPostedAt: (accountId: string) => Promise<string | null>
+  /** Lists one Up account's transactions created since `since`. */
+  listAccountTransactions: (
+    token: string,
+    accountId: string,
+    since: Date,
+  ) => Promise<UpTransaction[]>
+  /** Lists the token owner's gift-category transactions created since `since`. */
+  listGiftTransactions: (token: string, since: Date) => Promise<UpTransaction[]>
+  /** The Up ids of the stored gift-category rows the query covers. */
+  listStoredGiftTransactionIds: (query: StoredGiftQuery) => Promise<string[]>
+  /** Reads one Up transaction, or null when Up no longer has it. */
+  getTransaction: (token: string, id: string) => Promise<UpTransaction | null>
+  /** Upserts one household's rows on (source, external_id), never touching `notes`. */
+  syncTransactions: (householdId: string, rows: TransactionUpsert[]) => Promise<SyncedTransaction[]>
+  /** Deletes a household's Up rows Up no longer has, keeping any a gift purchase links. */
+  deleteTransactions: (householdId: string, externalIds: string[]) => Promise<void>
   /**
    * Clears a member's Up connection and stamps the failure, so they are
    * prompted to reconnect rather than retried forever. Called only when the
@@ -210,50 +277,118 @@ export function buildAccountRows(
 }
 
 /**
- * Lands one member's gift-category window and returns how many transactions it
- * carried. The window covers every account that member's token can see, which is
- * also the prune's scope: the accounts named here are the ones a stale candidate
- * may be deleted from, so passing the member's own set is what keeps the prune
- * from reaching a co-member's rows or leaving a stale candidate behind on one of
- * their own. A joint account belongs to both members' windows, and settling it
- * twice is harmless — each pass sees the same Up result set for it.
+ * Lands `rows` for one household in {@link SYNC_BATCH_SIZE} batches, one row per
+ * Up id (the last wins), since a single upsert cannot touch one row twice.
+ * Returns how many rows it landed.
+ */
+async function landTransactions(
+  deps: SyncDeps,
+  householdId: string,
+  rows: TransactionUpsert[],
+): Promise<number> {
+  const unique = [...new Map(rows.map((row) => [row.external_id, row])).values()]
+  for (let i = 0; i < unique.length; i += SYNC_BATCH_SIZE) {
+    await deps.syncTransactions(householdId, unique.slice(i, i + SYNC_BATCH_SIZE))
+  }
+  return unique.length
+}
+
+/** Maps Up transactions to ledger rows, skipping those on an unsynced account. */
+function mapTransactions(
+  transactions: UpTransaction[],
+  accounts: ReadonlyMap<string, SyncedAccount>,
+): TransactionUpsert[] {
+  return transactions
+    .map((transaction) => mapTransaction(transaction, accounts))
+    .filter((row): row is TransactionUpsert => row !== null)
+}
+
+/**
+ * Lands every transaction on one member's accounts since each account's own
+ * high-water mark ({@link ledgerSince}), returning how many it carried. Each
+ * account resumes from its own mark, so an account newly visible to the member
+ * is backfilled even when their others are current, and an account with no
+ * transactions costs one empty page. An account already settled this run
+ * (`settled`, a joint account seen through a partner's token) is skipped, and
+ * one joins `settled` only once its rows have landed.
+ */
+async function syncLedger(
+  deps: SyncDeps,
+  member: ConnectedMember,
+  token: string,
+  accounts: ReadonlyMap<string, SyncedAccount>,
+  settled: Set<string>,
+  now: Date,
+): Promise<number> {
+  let landed = 0
+  for (const account of accounts.values()) {
+    if (settled.has(account.id)) continue
+    const since = ledgerSince(await deps.latestPostedAt(account.id), now)
+    const transactions = await deps.listAccountTransactions(token, account.external_id, since)
+    // Oldest first, so a run that fails between batches leaves the mark at the
+    // newest row it landed and the next run re-reads everything after it.
+    const rows = mapTransactions(transactions, accounts)
+      .sort((a, b) => Date.parse(a.posted_at) - Date.parse(b.posted_at))
+    landed += await landTransactions(deps, member.householdId, rows)
+    settled.add(account.id)
+  }
+  return landed
+}
+
+/**
+ * Rescans one member's gift category over the trailing window and returns how
+ * many rows it landed. The window's rows are upserted, which lands a
+ * transaction recategorised into gifts after the ledger pass's mark passed it.
  *
- * The RPC is called even when Up returns nothing, because an empty result is
- * meaningful: it means the window holds no gift-category transactions at all, so
- * the prune clears whatever the last run left there.
+ * A stored gift-category row in the window that Up no longer lists in the
+ * category was recategorised away, or deleted. Each is re-read from Up: one
+ * that still exists is refreshed in place with its new category, so the row and
+ * whatever the household attached to it stay; one Up no longer has is deleted,
+ * unless a gift purchase links it. The stored rows are confined to the member's
+ * own accounts, so the rescan never reaches a co-member's rows.
  */
 async function syncGiftWindow(
   deps: SyncDeps,
   member: ConnectedMember,
   token: string,
-  externalIds: string[],
+  accounts: ReadonlyMap<string, SyncedAccount>,
   since: Date,
 ): Promise<number> {
-  const accounts = await deps.listSyncedAccounts(externalIds)
-  const byExternalId = new Map(accounts.map((account) => [account.external_id, account]))
-  const transactions = await deps.listGiftTransactions(token, since)
-  const rows = transactions
-    .map((transaction) => mapTransaction(transaction, byExternalId))
-    .filter((row): row is TransactionUpsert => row !== null)
-
-  await deps.syncGiftTransactions({
-    householdId: member.householdId,
-    accountIds: accounts.map((account) => account.id),
+  const listed = await deps.listGiftTransactions(token, since)
+  const listedIds = new Set(listed.map((transaction) => transaction.id))
+  const stored = await deps.listStoredGiftTransactionIds({
+    accountIds: [...accounts.values()].map((account) => account.id),
     since: since.toISOString(),
-    rows,
   })
-  return rows.length
+
+  const refreshed: UpTransaction[] = []
+  const gone: string[] = []
+  for (const id of stored) {
+    if (listedIds.has(id)) continue
+    const transaction = await deps.getTransaction(token, id)
+    if (transaction) refreshed.push(transaction)
+    else gone.push(id)
+  }
+
+  const landed = await landTransactions(
+    deps,
+    member.householdId,
+    mapTransactions([...listed, ...refreshed], accounts),
+  )
+  if (gone.length > 0) await deps.deleteTransactions(member.householdId, gone)
+  return landed
 }
 
 /**
  * Polls each connected member's Up accounts, upserts their balances into the
- * ledger, then settles their gift-category transactions over the trailing
- * window. Idempotent: a re-run updates existing rows in place (balance, name,
- * type, currency; a transaction's amount, status, and category) and creates no
+ * ledger, lands every transaction since each account's high-water mark, then
+ * rescans their gift category over the trailing window. Idempotent: a re-run
+ * updates existing rows in place (balance, name, type, currency; a
+ * transaction's amount, status, category, and Up-side detail) and creates no
  * duplicates. A member without a readable token is skipped rather than failing
  * the whole run, as is one whose token Up itself rejects when listing accounts
  * (revoked, expired): a failure there costs only that member's accounts,
- * reconcile, and gift window, never another member's or household's. A
+ * reconcile, and transactions, never another member's or household's. A
  * rejection distinguishing itself as the token's own fault (401/403) also
  * disconnects the member, so they are prompted to reconnect rather than
  * retried forever; a transient failure (a 5xx, a network error) leaves the
@@ -277,10 +412,10 @@ async function syncGiftWindow(
  * an absent joint account could otherwise just be hidden by the missing read. A
  * failure in it costs only that household's joint reconcile.
  *
- * A member's gift window is settled independently of the balances: it runs after
- * the account upsert, so every account a transaction can name is already in the
- * ledger, and a failure in it costs only that member's candidates rather than
- * the whole run's balances.
+ * A member's ledger pass and gift rescan are settled independently of the
+ * balances and of each other: they run after the account upsert, so every
+ * account a transaction can name is already in the ledger, and a failure in one
+ * costs only that pass for that member.
  *
  * `householdId` scopes the run to one household's connected members (a caller's
  * manual refresh); null syncs every connected member (the cron path).
@@ -290,8 +425,10 @@ export async function runSync(
   householdId: string | null = null,
 ): Promise<SyncResult> {
   const members = membersToSync(await deps.listConnectedMembers(), householdId)
-  const since = giftWindowStart()
+  const now = new Date()
+  const giftSince = giftWindowStart(now)
   const seen = new Set<string>()
+  const settledAccounts = new Set<string>()
   let accounts = 0
   let transactions = 0
 
@@ -314,7 +451,7 @@ export async function runSync(
     if (!token) continue
 
     // A token Up itself now rejects (revoked, expired) throws here. A failure
-    // costs only this member's accounts, reconcile, and gift window — the rest
+    // costs only this member's accounts, reconcile, and transactions — the rest
     // of the run, and every other member and household in it, are unaffected.
     let upAccounts: UpAccount[]
     try {
@@ -360,10 +497,25 @@ export async function runSync(
       console.error(`Account reconcile failed for member ${member.memberId}:`, error)
     }
 
+    let synced: Map<string, SyncedAccount>
     try {
-      transactions += await syncGiftWindow(deps, member, token, externalIds, since)
+      const rows = await deps.listSyncedAccounts(externalIds)
+      synced = new Map(rows.map((account) => [account.external_id, account]))
     } catch (error) {
-      console.error(`Gift transaction sync failed for member ${member.memberId}:`, error)
+      console.error(`Resolving synced accounts failed for member ${member.memberId}:`, error)
+      continue
+    }
+
+    try {
+      transactions += await syncLedger(deps, member, token, synced, settledAccounts, now)
+    } catch (error) {
+      console.error(`Transaction sync failed for member ${member.memberId}:`, error)
+    }
+
+    try {
+      transactions += await syncGiftWindow(deps, member, token, synced, giftSince)
+    } catch (error) {
+      console.error(`Gift transaction rescan failed for member ${member.memberId}:`, error)
     }
   }
 

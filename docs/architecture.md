@@ -221,20 +221,21 @@ RLS.
   household reconciles against just that member's set, since nothing else can
   see the joint account. A failure in it costs only that household's joint
   reconcile.
-- **Gift-category transactions** — after the account pass, `up-sync` polls each
-  member's `gifts-and-charity` transactions and settles them through the
-  `sync_up_gift_transactions` RPC (one call per member, over that member's own
-  accounts), which upserts the window, holds a linked `gift_purchase` to its
-  transaction's amount, and prunes the candidates Up no longer reports in the
-  category. It rescans a fixed 365-day trailing window every run rather than
-  advancing a cursor: Up exposes no `updatedAt` and fires no event when someone
-  recategorises a transaction in the app, which is how most gift spend gets
-  categorised, so only a rescan sees it. Ageing out of the window is not deletion
-  — the prune is bounded by the same window — so an older candidate simply stops
-  being refreshed. Only this one Up category is ingested; the synced row records
-  it in `transactions.external_category`, and `category_id` (the household's own
-  taxonomy) stays null. A general ledger is a later phase
-  ([`up-ledger-sync.md`](up-ledger-sync.md)).
+- **Transactions** — after the account pass, `up-sync` lands every transaction
+  on each of the member's Up accounts through the `sync_up_transactions` RPC,
+  each account resuming 24 hours behind its latest synced non-gift `posted_at`
+  (an account with none backfills from the start of the prior financial year). A joint
+  account is read once per run. Then it rescans the member's `gifts-and-charity`
+  transactions over a 365-day trailing window: Up exposes no `updatedAt` and fires
+  no event when someone recategorises a transaction in the app, which is how most
+  gift spend gets categorised, so only a rescan sees a transaction moved into
+  gifts behind the high-water mark. A stored gift-category row in the window that
+  Up no longer lists in the category is re-read (`GET /transactions/{id}`) and
+  refreshed in place with its new category; one Up no longer has is deleted
+  through `delete_up_transactions`, unless a `gift_purchase` links it. The synced
+  row records Up's category in `transactions.external_category` (and its parent
+  in `external_parent_category`); `category_id` (the household's own taxonomy)
+  stays null. See [`up-ledger-sync.md`](up-ledger-sync.md).
 - A goal links to a synced saver via `savings_goal.linked_account_id`; a linked
   goal's current balance comes from that account's balance in `account_balance`
   (read via the `accounts_with_balance` view).
@@ -362,8 +363,10 @@ channel:
     An unassigned purchase has no recipient tag, so every household member can
     already read it and every member with a device is notified.
   - **gift_candidate_new** — a `transactions` row the hourly `up-sync` landed
-    (`external_category = 'gifts-and-charity'`), created within the last 7
-    days, that no `gift_purchase` links and no `gift_transaction_dismissal`
+    (`external_category = 'gifts-and-charity'`) that entered the category
+    within the last 7 days (`external_category_since`: its insert, or the sync
+    that saw a recategorisation into gifts) and was posted within the last 365,
+    that no `gift_purchase` links and no `gift_transaction_dismissal`
     sets aside — checked at evaluation time, so a candidate claimed or
     dismissed before the next daily run never fires. Dedupe: the transaction
     id. Unlike an unassigned purchase, a gift candidate's account may be

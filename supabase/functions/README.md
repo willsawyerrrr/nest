@@ -71,12 +71,16 @@ webhooks, with a scheduled poll as a backstop.
 - **`up-webhook`** — receives Up webhook deliveries, verifies the
   `X-Up-Authenticity-Signature` HMAC-SHA256 over the raw body, and switches on
   the event type. Persisting transactions is deferred: the transaction branch is
-  a `TODO` that returns `200` without a write, and gift-category ingestion runs
-  on the `up-sync` poll instead, because Up raises no event when a transaction is
-  recategorised (see
+  a `TODO` that returns `200` without a write, and transaction ingestion runs on
+  the `up-sync` poll (see
   [`../../docs/up-ledger-sync.md`](../../docs/up-ledger-sync.md)).
 - **`up-sync`** — manual/scheduled poll that reads each member's token, fetches
-  from Up, and upserts (deduping on `external_id`). JWT-verified-capable and
+  from Up, and upserts (deduping on `external_id`): every account's balance,
+  every transaction since each account's latest synced one (first run: from the
+  start of the prior financial year), and a 365-day rescan of the gift category
+  that refreshes a transaction recategorised in the Up app. Transactions land
+  through the `sync_up_transactions` RPC, which never writes `notes`, and a
+  `429` from Up is retried after its `Retry-After`. JWT-verified-capable and
   scoped by caller: a member's Refresh from the PWA carries their JWT and the run
   is scoped to that member's household (`resolveCaller` → household id); the
   hourly cron presents the service-role key with no user and syncs every
@@ -577,7 +581,8 @@ that decides when to notify.
     with neither `gift_budget_id` nor `gift_discretionary_budget_id`. Dedupe
     key: the purchase id.
   - **gift_candidate_new** — a `transactions` row (`external_category =
-    'gifts-and-charity'`) the hourly `up-sync` landed in the last 7 days, that
+    'gifts-and-charity'`) that entered the category in the last 7 days
+    (`external_category_since`) and was posted within the last 365, that
     no `gift_purchase.transaction_id` links and no `gift_transaction_dismissal`
     sets aside. Dedupe key: the transaction id. Restricted to the member who
     can see the transaction's account (`accounts.owner_member_id`; a joint

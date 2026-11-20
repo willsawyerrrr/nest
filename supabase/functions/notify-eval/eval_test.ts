@@ -342,7 +342,8 @@ Deno.test('gift_candidate_new fires for a recent, unclaimed, undismissed transac
         description: 'Flowers',
         amount_cents: -45_00,
         external_category: 'gifts-and-charity',
-        created_at: '2027-02-14T00:00:00Z',
+        external_category_since: '2027-02-14T00:00:00Z',
+        posted_at: '2027-02-13T00:00:00Z',
       }],
       accounts: [{ id: 'a-1', owner_member_id: null }],
     }),
@@ -364,7 +365,8 @@ Deno.test('gift_candidate_new restricts an individually-owned account to its own
         description: 'Flowers',
         amount_cents: -45_00,
         external_category: 'gifts-and-charity',
-        created_at: '2027-02-14T00:00:00Z',
+        external_category_since: '2027-02-14T00:00:00Z',
+        posted_at: '2027-02-13T00:00:00Z',
       }],
       accounts: [{ id: 'a-1', owner_member_id: 'm-1' }],
     }),
@@ -373,13 +375,14 @@ Deno.test('gift_candidate_new restricts an individually-owned account to its own
   assertEquals(firing.visibleToMemberId, 'm-1')
 })
 
-Deno.test('gift_candidate_new skips a non-gift category, a claimed transaction, a dismissal, and a stale one', () => {
+Deno.test('gift_candidate_new skips a non-gift category, a claimed transaction, a dismissal, a stale one, and a year-old purchase', () => {
   const base = {
     account_id: 'a-1',
     description: '',
     amount_cents: -10_00,
     external_category: 'gifts-and-charity',
-    created_at: '2027-02-14T00:00:00Z',
+    external_category_since: '2027-02-14T00:00:00Z',
+    posted_at: '2027-02-13T00:00:00Z',
   }
   const firings = evaluateHousehold(
     bundle({
@@ -387,7 +390,8 @@ Deno.test('gift_candidate_new skips a non-gift category, a claimed transaction, 
         { ...base, id: 'other-category', external_category: 'clothing-and-accessories' },
         { ...base, id: 'claimed' },
         { ...base, id: 'dismissed' },
-        { ...base, id: 'stale', created_at: '2027-01-01T00:00:00Z' },
+        { ...base, id: 'stale', external_category_since: '2027-01-01T00:00:00Z' },
+        { ...base, id: 'old-purchase', posted_at: '2026-01-01T00:00:00Z' },
       ],
       giftPurchases: [{
         id: 'gp-1',
@@ -405,6 +409,27 @@ Deno.test('gift_candidate_new skips a non-gift category, a claimed transaction, 
   assertEquals(firings, [])
 })
 
+Deno.test('gift_candidate_new fires for an older row recategorised into gifts recently', () => {
+  // The ledger landed it under another category weeks ago; the household moved it
+  // to gifts in the Up app yesterday, which is when it became a candidate.
+  const firings = evaluateHousehold(
+    bundle({
+      transactions: [{
+        id: 'tx-3',
+        account_id: 'a-1',
+        description: 'Scarf',
+        amount_cents: -30_00,
+        external_category: 'gifts-and-charity',
+        external_category_since: '2027-02-14T00:00:00Z',
+        posted_at: '2026-12-20T00:00:00Z',
+      }],
+      accounts: [],
+    }),
+    NOW,
+  )
+  assertEquals(firings.map((f) => f.dedupeKey), ['tx-3'])
+})
+
 Deno.test('gift_candidate_new names a transaction with no description generically', () => {
   const [firing] = evaluateHousehold(
     bundle({
@@ -414,7 +439,8 @@ Deno.test('gift_candidate_new names a transaction with no description genericall
         description: ' ',
         amount_cents: -5_00,
         external_category: 'gifts-and-charity',
-        created_at: '2027-02-15T00:00:00Z',
+        external_category_since: '2027-02-15T00:00:00Z',
+        posted_at: '2027-02-13T00:00:00Z',
       }],
       accounts: [],
     }),
@@ -580,7 +606,8 @@ Deno.test('runNotifyEval restricts a visibleToMemberId firing to its owner', asy
           description: 'Flowers',
           amount_cents: -45_00,
           external_category: 'gifts-and-charity',
-          created_at: '2027-02-14T00:00:00Z',
+          external_category_since: '2027-02-14T00:00:00Z',
+          posted_at: '2027-02-13T00:00:00Z',
         }],
         accounts: [{ id: 'a-1', owner_member_id: 'm-1' }],
       })),

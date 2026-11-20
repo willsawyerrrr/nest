@@ -42,21 +42,42 @@ export interface UpAccount {
   }
 }
 
+/** A to-one JSON:API relationship naming another resource by id, or nothing. */
+interface UpRelationship {
+  readonly data: { readonly id: string } | null
+}
+
 /** An Up transaction resource (subset of attributes and relationships). */
 export interface UpTransaction {
   readonly id: string
   readonly attributes: {
     readonly status: 'HELD' | 'SETTLED'
     readonly description: string
+    /** The sender's message on a transfer or Pay Anyone payment. */
+    readonly message: string | null
+    /** False for a transaction Up does not let its owner categorise (e.g. a transfer). */
+    readonly isCategorizable: boolean
     readonly amount: UpMoney
     readonly createdAt: string
     /** Null while the transaction is `HELD`. */
     readonly settledAt: string | null
+    /** Up's description of the payment type (e.g. `Purchase`, `Transfer`), null when absent. */
+    readonly transactionType: string | null
+    /** The `up://` link opening the transaction in the Up app. */
+    readonly deepLinkURL: string
+    /** The owner's note on the transaction in the Up app. */
+    readonly note: { readonly text: string } | null
+    /** The cardholder who made the transaction, which tells 2Up partners apart. */
+    readonly performingCustomer: { readonly displayName: string } | null
   }
   readonly relationships: {
     readonly account: { readonly data: { readonly id: string } }
-    /** The child category, carried on list responses; null when uncategorised. */
-    readonly category: { readonly data: { readonly id: string } | null }
+    /** The child category; null when uncategorised. */
+    readonly category: UpRelationship
+    /** The child category's parent; null when uncategorised. */
+    readonly parentCategory: UpRelationship
+    /** The owner's other account the money moved to or from; null unless a transfer. */
+    readonly transferAccount: UpRelationship
   }
 }
 
@@ -66,6 +87,25 @@ export interface ListTransactionsOptions {
   readonly since?: Date
   /** Only transactions in this Up category, e.g. `gifts-and-charity`. */
   readonly category?: string
+}
+
+/** Retries of one request after a `429` before it fails. */
+const MAX_RATE_LIMIT_RETRIES = 3
+
+/** The longest wait honoured between `429` retries, so a run stays within its time limit. */
+const MAX_RATE_LIMIT_WAIT_MS = 30_000
+
+/**
+ * How long to wait before retrying a `429`: Up's `Retry-After` seconds when it
+ * sends them, else an exponential backoff from one second, capped at
+ * {@link MAX_RATE_LIMIT_WAIT_MS}.
+ */
+export function rateLimitWaitMs(response: Response, attempt: number): number {
+  const retryAfter = Number(response.headers.get('Retry-After'))
+  const wait = Number.isFinite(retryAfter) && retryAfter > 0
+    ? retryAfter * 1000
+    : 1000 * 2 ** attempt
+  return Math.min(wait, MAX_RATE_LIMIT_WAIT_MS)
 }
 
 /** A paginated JSON:API list response. */
@@ -80,17 +120,31 @@ export class UpClient {
     private readonly token: string,
     private readonly baseUrl: string = UP_API_BASE_URL,
     private readonly fetchImpl: typeof fetch = fetch,
+    private readonly sleep: (ms: number) => Promise<void> = (ms) =>
+      new Promise((resolve) => setTimeout(resolve, ms)),
   ) {}
 
+  /**
+   * GETs `path`, throwing an {@link UpApiError} on a non-OK response. A `429`
+   * is retried up to {@link MAX_RATE_LIMIT_RETRIES} times after the wait
+   * {@link rateLimitWaitMs} names, and throws once those are spent.
+   */
   private async get<T>(path: string): Promise<T> {
     const url = path.startsWith('http') ? path : `${this.baseUrl}${path}`
-    const response = await this.fetchImpl(url, {
-      headers: { Authorization: `Bearer ${this.token}` },
-    })
-    if (!response.ok) {
-      throw new UpApiError(response.status, path, await response.text())
+    for (let attempt = 0;; attempt++) {
+      const response = await this.fetchImpl(url, {
+        headers: { Authorization: `Bearer ${this.token}` },
+      })
+      if (response.status === 429 && attempt < MAX_RATE_LIMIT_RETRIES) {
+        await response.body?.cancel()
+        await this.sleep(rateLimitWaitMs(response, attempt))
+        continue
+      }
+      if (!response.ok) {
+        throw new UpApiError(response.status, path, await response.text())
+      }
+      return (await response.json()) as T
     }
-    return (await response.json()) as T
   }
 
   /** Walks every page of a list endpoint, yielding each resource. */
@@ -125,6 +179,39 @@ export class UpClient {
       accounts.push(account)
     }
     return accounts
+  }
+
+  /** Reads one transaction, or null when Up has no transaction by that id (a `404`). */
+  async getTransaction(id: string): Promise<UpTransaction | null> {
+    try {
+      const { data } = await this.get<{ data: UpTransaction }>(
+        `/transactions/${encodeURIComponent(id)}`,
+      )
+      return data
+    } catch (error) {
+      if (error instanceof UpApiError && error.status === 404) return null
+      throw error
+    }
+  }
+
+  /**
+   * Lists one account's transactions created at or after `since`, newest first,
+   * walking every page.
+   */
+  async listAccountTransactions(accountId: string, since: Date): Promise<UpTransaction[]> {
+    const query = new URLSearchParams({
+      'page[size]': '100',
+      'filter[since]': since.toISOString(),
+    })
+    const transactions: UpTransaction[] = []
+    for await (
+      const tx of this.paginate<UpTransaction>(
+        `/accounts/${encodeURIComponent(accountId)}/transactions?${query.toString()}`,
+      )
+    ) {
+      transactions.push(tx)
+    }
+    return transactions
   }
 
   /**

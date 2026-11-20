@@ -1,5 +1,5 @@
 import { assertEquals, assertRejects } from '@std/assert'
-import { isUpAuthError, UpApiError, UpClient } from './up.ts'
+import { isUpAuthError, rateLimitWaitMs, UpApiError, UpClient } from './up.ts'
 
 /** Builds an OK JSON response like the Up API returns. */
 function jsonResponse(body: unknown): Response {
@@ -164,4 +164,91 @@ Deno.test('ping is false on a non-OK response', async () => {
 Deno.test('ping is false when the request throws', async () => {
   const fetchImpl: typeof fetch = () => Promise.reject(new Error('network down'))
   assertEquals(await new UpClient('token', 'https://up.test', fetchImpl).ping(), false)
+})
+
+/** Resolves immediately, recording each wait the client asked for. */
+function recordSleeps(waits: number[]): (ms: number) => Promise<void> {
+  return (ms) => {
+    waits.push(ms)
+    return Promise.resolve()
+  }
+}
+
+Deno.test('getTransaction reads one transaction by id', async () => {
+  let requestedUrl = ''
+  const fetchImpl: typeof fetch = (input) => {
+    requestedUrl = typeof input === 'string' ? input : (input as Request).url
+    return Promise.resolve(jsonResponse({ data: { id: 'tx-1' } }))
+  }
+
+  const tx = await new UpClient('token', 'https://up.test', fetchImpl).getTransaction('tx-1')
+  assertEquals(tx?.id, 'tx-1')
+  assertEquals(requestedUrl, 'https://up.test/transactions/tx-1')
+})
+
+Deno.test('getTransaction is null for a transaction Up no longer has', async () => {
+  const fetchImpl: typeof fetch = () => Promise.resolve(new Response('gone', { status: 404 }))
+  assertEquals(
+    await new UpClient('token', 'https://up.test', fetchImpl).getTransaction('tx-1'),
+    null,
+  )
+})
+
+Deno.test('getTransaction throws on any other non-OK response', async () => {
+  const fetchImpl: typeof fetch = () => Promise.resolve(new Response('nope', { status: 500 }))
+  await assertRejects(
+    () => new UpClient('token', 'https://up.test', fetchImpl).getTransaction('tx-1'),
+    UpApiError,
+  )
+})
+
+Deno.test("listAccountTransactions lists one account's transactions since an instant", async () => {
+  let requestedUrl = ''
+  const fetchImpl: typeof fetch = (input) => {
+    requestedUrl = typeof input === 'string' ? input : (input as Request).url
+    return Promise.resolve(jsonResponse({ data: [{ id: 'tx-1' }], links: { next: null } }))
+  }
+
+  const transactions = await new UpClient('token', 'https://up.test', fetchImpl)
+    .listAccountTransactions('acc-1', new Date('2025-06-30T14:00:00Z'))
+
+  const url = new URL(requestedUrl)
+  assertEquals(url.pathname, '/accounts/acc-1/transactions')
+  assertEquals(url.searchParams.get('filter[since]'), '2025-06-30T14:00:00.000Z')
+  assertEquals(url.searchParams.get('page[size]'), '100')
+  assertEquals(transactions.map((tx) => tx.id), ['tx-1'])
+})
+
+Deno.test('a 429 is retried after the Retry-After wait', async () => {
+  const waits: number[] = []
+  let calls = 0
+  const fetchImpl: typeof fetch = () => {
+    calls += 1
+    return Promise.resolve(
+      calls === 1
+        ? new Response('slow down', { status: 429, headers: { 'Retry-After': '2' } })
+        : jsonResponse({ data: [], links: { next: null } }),
+    )
+  }
+
+  await new UpClient('token', 'https://up.test', fetchImpl, recordSleeps(waits)).listAccounts()
+  assertEquals(calls, 2)
+  assertEquals(waits, [2000])
+})
+
+Deno.test('a 429 that persists throws once the retries are spent', async () => {
+  const waits: number[] = []
+  const fetchImpl: typeof fetch = () => Promise.resolve(new Response('slow down', { status: 429 }))
+
+  const error = await assertRejects(
+    () => new UpClient('token', 'https://up.test', fetchImpl, recordSleeps(waits)).listAccounts(),
+    UpApiError,
+  )
+  assertEquals(error.status, 429)
+  assertEquals(waits, [1000, 2000, 4000])
+})
+
+Deno.test('rateLimitWaitMs caps a long Retry-After', () => {
+  const response = new Response(null, { status: 429, headers: { 'Retry-After': '600' } })
+  assertEquals(rateLimitWaitMs(response, 0), 30_000)
 })

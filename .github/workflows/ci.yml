@@ -328,6 +328,7 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/notification_log.sql
           psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/reconcile_source_accounts.sql
           psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/reconcile_joint_up_accounts.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/sync_up_transactions.sql
           psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/redbark_connection.sql
           psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/wishlist_item.sql
           psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/calendar_feed.sql

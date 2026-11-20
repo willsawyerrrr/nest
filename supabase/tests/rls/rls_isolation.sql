@@ -1540,15 +1540,16 @@ do $$ begin
     'withholding a claimed candidate must not affect Bob''s other transactions';
 end $$;
 
--- Nor can he reach it through a write: the update and delete policies carry the
--- same predicate, so neither returns the withheld row.
+-- Nor can he reach it through a write: review_transaction and the delete policy
+-- carry the same predicate, so neither reaches the withheld row.
 do $$
 declare v_count int;
 begin
-  update public.transactions set description = 'Peeked'
-    where id = current_setting('test.priv_tx_joint')::uuid;
-  get diagnostics v_count = row_count;
-  assert v_count = 0, 'Bob must not update a transaction claimed as a gift for him';
+  begin
+    perform public.review_transaction(current_setting('test.priv_tx_joint')::uuid, 'Peeked');
+    raise exception 'Bob must not review a transaction claimed as a gift for him';
+  exception when no_data_found then null;
+  end;
   delete from public.transactions where id = current_setting('test.priv_tx_joint')::uuid;
   get diagnostics v_count = row_count;
   assert v_count = 0, 'Bob must not delete a transaction claimed as a gift for him';
@@ -1556,8 +1557,8 @@ end $$;
 
 select set_config('request.jwt.claims', '{"sub":"44444444-4444-4444-4444-444444444444","email":"privacy-alice@example.com"}', true);
 do $$ begin
-  assert (select description from public.transactions
-    where id = current_setting('test.priv_tx_joint')::uuid) = 'Gift shop',
+  assert (select description = 'Gift shop' and notes is null from public.transactions
+    where id = current_setting('test.priv_tx_joint')::uuid),
     'Alice (the buyer) should still read the transaction she claimed, unaltered';
 end $$;
 

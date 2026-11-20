@@ -66,6 +66,7 @@ describe('the server', () => {
         'set_pay_account',
         'list_categories',
         'list_transactions',
+        'set_transaction_note',
         'add_gift_budget',
         'add_gift_occasion',
         'add_gift_purchase',

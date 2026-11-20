@@ -65,10 +65,10 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   `summariseHouseholdFromRows`, reporting each member's allowance, and for the member's own, drawn and
   remaining), `list_savings_goals`, `list_wishlist`, `list_accounts` (balances only for
   the balance-visible set; a co-member's spending account by name only), `list_members`,
-  `get_household`, `list_categories`, `list_transactions` (what RLS exposes), `list_trades`, `list_holdings` (FIFO, valued at the last traded price), `list_payslips`, and the gift tracker's `list_gifts` and
+  `get_household`, `list_categories`, `list_transactions` (what RLS exposes, with Up's detail, the household's notes and review state, and unreviewed and note-text filters), `list_trades`, `list_holdings` (FIFO, valued at the last traded price), `list_payslips`, and the gift tracker's `list_gifts` and
   `list_gift_candidates` (a budget for the member's own gift reports no spend, as
   RLS hides its purchases), and `list_up_categories` (Up's taxonomy). Write
-  tools: `set_account_net_worth_exclusion`, `set_member_date_of_birth`, `set_pay_account`, `add_budget_line` and `update_budget_line` (manual lines only; derived
+  tools: `set_account_net_worth_exclusion`, `set_member_date_of_birth`, `set_pay_account`, `set_transaction_note` (also marks the transaction reviewed, via `review_transaction`), `add_budget_line` and `update_budget_line` (manual lines only; derived
   lines are refused; they also set a line's goal, funding account, and own-allowance draw), `delete_budget_line`,
   breakdown and breakdown-item CRUD (generic only), `update_member_allowance`
   (an overdraw surfaces as `allowance_overdrawn`), savings-goal CRUD and queue
@@ -956,8 +956,13 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   `kind = 'transfer'`; Up's message, note, transaction type, deep link,
   categorisability and performing customer in their own columns). Each account
   resumes 24 hours behind its latest synced non-gift `posted_at`, an account with none
-  backfilling from the start of the prior financial year. `notes` is the
-  household's own and the sync never writes it. Because Up raises no event when a
+  backfilling from the start of the prior financial year. `notes`,
+  `reviewed_at` and `reviewed_by_member_id` are the household's own and the sync
+  never writes them: a member annotates and confirms a transaction through
+  `review_transaction`, the only client write path to `transactions` (members
+  hold no table `update` grant, so synced amounts and ids are out of their
+  reach), and a joint-account transaction's note and review are shared with both
+  partners, the last write winning. Because Up raises no event when a
   transaction is recategorised — which is how most gift spend gets categorised —
   each run also rescans the `gifts-and-charity` category over a 365-day trailing
   window: a stored gift row Up no longer lists there is re-read and refreshed in

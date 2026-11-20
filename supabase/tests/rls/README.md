@@ -143,6 +143,12 @@ instance and can also be run locally.
   allowance, and `commit_planning_changes` is held to the same policy;
   no function exposes the drawn totals; a released line is an ordinary shared
   line; and the owner role still reads every line.
+- `transaction_review.sql` — the assertions that `review_transaction` is the
+  only client write path to `transactions`: members hold no update grant, a note
+  is stored trimmed (blank clears, null leaves) and a review stamps the caller's
+  member (false clears, null leaves), a joint-account row's note and review are
+  shared with last write winning, and a co-member's individual account and another
+  household are out of reach.
 - `allowance_overdraw.sql` — the assertions that an allowance is never overdrawn:
   a zero allowance admits no line; creating, raising, or repointing a drawn line
   (and `commit_planning_changes` creates and updates) past the allowance is

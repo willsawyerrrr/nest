@@ -935,6 +935,8 @@ struct GiftTransaction: NestRow {
     let notes: String?
     let performingCustomerName: String?
     let postedAt: String
+    let reviewedAt: String?
+    let reviewedByMemberId: String?
     let source: LedgerSource
     let status: String
     let transactionType: String?
@@ -961,6 +963,8 @@ struct GiftTransaction: NestRow {
         case notes
         case performingCustomerName = "performing_customer_name"
         case postedAt = "posted_at"
+        case reviewedAt = "reviewed_at"
+        case reviewedByMemberId = "reviewed_by_member_id"
         case source
         case status
         case transactionType = "transaction_type"

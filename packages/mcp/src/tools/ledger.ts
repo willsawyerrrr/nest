@@ -231,6 +231,13 @@ interface TransactionRow {
   kind: string
   status: string
   external_category: string | null
+  transaction_type: string | null
+  is_categorizable: boolean | null
+  up_message: string | null
+  up_note: string | null
+  notes: string | null
+  reviewed_at: string | null
+  reviewed_by_member_id: string | null
 }
 
 const MAX_TRANSACTIONS = 200
@@ -241,6 +248,8 @@ export const listTransactionsInput = z.object({
   external_category: z.string().trim().min(1).optional(),
   from: isoDate.optional(),
   to: isoDate.optional(),
+  unreviewed: z.boolean().optional(),
+  note: z.string().trim().min(1).optional(),
   limit: z.number().int().min(1).max(MAX_TRANSACTIONS).optional(),
 })
 
@@ -248,7 +257,9 @@ export const listTransactionsInput = z.object({
  * Ledger transactions the member's row-level security exposes (a co-member's
  * spending account is hidden, as is a gift already claimed for them), newest
  * first. `external_category` narrows to a source category such as Up's
- * `gifts-and-charity`. `amount_cents` is signed: negative is an outflow.
+ * `gifts-and-charity`, `unreviewed` to those no member has reviewed, and `note`
+ * to those whose note contains the text, ignoring case. `amount_cents` is
+ * signed: negative is an outflow.
  */
 export async function listTransactions(
   ctx: NestContext,
@@ -259,12 +270,15 @@ export async function listTransactions(
   if (input.kind !== undefined) filters.kind = input.kind
   if (input.external_category !== undefined) filters.external_category = input.external_category
   const rows = await selectAll<TransactionRow>(ctx, 'transactions', filters)
+  const note = input.note?.toLowerCase()
   const matching = rows
     .filter((row) => {
       const day = row.posted_at.slice(0, 10)
       return (
         (input.from === undefined || day >= input.from) &&
-        (input.to === undefined || day <= input.to)
+        (input.to === undefined || day <= input.to) &&
+        (input.unreviewed !== true || row.reviewed_at === null) &&
+        (note === undefined || (row.notes?.toLowerCase().includes(note) ?? false))
       )
     })
     .sort((a, b) => b.posted_at.localeCompare(a.posted_at))
@@ -281,6 +295,46 @@ export async function listTransactions(
       kind: row.kind,
       status: row.status,
       external_category: row.external_category,
+      transaction_type: row.transaction_type,
+      is_categorizable: row.is_categorizable,
+      up_message: row.up_message,
+      up_note: row.up_note,
+      notes: row.notes,
+      reviewed_at: row.reviewed_at,
+      reviewed_by_member_id: row.reviewed_by_member_id,
     })),
+  }
+}
+
+export const setTransactionNoteInput = z.object({
+  transaction_id: z.uuid(),
+  note: z.string().nullable(),
+})
+
+/**
+ * Sets the household's note on a transaction the member can see (null or blank
+ * clears it) and marks the transaction reviewed by the member, through
+ * `review_transaction`. A joint-account transaction's note is shared with both
+ * members; the last write wins.
+ */
+export async function setTransactionNote(
+  ctx: NestContext,
+  input: z.infer<typeof setTransactionNoteInput>,
+) {
+  const [visible] = await selectAll<TransactionRow>(ctx, 'transactions', {
+    id: input.transaction_id,
+  })
+  if (!visible) throw new ToolError('not_found', 'No transaction matches that id.')
+  const { data, error } = await ctx.supabase.rpc('review_transaction', {
+    p_transaction_id: visible.id,
+    p_note: input.note ?? '',
+  })
+  if (error) throw fixedError('save_failed')
+  const row = data as TransactionRow
+  return {
+    id: row.id,
+    notes: row.notes,
+    reviewed_at: row.reviewed_at,
+    reviewed_by_member_id: row.reviewed_by_member_id,
   }
 }

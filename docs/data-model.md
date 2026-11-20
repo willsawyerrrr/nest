@@ -949,8 +949,8 @@ blocking every ad hoc purchase:
 membership).
 
 The card spend behind such a purchase is withheld too, so the claim cannot leak
-through the ledger: the `transactions` `SELECT`, `UPDATE`, and `DELETE` policies
-also require `id not in (select hidden_gift_transaction_ids_for_current_member())`
+through the ledger: the `transactions` `SELECT` and `DELETE` policies, and
+`review_transaction`, also require `id not in (select hidden_gift_transaction_ids_for_current_member())`
 — the transactions named by purchases against the caller's own gifts. Whichever
 account paid for it, a transaction the household has claimed as a gift for you is
 not yours to read, so the candidate inbox cannot offer you your own present. Spend
@@ -965,11 +965,11 @@ member can see — savers, spending accounts, and home loans alike — and by
 connections (see the Up and Redbark integrations in
 [`architecture.md`](architecture.md)); a savings goal links to one
 via `savings_goal.linked_account_id`. `transactions` holds every Up transaction
-`up-sync` polls, which the Gifts screen links purchases from — Redbark syncs
-accounts and balances only, never transactions. Manual entry and spending-plan
-reconciliation are a later phase, so `categories` — the household's own taxonomy —
-stays unpopulated and a synced row's `category_id` is null; Up's own taxonomy is
-mirrored in `up_category`.
+`up-sync` polls, which the Gifts screen links purchases from and members annotate
+and review — Redbark syncs accounts and balances only, never transactions. Manual
+entry and spending-plan reconciliation are a later phase, so `categories` — the
+household's own taxonomy — stays unpopulated and a synced row's `category_id` is
+null; Up's own taxonomy is mirrored in `up_category`.
 
 - **accounts** — an identity-only bank or savings account; its balance lives in
   `account_balance`.
@@ -1053,7 +1053,9 @@ mirrored in `up_category`.
     `status` (`pending` | `settled`), `source` (`up` | `manual`),
     `external_id` (dedupe key), `is_categorizable`, `transaction_type`,
     `deep_link_url`, `up_message`, `up_note`, `performing_customer_name`,
-    `notes`, `created_at`, `updated_at`.
+    `notes`, `reviewed_at`, `reviewed_by_member_id` (nullable,
+    `(reviewed_by_member_id, household_id)` → `members`, `on delete set null`),
+    `created_at`, `updated_at`.
     `unique (source, external_id)` is the sync's dedupe key, and
     `unique (id, household_id)` lets a gift purchase or dismissal reference a
     transaction without leaving the household.
@@ -1069,16 +1071,23 @@ mirrored in `up_category`.
     the Up app), and `performing_customer_name` (the cardholder, telling 2Up
     partners apart). A transaction naming a `transferAccount` lands as
     `kind = 'transfer'`.
-  - `notes` is the household's own: the sync never writes it.
+  - `notes`, `reviewed_at`, and `reviewed_by_member_id` are the household's own:
+    the sync never writes them. A member sets the note and confirms the
+    transaction through `review_transaction` (see **RPCs**); `reviewed_at` null
+    means the transaction awaits review. A joint-account transaction is one shared
+    row, so its note and review are shared with both partners, the last write
+    winning.
   - RLS gates each transaction to the balance-visible account set, so a member
     reads and writes transactions only on accounts whose balance they can see: a
     co-member's spending account is outside that set, so their gift-category spend
     never reaches the other partner's inbox, while a joint (2Up) account's spend
-    reaches both. `SELECT`, `UPDATE`, and `DELETE` add the gift gate on top,
-    excluding `hidden_gift_transaction_ids_for_current_member()` so a transaction
-    claimed as a gift for the caller is withheld from them (see **Private gifts**).
-    `INSERT` carries the account gate alone — a row being created cannot yet be
-    claimed by any purchase.
+    reaches both. `SELECT` and `DELETE` add the gift gate on top, excluding
+    `hidden_gift_transaction_ids_for_current_member()` so a transaction claimed as
+    a gift for the caller is withheld from them (see **Private gifts**). `INSERT`
+    carries the account gate alone — a row being created cannot yet be claimed by
+    any purchase. `authenticated` holds no `UPDATE` grant and there is no update
+    policy: `review_transaction` is the only client write to an existing row, so
+    a synced amount, account, or id stays as the sync wrote it.
   - Attribution mirrors the account: `member_id` is the resolved account's
     `owner_member_id`, null for a joint account. A synced transaction whose
     account is absent from `accounts` is skipped rather than landed.
@@ -1228,6 +1237,15 @@ not-yet-member can act past RLS in the narrow ways allowed:
   caller's household `pay_account_id`. Rejects anything that is not a
   `type = 'transaction'` account in the caller's household, so households writes
   stay controlled without opening a broad column update.
+- `review_transaction(p_transaction_id, p_note default null, p_reviewed default true) returns transactions`
+  — the only client write path to `transactions`. Sets the note (null leaves it,
+  blank clears it, anything else is stored trimmed) and the review state (true
+  stamps `reviewed_at = now()` and the caller's member in the transaction's
+  household, false returns it to unreviewed, null leaves it), returning the row.
+  It runs as its owner so a member cannot stamp a co-member as the reviewer, and
+  re-applies the read policy's predicate itself — the balance-visible account set
+  and the gift gate — raising `no_data_found` for a transaction the caller cannot
+  see.
 - `household_ids_for_current_user()` — the households the caller belongs to;
   the basis for every RLS policy.
 - `current_member_ids()`, `household_super_account_ids()`, and
@@ -1242,7 +1260,7 @@ not-yet-member can act past RLS in the narrow ways allowed:
   or logs a purchase for a gift meant for them.
 - `hidden_gift_transaction_ids_for_current_member()` — its ledger counterpart: the
   transactions named by purchases against those same gift budgets, gating the
-  `transactions` read, update, and delete policies so the card spend behind a gift
+  `transactions` read and delete policies and `review_transaction` so the card spend behind a gift
   meant for the caller is withheld from them. SECURITY DEFINER precisely because
   the caller cannot read those `gift_purchase` rows themselves.
 
@@ -1306,7 +1324,7 @@ that live in Vault:
 - `sync_up_transactions(p_household_id, p_rows jsonb)` → `table(id, inserted)`
   — `up-sync`'s transaction upsert: lands each row in the household on
   `(source, external_id)`, reporting whether it inserted it (`xmax = 0`). It
-  never writes `notes`, `category_id`, or `created_at`, restamps
+  never writes `notes`, the review columns, `category_id`, or `created_at`, restamps
   `external_category_since` only when the category changes, holds each linked
   `gift_purchase` to its transaction's amount, and leaves a conflicting row in
   another household alone.

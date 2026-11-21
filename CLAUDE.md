@@ -982,7 +982,13 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   writes the category back to Up with their own token (only a child category
   from `up_category`, Up's taxonomy that `up-sync` refreshes each run, and never
   a transaction Up marks uncategorisable) and records it on the row at once, so
-  a move into gifts reaches the inbox without waiting for a sync. Spend
+  a move into gifts reaches the inbox without waiting for a sync. The review
+  screen (`/transactions/review`, no nav entry, `?id=` focusing one
+  transaction) lists a member's unreviewed categorisable Up transactions to
+  confirm ("Looks right"), recategorise and annotate ("Save"), or file as a gift
+  ("It's a gift", pointing on to Gifts), with "Open in Up" on each for what only
+  Up can change, such as a cover; see
+  [`docs/up-ledger-sync.md`](docs/up-ledger-sync.md#reviewing-transactions-transactionsreview). Spend
   reconciliation and actual tax paid are deferred.
   Sources (Up Bank API + Redbark + manual entry) are
   source-agnostic. Edge functions (`up-connect` / `up-disconnect` / `up-sync` /

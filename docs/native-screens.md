@@ -925,3 +925,30 @@ worth liability read the same rows.
 shows (balance and the editor's starting value) and the cents typed balances save as
 into `apps/ios/NestTests/Fixtures/help-debt-parity.json`; `HelpDebtParityTests`
 asserts `HelpDebtPresentation` lists and saves the same.
+
+## Transaction review
+
+`Route.transactionReview` (`/transactions/review`, outside the nav like
+Planning and What's new) is native (`TransactionReviewScreen`), laid out as the
+PWA's review screen: the title and intro, then the member's unreviewed,
+categorisable Up transactions, newest first and capped at the newest 100, as
+bordered cards on iPhone and dense ruled rows on iPad and Mac. Each row shows the
+description, signed amount, account and date, a Pending pill while Up holds it,
+the Up category (`Parent › Child`), Up's own note and message (read-only), and
+an "Open in Up" link to the transaction's deep link, outside the disclosure.
+Tapping a row expands the editor: a category menu (Up's child categories under
+their parents), the Nest note prefilled from `notes`, and Save (enabled once
+the category or note changes), Looks right (disabled while the category is
+changed) and It's a gift, which files the transaction under `gifts-and-charity`
+and shows a notice linking to Gifts.
+
+It reads `transactions` (`source = up`, categorisable, `reviewed_at` null,
+bypassing the row cache as on Gifts), `up_category` (the `UpCategory` model) and
+`account_directory` through `TransactionReviewViewModel`. Opened with an `id`
+(a tapped notification's `?id=`, carried by `NotificationDestination`), it also
+reads that transaction and leads with it, expanded and scrolled to, even once
+reviewed. A category change calls `up-categorise` before `review_transaction`;
+a refusal leaves the transaction unreviewed and shows
+`TransactionReviewPresentation`'s fixed copy for the function's `code` (with a
+link to Connections for `up_not_connected` and `up_auth_failed`), while
+`save_failed` lets the review go ahead. Rows reload after each review.

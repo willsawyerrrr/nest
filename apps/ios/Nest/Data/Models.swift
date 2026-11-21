@@ -913,8 +913,8 @@ struct GiftTransactionDismissal: NestRow {
     }
 }
 
-/// Row of `transactions`, as the gift inbox reads it.
-struct GiftTransaction: NestRow {
+/// Row of `transactions`: a synced ledger transaction.
+struct LedgerTransaction: NestRow {
     static let table = "transactions"
 
     let accountId: String
@@ -971,6 +971,22 @@ struct GiftTransaction: NestRow {
         case upMessage = "up_message"
         case upNote = "up_note"
         case updatedAt = "updated_at"
+    }
+}
+
+/// Row of `up_category`: one of Up's categories, a parent (`parentId` nil) or a
+/// child under one. Only a child can be assigned to a transaction.
+struct UpCategory: NestRow {
+    static let table = "up_category"
+
+    let id: String
+    let name: String
+    let parentId: String?
+
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case id
+        case name
+        case parentId = "parent_id"
     }
 }
 

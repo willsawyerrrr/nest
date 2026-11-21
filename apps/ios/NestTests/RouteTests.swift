@@ -30,7 +30,9 @@ struct RouteTests {
     }
 
     @Test func routesOutsideTheNavHaveNoSection() {
-        #expect(Route.allCases.filter { $0.section == nil } == [.planning, .allowance, .whatsNew])
+        #expect(
+            Route.allCases.filter { $0.section == nil }
+                == [.planning, .allowance, .whatsNew, .transactionReview])
     }
 
     @Test func everyRouteIsNative() {
@@ -39,6 +41,15 @@ struct RouteTests {
                 Issue.record("\(route) is not native")
                 continue
             }
+        }
+    }
+
+    @Test func transactionReviewIsReachableByURLAlone() {
+        #expect(Route.transactionReview.path == "/transactions/review")
+        #expect(Route.transactionReview.title == "Review transactions")
+        guard case .native = Route.transactionReview.content(id: "t1") else {
+            Issue.record("transaction review is not native")
+            return
         }
     }
 

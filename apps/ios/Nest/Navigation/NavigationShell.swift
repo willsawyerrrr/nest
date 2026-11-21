@@ -12,6 +12,7 @@ struct NavigationShell: View {
     @State private var selection: Route = .summary
     /// Context a tapped notification passed to the selected route's screen.
     @State private var draft: PromoteDraft?
+    @State private var focusID: String?
     /// Bumped per tapped notification, so opening one recreates the stack even
     /// when its route is already showing.
     @State private var notificationVisit = 0
@@ -55,6 +56,7 @@ struct NavigationShell: View {
     private func select(_ route: Route) {
         selection = route
         draft = nil
+        focusID = nil
         drawerOpen = false
     }
 
@@ -63,6 +65,7 @@ struct NavigationShell: View {
     private func open(_ destination: NotificationDestination) {
         select(destination.route == .planning && !planning.isActive ? .summary : destination.route)
         draft = destination.draft
+        focusID = destination.id
         notificationVisit += 1
     }
 
@@ -70,7 +73,7 @@ struct NavigationShell: View {
     /// back button; the stack is recreated when the route changes.
     private var content: some View {
         NavigationStack {
-            RouteScreen(route: selection, draft: draft)
+            RouteScreen(route: selection, draft: draft, id: focusID)
                 .navigationDestination(for: Route.self) { RouteScreen(route: $0) }
                 .toolbar { if isCompact { topBar } }
         }
@@ -205,10 +208,12 @@ private struct WhatsNewButton: View {
 struct RouteScreen: View {
     let route: Route
     var draft: PromoteDraft?
+    /// The record the screen focuses, from a tapped notification.
+    var id: String?
 
     var body: some View {
         Group {
-            switch route.content(draft: draft) {
+            switch route.content(draft: draft, id: id) {
             case .native(let view):
                 view
             case .web(let path):

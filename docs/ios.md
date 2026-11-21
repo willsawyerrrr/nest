@@ -450,7 +450,8 @@ with Web Push (see [`architecture.md`](architecture.md#push-notifications)).
   Summary and `/household` Household, as the web app redirects them), plus any
   context that screen takes — a `promoteName` and positive integer
   `promoteAmountCents` carry a promote draft that opens Goals or Budget with its
-  add form prefilled. Anything else (another origin, a scheme, an unknown path)
+  add form prefilled, and a non-empty `id` names the transaction
+  `/transactions/review` focuses. Anything else (another origin, a scheme, an unknown path)
   is ignored. The destination goes to `NotificationRouter` on the main actor,
   which holds it until `NavigationShell` takes it: at once while the shell is
   showing, or as soon as it appears after launch or sign-in. The shell selects

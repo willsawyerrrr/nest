@@ -359,11 +359,11 @@ struct GiftsPresentation: Equatable, Sendable {
         return order == .orderedSame ? aID.compare(bID) == .orderedAscending : order == .orderedAscending
     }
 
-    private static func transactionsNewestFirst(_ a: GiftTransaction, _ b: GiftTransaction) -> Bool {
+    private static func transactionsNewestFirst(_ a: LedgerTransaction, _ b: LedgerTransaction) -> Bool {
         a.postedAt == b.postedAt ? a.id < b.id : a.postedAt > b.postedAt
     }
 
-    private static func candidate(_ transaction: GiftTransaction, dismissalID: String?)
+    private static func candidate(_ transaction: LedgerTransaction, dismissalID: String?)
         -> GiftCandidate
     {
         GiftCandidate(

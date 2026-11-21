@@ -18,18 +18,22 @@ import Testing
             devices: devices, sent: sent, pruned: pruned, failed: failed, failures: failures)
     }
 
-    @Test func listsSixTriggersInOrderWithoutUpDisconnected() {
+    @Test func listsSevenTriggersInOrderWithoutUpDisconnected() {
         let rows = NotificationsPresentation.toggles(for: [])
         #expect(
             rows.map(\.trigger) == [
                 .bufferNegative, .goalEtaSlipped, .temporaryItemExpiring, .fyBoundary,
-                .giftPurchaseUnassigned, .giftCandidateNew,
+                .giftPurchaseUnassigned, .giftCandidateNew, .transactionReview,
             ])
         #expect(rows.first?.label == "Buffer goes negative")
     }
 
-    @Test func anAbsentRowMeansOn() {
-        #expect(NotificationsPresentation.toggles(for: []).allSatisfy { $0.enabled })
+    @Test func anAbsentRowMeansOnExceptForTheOptInTransactionReview() {
+        let rows = NotificationsPresentation.toggles(for: [])
+        #expect(rows.filter { $0.trigger != .transactionReview }.allSatisfy { $0.enabled })
+        #expect(rows.first { $0.trigger == .transactionReview }?.enabled == false)
+        let optedIn = NotificationsPresentation.toggles(for: [preference(.transactionReview, enabled: true)])
+        #expect(optedIn.first { $0.trigger == .transactionReview }?.enabled == true)
     }
 
     @Test func aStoredChoiceAppliesAndAnOverrideWins() {

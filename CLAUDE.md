@@ -1035,7 +1035,8 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   (unique `token`, plus a `sandbox`/`production` `environment`) through
   `register_apns_device`, which reassigns a token to the caller when the install
   changes hands, and deletes it on sign-out. Those tables, and
-  `notification_preference` (a member's on/off choice per trigger, absent ⇒ on),
+  `notification_preference` (a member's on/off choice per trigger, absent ⇒ on
+  except for the opt-in `transaction_review`),
   are the exceptions to the shared-household rule — an endpoint or token is a
   bearer capability to make someone's phone buzz, so RLS scopes all four commands
   to the owning member (`current_member_ids()`), a co-member can neither read nor
@@ -1083,10 +1084,29 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   unassigned gift purchase, which carries no recipient tag and so is
   visible, and notified, household-wide.
   A log row is written only once a device took the push (on any channel), so a
-  transient failure retries next day. Each member turns a trigger off with a per-trigger toggle on
+  transient failure retries next day. The delivery loop (devices, preferences,
+  dedupe, log, prune) is `_shared/notify.ts`, wired by `_shared/notifyClient.ts`,
+  and shared with ingestion: **`transaction_review`** is sent by `up-sync` and
+  `up-webhook` for each Up transaction `sync_up_transactions` newly inserts that
+  is categorisable (pending included; transfers, round-ups and covers excluded),
+  unreviewed, not linked by a gift purchase, and dated by Up within 48 hours of
+  that first sight (so a backfill never is), with `notify-eval` re-evaluating
+  the last 2 days as its backstop and the transaction id as the dedupe key. It
+  notifies an individual account's owner, or only a joint account's purchaser
+  so a gift never pings its recipient: Up names the purchaser by handle
+  (`performing_customer_name`, `$alex`), matched to the one member whose own
+  individual accounts carry it (`up_customer_handles`), falling back to a whole
+  or first name for a member with no handle; without exactly one match nobody
+  is notified and the skip is logged. The push reads `<merchant> · <amount>` /
+  `<Up category> — right category?` and opens `/transactions/review?id=<id>`.
+  Each member turns a trigger on or off with a per-trigger toggle on
   the Notifications settings page, shown once a device is on
   (`useNotificationPreferences`); an absent `notification_preference` row means
-  the trigger is on, so a member who never opens the settings gets everything.
+  the trigger is on, so a member who never opens the settings gets everything —
+  except `transaction_review`, which is opt-in (absent ⇒ off, no member enrolled
+  by default) and whose one toggle also shows the Summary's "N to review" card
+  (the member's visible, unreviewed, categorisable Up transactions) linking to
+  the review screen.
   Deposit-landed and bill-due triggers need ingestion and are out of scope;
   per-member, per-timezone scheduling is a follow-up.
 - EOFY sharing: a household gives a tax agent read-only access to its EOFY

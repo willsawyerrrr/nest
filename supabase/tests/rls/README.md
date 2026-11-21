@@ -149,6 +149,10 @@ instance and can also be run locally.
   member (false clears, null leaves), a joint-account row's note and review are
   shared with last write winning, and a co-member's individual account and another
   household are out of reach.
+- `up_customer_handles.sql` — the assertions that `up_customer_handles` learns
+  each member's Up handles from their own individual accounts alone (never a
+  joint account, never another household), that only `service_role` may call
+  it, and that `service_role` reads `up_category` without a write grant.
 - `allowance_overdraw.sql` — the assertions that an allowance is never overdrawn:
   a zero allowance admits no line; creating, raising, or repointing a drawn line
   (and `commit_planning_changes` creates and updates) past the allowance is

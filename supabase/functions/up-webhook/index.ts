@@ -9,6 +9,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js'
+import { promptReviewOfInserted } from '../_shared/notifyClient.ts'
 import { UpClient } from '../_shared/up.ts'
 import { requirePost } from '../_shared/http.ts'
 import { handleDelivery } from './handle.ts'
@@ -82,6 +83,8 @@ Deno.serve(async (request) => {
       })
       if (error) throw new Error(`Failed to delete the transaction: ${error.message}`)
     },
+    promptReview: (householdId, insertedIds) =>
+      promptReviewOfInserted(supabase, householdId, insertedIds),
   })
 
   return new Response(body, { status })

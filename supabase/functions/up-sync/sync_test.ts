@@ -152,6 +152,7 @@ function deps(overrides: Partial<SyncDeps> = {}): SyncDeps {
     disconnectMember: () => Promise.resolve(),
     listMembersWithWebhook: () => Promise.resolve(['m-1', 'm-2']),
     registerWebhook: () => Promise.resolve(),
+    promptReview: () => Promise.resolve(),
     ...overrides,
   }
 }
@@ -875,4 +876,24 @@ Deno.test('runSync registers nothing when it cannot tell who has a webhook', asy
   }))
   assertEquals(registered, false)
   assertEquals(result.members, 1)
+})
+
+Deno.test('runSync prompts review of only the rows it newly inserted, per household', async () => {
+  const prompted: Array<{ householdId: string; ids: string[] }> = []
+  await runSync(deps({
+    listAccountTransactions: () =>
+      Promise.resolve([transaction('tx-new', 'acc-1', null), transaction('tx-old', 'acc-1', null)]),
+    syncTransactions: (_householdId, rows) =>
+      Promise.resolve(
+        rows.map((row) => ({
+          id: `id-${row.external_id}`,
+          inserted: row.external_id === 'tx-new',
+        })),
+      ),
+    promptReview: (householdId, ids) => {
+      prompted.push({ householdId, ids })
+      return Promise.resolve()
+    },
+  }))
+  assertEquals(prompted, [{ householdId: 'h-1', ids: ['id-tx-new'] }])
 })

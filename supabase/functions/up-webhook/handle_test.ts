@@ -63,6 +63,7 @@ function transaction(accountId = 'up-acc'): UpTransaction {
 function fakes(overrides: Partial<DeliveryDeps> = {}) {
   const synced: TransactionUpsert[][] = []
   const deleted: string[][] = []
+  const prompted: Array<{ householdId: string; ids: string[] }> = []
   const deps: DeliveryDeps = {
     secretFor: () => Promise.resolve(SECRET),
     householdFor: () => Promise.resolve('h-1'),
@@ -82,9 +83,13 @@ function fakes(overrides: Partial<DeliveryDeps> = {}) {
       deleted.push(ids)
       return Promise.resolve()
     },
+    promptReview: (householdId, ids) => {
+      prompted.push({ householdId, ids })
+      return Promise.resolve()
+    },
     ...overrides,
   }
-  return { deps, synced, deleted }
+  return { deps, synced, deleted, prompted }
 }
 
 async function deliver(body: string, deps: DeliveryDeps, memberId: string | null = MEMBER) {
@@ -147,11 +152,18 @@ for (const eventType of ['TRANSACTION_CREATED', 'TRANSACTION_SETTLED']) {
   })
 }
 
+Deno.test('an inserted row prompts its review', async () => {
+  const { deps, prompted } = fakes()
+  await deliver(event('TRANSACTION_CREATED'), deps)
+  assertEquals(prompted, [{ householdId: 'h-1', ids: ['row-1'] }])
+})
+
 Deno.test('an updated row is not reported as inserted', async () => {
-  const { deps } = fakes({
+  const { deps, prompted } = fakes({
     syncTransactions: () => Promise.resolve([{ id: 'row-1', inserted: false }]),
   })
   assertEquals((await deliver(event('TRANSACTION_SETTLED'), deps)).insertedIds, [])
+  assertEquals(prompted, [{ householdId: 'h-1', ids: [] }])
 })
 
 Deno.test('a transaction on an unsynced account is skipped', async () => {

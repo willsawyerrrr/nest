@@ -27,6 +27,9 @@ const hooks = vi.hoisted(() => ({
   useGoals: vi.fn(),
   useSavers: vi.fn(),
   useMemberAllowances: vi.fn(),
+  useCurrentMember: vi.fn(),
+  useNotificationPreferences: vi.fn(),
+  useTransactionReviewCount: vi.fn(),
   planningActive: false,
   screenProps: null as Record<string, unknown> | null,
 }))
@@ -54,6 +57,13 @@ vi.mock('../hooks/useSavers', () => ({ useSavers: hooks.useSavers }))
 vi.mock('../hooks/useMemberAllowances', () => ({
   useMemberAllowances: hooks.useMemberAllowances,
 }))
+vi.mock('../hooks/useCurrentMember', () => ({ useCurrentMember: hooks.useCurrentMember }))
+vi.mock('../hooks/useNotificationPreferences', () => ({
+  useNotificationPreferences: hooks.useNotificationPreferences,
+}))
+vi.mock('../hooks/useTransactionReviewCount', () => ({
+  useTransactionReviewCount: hooks.useTransactionReviewCount,
+}))
 vi.mock('../components/SummaryView', () => ({
   SummaryView: (props: Record<string, unknown>) => {
     hooks.screenProps = props
@@ -66,6 +76,36 @@ describe('SummarySection', () => {
     hooks.useGoals.mockReturnValue({ loading: false, goals: [], baselineGoals: [] })
     hooks.useSavers.mockReturnValue({ loading: false, savers: [] })
     hooks.useMemberAllowances.mockReturnValue({ loading: false, allowances: [] })
+    hooks.useCurrentMember.mockReturnValue({ loading: false, member: { id: 'm1' } })
+    hooks.useNotificationPreferences.mockReturnValue({ loading: false, enabled: () => false })
+    hooks.useTransactionReviewCount.mockImplementation((enabled: boolean) => (enabled ? 3 : null))
+  })
+
+  function loaded() {
+    hooks.useInflows.mockReturnValue({ loading: false, inflows: [] })
+    hooks.useTaxProfiles.mockReturnValue({ loading: false, profiles: [], financialYear: 2027 })
+    hooks.useBudgetLines.mockReturnValue({ loading: false, lines: [] })
+    hooks.useTemporaryItems.mockReturnValue({ loading: false, items: [] })
+    hooks.useSuperContributions.mockReturnValue({ loading: false, contributions: [] })
+    hooks.useGifts.mockReturnValue({ loading: false, budgets: [] })
+    hooks.useBreakdowns.mockReturnValue({ loading: false, breakdowns: [], items: [] })
+    hooks.useHelpDebts.mockReturnValue({ loading: false, helpDebts: [] })
+    hooks.useDeductions.mockReturnValue({ loading: false, deductions: [] })
+    hooks.useMembers.mockReturnValue({ loading: false, members: [] })
+  }
+
+  it('counts transactions to review only while the member has the review prompt on', () => {
+    loaded()
+    render(<SummarySection />)
+    expect(hooks.useNotificationPreferences).toHaveBeenCalledWith('m1')
+    expect(hooks.screenProps).toHaveProperty('toReview', null)
+
+    hooks.useNotificationPreferences.mockReturnValue({
+      loading: false,
+      enabled: (trigger: string) => trigger === 'transaction_review',
+    })
+    render(<SummarySection />)
+    expect(hooks.screenProps).toHaveProperty('toReview', 3)
   })
 
   it('shows the loading screen until data loads', () => {

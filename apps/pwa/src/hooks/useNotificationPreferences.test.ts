@@ -27,6 +27,7 @@ describe('useNotificationPreferences', () => {
       'fy_boundary',
       'gift_purchase_unassigned',
       'gift_candidate_new',
+      'transaction_review',
     ])
   })
 
@@ -38,6 +39,15 @@ describe('useNotificationPreferences', () => {
 
     expect(result.current.enabled('goal_eta_slipped')).toBe(false)
     expect(result.current.enabled('buffer_negative')).toBe(true)
+  })
+
+  it('defaults an absent transaction_review choice to off, the prompt being opt-in', async () => {
+    const { result } = renderHook(() => useNotificationPreferences('m1'), {
+      wrapper: makeWrapper(),
+    })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    expect(result.current.enabled('transaction_review')).toBe(false)
   })
 
   it('upserts the member’s choice for a trigger', async () => {

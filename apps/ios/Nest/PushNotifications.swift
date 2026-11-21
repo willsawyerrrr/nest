@@ -28,6 +28,11 @@ struct NotificationDestination: Equatable, Sendable {
     var route: Route
     /// A wishlist item to promote, prefilling the Goals or Budget add form.
     var draft: PromoteDraft?
+    /// The record the screen focuses: a transaction to review.
+    var id: String?
+
+    /// The routes that focus a record named by an `id` query item.
+    private static let idRoutes: Set<Route> = [.transactionReview]
 
     /// Paths the web app redirects to a route, which notifications may carry.
     private static let aliases: [String: Route] = ["/": .summary, "/household": .household]
@@ -36,7 +41,8 @@ struct NotificationDestination: Equatable, Sendable {
     /// a query; nil for anything outside the app or naming no route.
     ///
     /// A `promoteName` and positive integer `promoteAmountCents` in the query
-    /// carry a promote draft to Goals or Budget, as they do for the web app.
+    /// carry a promote draft to Goals or Budget, and a non-empty `id` names the
+    /// record a route focuses, as they do for the web app.
     init?(userInfo: [AnyHashable: Any]) {
         guard let value = userInfo["url"] as? String,
             value.hasPrefix("/"), !value.hasPrefix("//"),
@@ -47,12 +53,16 @@ struct NotificationDestination: Equatable, Sendable {
             ? String(components.path.dropLast()) : components.path
         guard let route = Route(rawValue: path) ?? Self.aliases[path] else { return nil }
         self.route = route
-        draft = [.goals, .budget].contains(route) ? Self.draft(from: components.queryItems ?? []) : nil
+        let items = components.queryItems ?? []
+        draft = [.goals, .budget].contains(route) ? Self.draft(from: items) : nil
+        id = Self.idRoutes.contains(route)
+            ? items.first { $0.name == "id" }?.value.flatMap { $0.isEmpty ? nil : $0 } : nil
     }
 
-    init(route: Route, draft: PromoteDraft? = nil) {
+    init(route: Route, draft: PromoteDraft? = nil, id: String? = nil) {
         self.route = route
         self.draft = draft
+        self.id = id
     }
 
     private static func draft(from items: [URLQueryItem]) -> PromoteDraft? {

@@ -67,6 +67,18 @@ import Testing
         #expect(NotificationDestination(userInfo: ["url": value])?.draft == nil)
     }
 
+    @Test func carriesTheTransactionIdToTheReviewScreen() {
+        let id = "11111111-2222-3333-4444-555555555555"
+        #expect(
+            NotificationDestination(userInfo: ["url": "/transactions/review?id=\(id)"])
+                == NotificationDestination(route: .transactionReview, id: id))
+    }
+
+    @Test(arguments: ["/transactions/review", "/transactions/review?id=", "/gifts?id=abc"])
+    func dropsAnIdTheRouteCannotTake(_ value: String) {
+        #expect(NotificationDestination(userInfo: ["url": value])?.id == nil)
+    }
+
     // MARK: Router
 
     @MainActor @Test func holdsADestinationUntilTheShellTakesIt() {

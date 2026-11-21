@@ -7,7 +7,7 @@ struct GiftsRows: Codable, Sendable, Equatable {
     var budgets: [GiftBudget] = []
     var purchases: [GiftPurchase] = []
     var discretionaryBudgets: [GiftDiscretionaryBudget] = []
-    var transactions: [GiftTransaction] = []
+    var transactions: [LedgerTransaction] = []
     var dismissals: [GiftTransactionDismissal] = []
     var members: [Member] = []
 
@@ -31,7 +31,7 @@ struct GiftsRows: Codable, Sendable, Equatable {
             },
             .table(GiftDiscretionaryBudget.self) { $0.discretionaryBudgets = $1 },
             .table(
-                GiftTransaction.self,
+                LedgerTransaction.self,
                 filters: [.eq("external_category", transactionCategory)],
                 order: [Order(column: "posted_at", ascending: false)], cached: false
             ) { $0.transactions = $1 },

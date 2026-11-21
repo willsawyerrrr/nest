@@ -91,6 +91,7 @@ enum Route: String, CaseIterable, Identifiable, Hashable {
     case planning = "/planning"
     case allowance = "/allowance"
     case whatsNew = "/whats-new"
+    case transactionReview = "/transactions/review"
 
     var id: String { rawValue }
 
@@ -124,6 +125,7 @@ enum Route: String, CaseIterable, Identifiable, Hashable {
         case .planning: "Planning"
         case .allowance: "Allowance"
         case .whatsNew: "What's new"
+        case .transactionReview: "Review transactions"
         }
     }
 
@@ -135,13 +137,13 @@ enum Route: String, CaseIterable, Identifiable, Hashable {
         case .netWorth, .goals, .wishlist, .superannuation, .equity, .investments: .grow
         case .tax, .payslips, .deductions, .helpDebt, .eofy: .tax
         case .household, .members, .connections, .notifications, .planningMode: .settings
-        case .planning, .allowance, .whatsNew: nil
+        case .planning, .allowance, .whatsNew, .transactionReview: nil
         }
     }
 
     /// The route's native screen, opening Goals or Budget with `draft` prefilled
-    /// in its add form.
-    func content(draft: PromoteDraft? = nil) -> RouteContent {
+    /// in its add form, and transaction review focused on the transaction `id`.
+    func content(draft: PromoteDraft? = nil, id: String? = nil) -> RouteContent {
         switch self {
         case .summary: .native(AnyView(SummaryScreen()))
         case .breakdowns: .native(AnyView(BreakdownsScreen()))
@@ -168,6 +170,7 @@ enum Route: String, CaseIterable, Identifiable, Hashable {
         case .superannuation: .native(AnyView(SuperScreen()))
         case .investments: .native(AnyView(InvestmentsScreen()))
         case .helpDebt: .native(AnyView(HelpDebtScreen()))
+        case .transactionReview: .native(AnyView(TransactionReviewScreen(focusID: id)))
         }
     }
 

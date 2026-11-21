@@ -125,6 +125,11 @@ struct SummaryPresentation: Sendable {
             || summary.savingsBlock.annualCents != 0 || summary.oneOffCents != 0
     }
 
+    /// The review prompt's detail line, as the PWA's `TransactionReviewCard`.
+    static func reviewDetail(_ count: Int) -> String {
+        "Confirm the category of your new Up \(count == 1 ? "transaction" : "transactions")."
+    }
+
     /// `12.3%`.
     static func percent(_ portion: Double) -> String {
         portion.formatted(

@@ -13,7 +13,8 @@ import Testing
     private let base = URL(string: "https://example.supabase.co")!
 
     private func api(
-        status: Int = 200, body: String = "[]", box: RequestBox = RequestBox(),
+        status: Int = 200, body: String = "[]", headers: [String: String]? = nil,
+        box: RequestBox = RequestBox(),
         token: @escaping @Sendable () async throws -> String = { "tok" }
     ) -> SupabaseAPI {
         SupabaseAPI(
@@ -23,7 +24,8 @@ import Testing
                 return (
                     Data(body.utf8),
                     HTTPURLResponse(
-                        url: request.url!, statusCode: status, httpVersion: nil, headerFields: nil)!
+                        url: request.url!, statusCode: status, httpVersion: nil,
+                        headerFields: headers)!
                 )
             })
     }
@@ -62,6 +64,25 @@ import Testing
         #expect(q["limit"] == "5")
         #expect(rows.first?.name == "Japan")
         #expect(rows.first?.targetAmountCents == 1_000_000)
+    }
+
+    @Test func countSendsAHeadRequestAndReadsTheContentRange() async throws {
+        let box = RequestBox()
+        let total = try await api(body: "", headers: ["Content-Range": "*/7"], box: box).count(
+            LedgerTransaction.self, filters: [.isNull("reviewed_at")])
+
+        let request = try #require(box.last)
+        #expect(request.httpMethod == "HEAD")
+        #expect(request.url?.path == "/rest/v1/transactions")
+        #expect(request.value(forHTTPHeaderField: "Prefer") == "count=exact")
+        #expect(query(request) == ["select": "id", "reviewed_at": "is.null"])
+        #expect(total == 7)
+    }
+
+    @Test func countWithoutAContentRangeIsADecodingFailure() async {
+        await #expect(throws: NestError(.decoding)) {
+            try await api().count(LedgerTransaction.self)
+        }
     }
 
     @Test func insertPostsJSONAndAsksForTheRows() async throws {

@@ -1111,9 +1111,9 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   (`useNotificationPreferences`); an absent `notification_preference` row means
   the trigger is on, so a member who never opens the settings gets everything —
   except `transaction_review`, which is opt-in (absent ⇒ off, no member enrolled
-  by default) and whose one toggle also shows the Summary's "N to review" card
-  (the member's visible, unreviewed, categorisable Up transactions) linking to
-  the review screen.
+  by default) and whose one toggle also shows the Summary's "N to review" card,
+  in the PWA and native app alike (the member's visible, unreviewed,
+  categorisable Up transactions) linking to the review screen.
   Deposit-landed and bill-due triggers need ingestion and are out of scope;
   per-member, per-timezone scheduling is a follow-up.
 - EOFY sharing: a household gives a tax agent read-only access to its EOFY

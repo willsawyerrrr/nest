@@ -1,7 +1,7 @@
 import Charts
 import SwiftUI
 
-/// The native Summary route: the reconciliation ledger, allocation donut,
+/// The native Summary route: the prompt to review new Up transactions, the reconciliation ledger, allocation donut,
 /// allowance progress, cash-flow Sankey and one-off money, computed by the shared engine.
 struct SummaryScreen: View {
     @State private var model: SummaryViewModel
@@ -13,7 +13,7 @@ struct SummaryScreen: View {
 
     var body: some View {
         ScreenStateView(state: model.state, retry: { Task { await model.retry() } }) { content in
-            SummaryContentView(content: content, basis: $model.basis)
+            SummaryContentView(content: content, basis: $model.basis, toReview: model.toReview)
         }
         .task(id: planning.revision) { await model.load() }
     }
@@ -22,11 +22,14 @@ struct SummaryScreen: View {
 struct SummaryContentView: View {
     let content: SummaryContent
     @Binding var basis: IncomeBasis
+    /// How many transactions await the member's review; nil hides the prompt.
+    var toReview: Int?
 
     private var presentation: SummaryPresentation { .init(summary: content.summary) }
 
     var body: some View {
         NestPageSection(title: "Summary") {
+            if let toReview { TransactionReviewCard(count: toReview) }
             PlanningBanner()
             if presentation.hasData {
                 AllocationCard(presentation: presentation, basis: $basis)
@@ -51,6 +54,39 @@ struct SummaryContentView: View {
                         "Nothing to reconcile yet. Add inflows and budget items to see how your money is allocated."
                 )
             }
+        }
+    }
+}
+
+/// The prompt to review new Up transactions, linking to the review screen.
+/// Renders nothing when there are none.
+struct TransactionReviewCard: View {
+    let count: Int
+
+    var body: some View {
+        if count > 0 {
+            NestCard(padding: NestSpacing.sm) {
+                HStack(spacing: NestSpacing.sm) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("\(count) to review").font(NestFont.body.weight(.semibold))
+                            .foregroundStyle(NestColor.text)
+                        Text(SummaryPresentation.reviewDetail(count)).font(NestFont.small)
+                            .foregroundStyle(NestColor.dimmedText)
+                    }
+                    Spacer(minLength: NestSpacing.xs)
+                    NavigationLink(value: Route.transactionReview) {
+                        Text("Review").font(NestFont.small.weight(.semibold))
+                            .foregroundStyle(NestColor.brand)
+                            .padding(.horizontal, NestSpacing.sm)
+                            .frame(minHeight: 26)
+                            .background(
+                                NestColor.brand.opacity(0.16),
+                                in: RoundedRectangle(cornerRadius: NestRadius.md, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .accessibilityIdentifier("transaction-review-card")
         }
     }
 }
@@ -231,7 +267,7 @@ private struct LedgerCard: View {
         afterOutgoing: amounts(120_000), afterSaving: amounts(40_000),
         tax: amounts(90_000), salarySacrifice: amounts(15_000))
     return SummaryContentView(
-        content: SummaryContent(summary: summary, members: []), basis: $basis
+        content: SummaryContent(summary: summary, members: []), basis: $basis, toReview: 3
     )
     .background(NestColor.background)
 }

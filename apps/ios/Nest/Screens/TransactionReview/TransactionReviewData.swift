@@ -13,6 +13,12 @@ struct TransactionReviewRows: Codable, Sendable, Equatable {
     /// The most unreviewed transactions read at once, newest first.
     static let pageSize = 100
 
+    /// The Up transactions awaiting review: categorisable and unreviewed, row-level
+    /// security scoping them to the member's balance-visible accounts.
+    static let awaitingReview: [Filter] = [
+        .eq("source", "up"), .eq("is_categorizable", "true"), .isNull("reviewed_at"),
+    ]
+
     /// The tables behind the screen. Transactions skip the row cache, as on
     /// Gifts: row-level security can withdraw one between reads, and a review
     /// made elsewhere must not linger. `focusID` adds a read of that one
@@ -21,7 +27,7 @@ struct TransactionReviewRows: Codable, Sendable, Equatable {
         var sources: [TableSource<TransactionReviewRows>] = [
             .table(
                 LedgerTransaction.self,
-                filters: [.eq("source", "up"), .eq("is_categorizable", "true"), .isNull("reviewed_at")],
+                filters: awaitingReview,
                 order: [Order(column: "posted_at", ascending: false)], limit: pageSize,
                 cached: false
             ) { $0.transactions = $1 },

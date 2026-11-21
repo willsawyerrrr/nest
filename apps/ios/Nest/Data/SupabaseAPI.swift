@@ -69,6 +69,24 @@ struct SupabaseAPI: Sendable {
         return try decode([T].self, from: data)
     }
 
+    /// How many rows of `T` match `filters`: a head request whose exact count
+    /// PostgREST reports in `Content-Range` (`0-9/42`, or `*/0`).
+    func count<T: NestRow>(_: T.Type, filters: [Filter] = []) async throws -> Int {
+        let (response, data) = try await exchange(
+            "HEAD", path: "rest/v1/\(T.table)",
+            query: [URLQueryItem(name: "select", value: "id")] + Self.items(filters),
+            headers: ["Prefer": "count=exact"])
+        let status = response?.statusCode ?? 200
+        if !(200..<300).contains(status) {
+            throw NestError.response(status: status, body: data)
+        }
+        guard
+            let range = response?.value(forHTTPHeaderField: "Content-Range"),
+            let total = range.split(separator: "/").last.flatMap({ Int($0) })
+        else { throw NestError(.decoding) }
+        return total
+    }
+
     /// Inserts `values` and returns the stored rows.
     func insert<T: NestRow>(_: T.Type, values: some Encodable & Sendable) async throws -> [T] {
         let data = try await request(
@@ -204,6 +222,16 @@ struct SupabaseAPI: Sendable {
         _ method: String, path: String, query: [URLQueryItem] = [], body: Data? = nil,
         headers: [String: String] = [:]
     ) async throws -> (status: Int, data: Data) {
+        let (response, data) = try await exchange(
+            method, path: path, query: query, body: body, headers: headers)
+        return (response?.statusCode ?? 200, data)
+    }
+
+    /// Sends a request and returns the HTTP response, if it is one, and its body.
+    private func exchange(
+        _ method: String, path: String, query: [URLQueryItem] = [], body: Data? = nil,
+        headers: [String: String] = [:]
+    ) async throws -> (response: HTTPURLResponse?, data: Data) {
         let token: String
         do {
             token = try await accessToken()
@@ -232,7 +260,7 @@ struct SupabaseAPI: Sendable {
         } catch {
             throw NestError.from(error)
         }
-        return ((response as? HTTPURLResponse)?.statusCode ?? 200, data)
+        return (response as? HTTPURLResponse, data)
     }
 
     private func encode(_ value: some Encodable) throws -> Data {

@@ -65,6 +65,12 @@ struct NestData: Sendable {
         }
     }
 
+    /// How many rows of `T` match `filters`, read fresh: a count is never cached.
+    func count<T: NestRow>(_ type: T.Type, filters: [Filter] = []) async throws -> Int {
+        _ = try await scope()
+        return try await api.count(T.self, filters: filters)
+    }
+
     /// Inserts rows, then invalidates `T`'s table and `also`.
     @discardableResult
     func insert<T: NestRow>(

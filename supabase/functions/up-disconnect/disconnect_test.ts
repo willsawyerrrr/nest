@@ -5,6 +5,7 @@ import { type DisconnectDeps, runDisconnect } from './disconnect.ts'
 function deps(overrides: Partial<DisconnectDeps> = {}): DisconnectDeps {
   return {
     resolveMember: () => Promise.resolve({ memberId: 'm-1' }),
+    removeWebhook: () => Promise.resolve(true),
     clearToken: () => Promise.resolve(true),
     ...overrides,
   }
@@ -36,4 +37,36 @@ Deno.test('runDisconnect surfaces a member-resolution error', async () => {
 Deno.test('runDisconnect reports a clear failure', async () => {
   const result = await runDisconnect(deps({ clearToken: () => Promise.resolve(false) }))
   assertEquals(result.status, 500)
+})
+
+Deno.test('runDisconnect removes the webhook before clearing the token', async () => {
+  const order: string[] = []
+  await runDisconnect(
+    deps({
+      removeWebhook: (id) => {
+        order.push(`webhook ${id}`)
+        return Promise.resolve(true)
+      },
+      clearToken: (id) => {
+        order.push(`token ${id}`)
+        return Promise.resolve(true)
+      },
+    }),
+  )
+  assertEquals(order, ['webhook m-1', 'token m-1'])
+})
+
+Deno.test('runDisconnect keeps the token when the webhook clear fails', async () => {
+  let cleared = false
+  const result = await runDisconnect(
+    deps({
+      removeWebhook: () => Promise.resolve(false),
+      clearToken: () => {
+        cleared = true
+        return Promise.resolve(true)
+      },
+    }),
+  )
+  assertEquals(result.status, 500)
+  assertEquals(cleared, false)
 })

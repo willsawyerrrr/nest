@@ -1,8 +1,9 @@
 /**
  * The connect flow, with its I/O injected so the decision logic is unit-tested
  * without a network or database. `index.ts` wires the real Up ping, member
- * resolution, and Vault store; the ordering here (validate the token before
- * resolving the member or writing anything) is the security-relevant part.
+ * resolution, Vault store, and webhook registration; the ordering here (validate
+ * the token before resolving the member or writing anything) is the
+ * security-relevant part.
  */
 
 export interface FlowResult {
@@ -22,6 +23,8 @@ export interface ConnectDeps {
   resolveMember: () => Promise<MemberOutcome>
   /** Stores the token for the member; true on success. */
   storeToken: (memberId: string, token: string) => Promise<boolean>
+  /** Registers the member's Up webhook with the stored token; may throw. */
+  registerWebhook: (memberId: string, token: string) => Promise<void>
 }
 
 /** Trims a raw body value to a token string, or empty when absent/ill-typed. */
@@ -29,6 +32,12 @@ export function normaliseToken(raw: unknown): string {
   return typeof raw === 'string' ? raw.trim() : ''
 }
 
+/**
+ * Validates `rawToken` with Up, stores it for the caller's member, then
+ * registers their webhook. Registration is best effort: a failure is logged and
+ * the connection stands, since `up-sync` registers for a connected member
+ * lacking a webhook and the poll covers the gap meanwhile.
+ */
 export async function runConnect(rawToken: unknown, deps: ConnectDeps): Promise<FlowResult> {
   const token = normaliseToken(rawToken)
   if (!token) {
@@ -51,6 +60,12 @@ export async function runConnect(rawToken: unknown, deps: ConnectDeps): Promise<
 
   if (!(await deps.storeToken(outcome.memberId, token))) {
     return { status: 500, body: { error: 'Failed to store the token.' } }
+  }
+
+  try {
+    await deps.registerWebhook(outcome.memberId, token)
+  } catch (error) {
+    console.error(`Up webhook registration failed for member ${outcome.memberId}:`, error)
   }
 
   return { status: 200, body: { connected: true } }

@@ -275,9 +275,10 @@ read `members` and `accounts` under those grants, and `transactions` under a
 `select` grant (`20261105000000_new_gift_candidate_notification.sql`); every
 write goes through a SECURITY DEFINER RPC — the token reads, `upsert_accounts`,
 `sync_up_transactions`, `delete_up_transactions`, `sync_up_categories`,
-`set_up_transaction_category`, and `reconcile_source_accounts` — which runs as
-its owner, so neither `transactions` nor `up_category` carries a `service_role`
-grant and the sync can delete a stale
+`set_up_transaction_category`, `store_up_webhook`, `clear_up_webhook`, and
+`reconcile_source_accounts` — which runs as its owner, so neither `transactions`
+nor `up_category` carries a `service_role` write grant (`up_webhook` holds only
+`select`, `20261120230000_up_webhook.sql`) and the sync can delete a stale
 `accounts` row through `reconcile_source_accounts` despite holding no `delete`
 on the table itself. Any future server-side code
 touching other public tables must add its own grants deliberately — the
@@ -396,6 +397,7 @@ Vault holds every secret that must never reach a client:
 | Secret                   | Purpose                                                    |
 | ------------------------ | ---------------------------------------------------------- |
 | `up_token:<member_id>`   | a member's Up personal access token                        |
+| `up_webhook_secret:<member_id>` | a member's Up webhook HMAC secret, captured at registration |
 | `up_sync_cron_url`       | the hourly cron's `up-sync` invocation URL                 |
 | `up_sync_cron_key`       | the service-role key the cron POSTs with                   |
 | `redbark_sync_cron_url`  | the hourly cron's `redbark-sync` invocation URL             |
@@ -414,8 +416,8 @@ Vault holds every secret that must never reach a client:
 | `resend_api_key`         | the `share-create` function's Resend API key (see below)   |
 | `REDBARK_API_KEY`        | the platform-wide Redbark API key (see below)              |
 
-Up tokens are written/read/cleared only by the service-role-only SECURITY
-DEFINER RPCs (see [`data-model.md`](data-model.md#rpcs)); the VAPID set is read
+Up tokens and webhook secrets are written/read/cleared only by the
+service-role-only SECURITY DEFINER RPCs (see [`data-model.md`](data-model.md#rpcs)); the VAPID set is read
 by the equally service-role-only `vapid_keys()`, the APNs set by `apns_keys()`, and the Anthropic key by
 `anthropic_api_key()`.
 

@@ -34,7 +34,9 @@ here.
 Pure logic sits in server-free sibling modules so tests never import an
 `index.ts` (which would start `Deno.serve`): `_shared/up.ts`'s `UpClient` takes an
 injectable `fetch` for stubbing HTTP, `up-sync/map.ts` holds the ledger mappers,
-`up-webhook/signature.ts` holds the HMAC verification, `up-connect/connect.ts`
+`up-webhook/signature.ts` holds the HMAC verification and `up-webhook/handle.ts`
+the delivery flow with its I/O injected, `_shared/upWebhook.ts` the idempotent
+webhook registration, `up-connect/connect.ts`
 / `up-disconnect/disconnect.ts` hold the connect/disconnect flows with their I/O
 injected so the validate-then-store ordering is tested against fakes, and
 `push-key/key.ts` / `push-test/send.ts` do the same for the push flows, and
@@ -61,21 +63,30 @@ The Up integration uses a per-member personal access token and near-real-time
 webhooks, with a scheduled poll as a backstop.
 
 - **`_shared/up.ts`** — typed Up API client (bearer auth) for pinging the API,
-  listing accounts, transactions, and categories, and setting a transaction's
-  category. `_shared/upFailure.ts` maps a failed Up call to a stable `code` with
+  listing accounts, transactions, and categories, setting a transaction's
+  category, and listing, creating, and deleting webhooks. `_shared/upWebhook.ts`
+  registers a member's webhook idempotently: it keeps the stored one if Up still
+  has it at the member's URL, deletes any other Nest webhook (Up never discloses
+  a secret again), and creates one only under Up's 10-per-user cap. `_shared/upFailure.ts` maps a failed Up call to a stable `code` with
   fixed copy, as `_shared/redbarkFailure.ts` does for Redbark.
 - **`up-connect`** — JWT-verified. Resolves the caller's member from the JWT
   (never the body), validates the posted `{ token }` with `UpClient.ping()`, and
   on success stores it encrypted in Vault via the service-role-only
-  `store_up_token` RPC. The token is never returned to the client.
-- **`up-disconnect`** — JWT-verified. Resolves the caller's member from the JWT
-  and clears their Vault secret via the service-role-only `clear_up_token` RPC.
-- **`up-webhook`** — receives Up webhook deliveries, verifies the
-  `X-Up-Authenticity-Signature` HMAC-SHA256 over the raw body, and switches on
-  the event type. Persisting transactions is deferred: the transaction branch is
-  a `TODO` that returns `200` without a write, and transaction ingestion runs on
-  the `up-sync` poll (see
-  [`../../docs/up-ledger-sync.md`](../../docs/up-ledger-sync.md)).
+  `store_up_token` RPC. The token is never returned to the client. It then
+  registers the member's webhook at `up-webhook?m=<member_id>` (best effort),
+  storing its id and secret through `store_up_webhook`.
+- **`up-disconnect`** — JWT-verified. Resolves the caller's member from the JWT,
+  deletes their webhook at Up (best effort) and clears it through
+  `clear_up_webhook`, then clears their Vault token via the service-role-only
+  `clear_up_token` RPC.
+- **`up-webhook`** — receives each member's Up webhook deliveries. It reads the
+  member from `m`, verifies the `X-Up-Authenticity-Signature` HMAC-SHA256 over
+  the raw body with that member's Vault secret (an unknown member, a missing
+  secret, or a bad signature are one bare `401`), answers `PING` with `200`,
+  re-reads a created or settled transaction with the member's token and upserts
+  it through `sync_up_transactions`, and deletes a deleted one through
+  `delete_up_transactions`. A failure a redelivery could fix is a `500`, so Up
+  retries (see [`../../docs/up-ledger-sync.md`](../../docs/up-ledger-sync.md)).
 - **`up-sync`** — manual/scheduled poll that reads each member's token, fetches
   from Up, and upserts (deduping on `external_id`): every account's balance,
   every transaction since each account's latest synced one (first run: from the
@@ -90,7 +101,8 @@ webhooks, with a scheduled poll as a backstop.
   Vault RPC. The caller-scoping decision is the pure `membersToSync` in
   `up-sync/sync.ts` (household-scoped vs all), unit-tested against fakes. Once
   per run it also refreshes `up_category` from Up's `GET /categories` through
-  the `sync_up_categories` RPC.
+  the `sync_up_categories` RPC, and it registers a webhook, best effort, for a
+  connected member without one.
 - **`up-categorise`** — JWT-verified. Takes `{ transaction_id, category_id }`
   (a Nest transaction id; an Up child category id, or null to clear it), reads
   the transaction through the caller's own RLS-scoped client, refuses a non-Up
@@ -116,8 +128,11 @@ Never exposed to clients; held server-side only.
   `service_role` alone, so no client can read it. Members see a boolean status
   (`members.up_connected_at`), never the token. `up-sync` reads it with a
   service-role client.
-- **Webhook secret** (`UP_WEBHOOK_SECRET`) — returned once when the webhook is
-  registered with Up; used to verify delivery signatures.
+- **Webhook secret** — one per member, returned by Up only when their webhook is
+  registered and stored in Vault under `up_webhook_secret:<member_id>` by
+  `store_up_webhook`, read only by `up_webhook_secret_for_member`, and cleared
+  by `clear_up_webhook` (all service-role-only). It verifies that member's
+  delivery signatures.
 - **Service-role key** (`SUPABASE_SERVICE_ROLE_KEY`) and **`SUPABASE_URL`** —
   injected by the runtime; used by `up-sync` to bypass RLS for trusted writes.
 
@@ -193,8 +208,8 @@ supabase functions serve redbark-sync
 supabase functions deploy up-connect --project-ref dgfeittjtxjtgbretdkj
 ```
 
-Register the webhook with Up (pointing at the deployed `up-webhook` URL) via the
-Up API.
+Webhooks register themselves: `up-connect` and `up-sync` register each
+member's at the deployed `up-webhook` URL, so there is no manual step.
 
 ### Hourly sync schedule (prod)
 

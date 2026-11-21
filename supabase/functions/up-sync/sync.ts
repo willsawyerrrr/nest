@@ -17,7 +17,8 @@
  *
  * Once per run, the first member whose token lists their accounts also
  * refreshes `up_category` from Up's category taxonomy, which is the same for
- * every token.
+ * every token. A member whose token lists their accounts but who has no Up
+ * webhook stored gets one registered, best effort.
  */
 
 import { financialYearBounds, financialYearForDate } from '@nest/tax'
@@ -229,6 +230,10 @@ export interface SyncDeps {
    * network blip or an Up outage never costs the member their connection.
    */
   disconnectMember: (memberId: string) => Promise<void>
+  /** The ids of the members with an Up webhook stored. */
+  listMembersWithWebhook: () => Promise<string[]>
+  /** Registers a member's Up webhook with their token; may throw. */
+  registerWebhook: (memberId: string, token: string) => Promise<void>
 }
 
 export interface SyncResult {
@@ -436,6 +441,12 @@ async function syncGiftWindow(
  * whose token lists their accounts; a failure there is logged and the next
  * member's token tries again.
  *
+ * A member whose token lists their accounts and who has no webhook stored gets
+ * one registered, so real-time ingestion reaches a member connected before
+ * registration existed or whose registration at connect failed. It never fails
+ * the run: a failure, or a failure to read who has one, is logged and retried
+ * next run.
+ *
  * `householdId` scopes the run to one household's connected members (a caller's
  * manual refresh); null syncs every connected member (the cron path).
  */
@@ -451,6 +462,12 @@ export async function runSync(
   let accounts = 0
   let transactions = 0
   let categoriesRefreshed = false
+  let withWebhook: Set<string> | null = null
+  try {
+    withWebhook = new Set(await deps.listMembersWithWebhook())
+  } catch (error) {
+    console.error('Listing members with a webhook failed:', error)
+  }
 
   // Per household in scope: how many connected members it has, how many of them
   // synced with a readable token this run, and the union of the Up account ids
@@ -494,6 +511,14 @@ export async function runSync(
         categoriesRefreshed = true
       } catch (error) {
         console.error(`Category refresh failed for member ${member.memberId}:`, error)
+      }
+    }
+
+    if (withWebhook && !withWebhook.has(member.memberId)) {
+      try {
+        await deps.registerWebhook(member.memberId, token)
+      } catch (error) {
+        console.error(`Webhook registration failed for member ${member.memberId}:`, error)
       }
     }
 

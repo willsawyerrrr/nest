@@ -69,6 +69,9 @@ vi.mock('./routes/PayslipsSection', () => ({
 }))
 vi.mock('./routes/GoalsSection', () => ({ GoalsSection: () => <div>GoalsSection</div> }))
 vi.mock('./routes/WishlistSection', () => ({ WishlistSection: () => <div>WishlistSection</div> }))
+vi.mock('./routes/TransactionReviewSection', () => ({
+  TransactionReviewSection: () => <div>TransactionReviewSection</div>,
+}))
 vi.mock('./routes/TaxSection', () => ({ TaxSection: () => <div>TaxSection</div> }))
 vi.mock('./routes/DeductionsSection', () => ({
   DeductionsSection: () => <div>DeductionsSection</div>,
@@ -243,6 +246,7 @@ describe('App', () => {
     ['/equity', 'EquitySection'],
     ['/investments', 'InvestmentsSection'],
     ['/gifts', 'GiftsSection'],
+    ['/transactions/review', 'TransactionReviewSection'],
     ['/allowance', 'AllowanceSection'],
     ['/breakdowns', 'BreakdownsSection'],
     ['/breakdowns/b1', 'BreakdownDetailSection'],

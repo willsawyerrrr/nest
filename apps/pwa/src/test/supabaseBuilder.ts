@@ -15,6 +15,8 @@ export type BuilderMethod =
   | 'order'
   | 'single'
   | 'maybeSingle'
+  | 'is'
+  | 'limit'
 
 /**
  * A chainable, thenable stand-in for a Supabase PostgREST query builder. Every

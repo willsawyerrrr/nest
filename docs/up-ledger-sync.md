@@ -6,7 +6,8 @@ savers, super, and gifts, and breaks into four stages:
 
 - [x] Account/transaction sync: per-member webhooks for real-time ingestion,
   backed by a scheduled poll, deduped on `external_id`.
-- [ ] Ledger UI (accounts + transactions) over synced data.
+- [ ] Ledger UI (accounts + transactions) over synced data. The transaction
+  review screen (below) is built; an account and transaction ledger is not.
 - [ ] Reconcile actual spend against the budget.
 - [ ] Track actual tax paid (PAYG withheld) vs the estimate.
 
@@ -232,6 +233,37 @@ and an Up child category id or null to clear the category:
    `gifts-and-charity` joins the Gifts inbox, and its gift-candidate
    notification, straight away. A failure here is `save_failed`: Up has the
    category, and the next sync's rescan or ledger pass brings the row in line.
+
+### Reviewing transactions (`/transactions/review`)
+
+The PWA's review screen (`routes/TransactionReviewSection.tsx`,
+`components/TransactionReviewScreen.tsx`, `hooks/useTransactionReview.ts`)
+lists the signed-in member's unreviewed, categorisable Up transactions
+(`source = 'up'`, `is_categorizable`, `reviewed_at` null), newest first and
+capped at the newest 100; RLS already limits them to the member's
+balance-visible accounts. It has no nav entry or Summary card: it is reached by
+URL, and `?id=<transaction id>` leads with that transaction, expanded and
+scrolled to, even once it is reviewed (what a notification opens).
+
+Each row shows the description, signed amount, account, date, a `Pending` pill
+while Up holds it, its Up category (`Parent › Child` from `up_category`), and
+Up's own note and message, read-only — Up's API cannot write either. Expanding
+a row offers a category picker (Up's child categories grouped by parent) and
+the household's own note, prefilled from `notes`, with three actions:
+
+- **Looks right** — `review_transaction` with the note, marking it reviewed.
+  Disabled while the picker holds a different category.
+- **Save** — when the category changed, `up-categorise` first, then
+  `review_transaction` with the note; enabled once the category or note differs.
+- **It's a gift** — `up-categorise` to `gifts-and-charity`, then
+  `review_transaction`, and a notice linking to Gifts, whose inbox lists it.
+
+Every row with a `deep_link_url` also carries **Open in Up**: Up's API exposes
+no cover data, so fixing a cover happens in Up. A refused category change leaves
+the transaction unreviewed and renders Nest's own copy per `up-categorise` code
+(`up_not_connected` and `up_auth_failed` link to Connections); `save_failed`
+means Up took the category, so the review goes ahead and the next sync brings
+the row in line.
 
 ### Webhook — near-real-time (`up-webhook`)
 

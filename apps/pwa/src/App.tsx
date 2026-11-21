@@ -96,6 +96,11 @@ const SummarySection = lazy(() =>
 const SuperSection = lazy(() =>
   import('./routes/SuperSection').then((m) => ({ default: m.SuperSection })),
 )
+const TransactionReviewSection = lazy(() =>
+  import('./routes/TransactionReviewSection').then((m) => ({
+    default: m.TransactionReviewSection,
+  })),
+)
 const TaxSection = lazy(() =>
   import('./routes/TaxSection').then((m) => ({ default: m.TaxSection })),
 )
@@ -271,6 +276,7 @@ function HouseholdShell({
             <Route path="/equity" element={<EquitySection />} />
             <Route path="/investments" element={<InvestmentsSection />} />
             <Route path="/gifts" element={<GiftsSection />} />
+            <Route path="/transactions/review" element={<TransactionReviewSection />} />
             <Route path="/breakdowns" element={<BreakdownsSection />} />
             <Route path="/breakdowns/:id" element={<BreakdownDetailSection />} />
             <Route path="/whats-new" element={<ChangelogSection />} />

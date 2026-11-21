@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useHouseholdId } from '../components/HouseholdProvider'
 import type { Tables } from '../lib/database.types'
+import { functionFailureCode } from '../lib/functionFailure'
 import { supabase } from '../lib/supabase'
 import { useHouseholdQuery } from './useCollection'
 
@@ -19,22 +20,6 @@ export class RedbarkConnectError extends Error {
   ) {
     super(message)
     this.name = 'RedbarkConnectError'
-  }
-}
-
-/**
- * Reads the stable `code` from the JSON body of a non-2xx edge function
- * response, or null when the body carries none.
- */
-async function failureCode(error: Error & { context?: unknown }): Promise<string | null> {
-  if (!(error.context instanceof Response)) {
-    return null
-  }
-  try {
-    const body = (await error.context.json()) as { code?: unknown }
-    return typeof body.code === 'string' ? body.code : null
-  } catch {
-    return null
   }
 }
 
@@ -134,7 +119,7 @@ export function useRedbarkConnections(): UseRedbarkConnectionsResult {
           body: { linkSessionId },
         })
         if (error) {
-          setCompleteResult({ status: 'failed', code: await failureCode(error) })
+          setCompleteResult({ status: 'failed', code: await functionFailureCode(error) })
           return
         }
         if (data.connected) {
@@ -162,7 +147,7 @@ export function useRedbarkConnections(): UseRedbarkConnectionsResult {
         body: { returnUrl },
       })
       if (error) {
-        throw new RedbarkConnectError(error.message, await failureCode(error))
+        throw new RedbarkConnectError(error.message, await functionFailureCode(error))
       }
       sessionStorage.setItem(LINK_SESSION_STORAGE_KEY, data.linkSessionId)
       window.location.href = data.url

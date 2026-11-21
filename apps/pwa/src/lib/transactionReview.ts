@@ -106,6 +106,7 @@ const REVIEW_ERROR_COPY: Record<string, string> = {
   up_transaction_not_found: 'Up has no such transaction for your token.',
   up_rejected: 'Up would not accept that category for this transaction.',
   up_unavailable: 'Up is unavailable right now. Try again shortly.',
+  save_failed: "Saved in Up, but Nest couldn't update its copy. Try again.",
 }
 
 /** Nest's own copy for a failed review action, per code; never the upstream text. */

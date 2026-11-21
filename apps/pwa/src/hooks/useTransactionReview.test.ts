@@ -121,13 +121,16 @@ describe('useTransactionReview', () => {
     expect(rpc).not.toHaveBeenCalled()
   })
 
-  it('records the review when Up took the category but Nest could not', async () => {
+  it('leaves the transaction unreviewed when Up took the category but Nest could not', async () => {
     invoke.mockResolvedValue({ data: null, error: failure('save_failed') })
     const { result } = await loaded()
 
-    await act(() => result.current.review('t1', { note: '', categoryId: 'groceries' }))
+    const error = await result.current
+      .review('t1', { note: '', categoryId: 'groceries' })
+      .catch((caught: unknown) => caught)
 
-    expect(rpc).toHaveBeenCalled()
+    expect((error as ReviewError).code).toBe('save_failed')
+    expect(rpc).not.toHaveBeenCalled()
   })
 
   it('rejects with a code-less error when the review cannot be recorded', async () => {

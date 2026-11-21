@@ -77,6 +77,9 @@ import Testing
             TransactionReviewPresentation.errorMessage("up_not_connected")
                 == "Connect Up in Connections to change a category.")
         #expect(
+            TransactionReviewPresentation.errorMessage("save_failed")
+                == "Saved in Up, but Nest couldn't update its copy. Try again.")
+        #expect(
             TransactionReviewPresentation.errorMessage(nil) == "Could not save this review. Try again.")
         #expect(TransactionReviewPresentation.needsConnections("up_auth_failed"))
         #expect(!TransactionReviewPresentation.needsConnections("up_rejected"))

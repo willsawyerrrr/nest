@@ -948,7 +948,8 @@ bypassing the row cache as on Gifts), `up_category` (the `UpCategory` model) and
 (a tapped notification's `?id=`, carried by `NotificationDestination`), it also
 reads that transaction and leads with it, expanded and scrolled to, even once
 reviewed. A category change calls `up-categorise` before `review_transaction`;
-a refusal leaves the transaction unreviewed and shows
+any failure, `save_failed` included (Up took the category, Nest's copy did
+not), leaves the transaction unreviewed and shows
 `TransactionReviewPresentation`'s fixed copy for the function's `code` (with a
-link to Connections for `up_not_connected` and `up_auth_failed`), while
-`save_failed` lets the review go ahead. Rows reload after each review.
+link to Connections for `up_not_connected` and `up_auth_failed`), keeping the
+picker's choice so saving again retries. Rows reload after each review.

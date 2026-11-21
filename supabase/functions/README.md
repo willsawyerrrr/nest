@@ -113,7 +113,7 @@ webhooks, with a scheduled poll as a backstop.
   `code` with fixed copy: `invalid_request`, `transaction_not_found`,
   `not_up_transaction`, `not_categorisable`, `unknown_category`,
   `parent_category`, `save_failed` (Up took the category, the local write did
-  not), `server_error`, and from `_shared/upFailure.ts` `up_not_connected` (no
+  not; no sync corrects it, so the caller retries), `server_error`, and from `_shared/upFailure.ts` `up_not_connected` (no
   token: connect Up in Connections), `up_auth_failed`, `up_rate_limited`
   (retryable), `up_transaction_not_found`, `up_rejected`, and `up_unavailable`.
   The flow is `up-categorise/categorise.ts`, unit-tested against fakes.

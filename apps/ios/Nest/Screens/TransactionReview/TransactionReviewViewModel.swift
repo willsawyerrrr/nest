@@ -61,8 +61,10 @@ final class TransactionReviewViewModel {
 
     /// Marks a transaction reviewed with `note` (blank clears it), setting its Up
     /// category through `up-categorise` first when `category` changes it. A
-    /// refused change leaves the transaction unreviewed; `save_failed` means Up
-    /// took the category, so the review goes ahead.
+    /// failed change leaves the transaction unreviewed. That includes
+    /// `save_failed`, where Up took the category but Nest's copy kept the old
+    /// one: no later sync corrects it, so the member saves again, which sets the
+    /// same category on Up and retries the copy.
     func review(
         transactionID: String, note: String, category: ReviewCategory = .unchanged
     ) async -> ReviewOutcome {
@@ -73,8 +75,7 @@ final class TransactionReviewViewModel {
                     body: CategoriseBody(transactionId: transactionID, categoryId: categoryID),
                     invalidating: ["transactions"])
             } catch {
-                let code = (error as? NestError)?.upstreamCode
-                if code != "save_failed" { return .failed(code: code) }
+                return .failed(code: (error as? NestError)?.upstreamCode)
             }
         }
         do {

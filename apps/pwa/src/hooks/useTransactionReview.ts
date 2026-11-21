@@ -42,9 +42,10 @@ export interface UseTransactionReviewResult {
  * member's balance-visible accounts.
  *
  * A category change goes to Up through `up-categorise` before the review is
- * recorded through `review_transaction`, so a refused change leaves the
- * transaction unreviewed. `save_failed` is not a refusal: Up holds the new
- * category and the next sync brings the row in line, so the review goes ahead.
+ * recorded through `review_transaction`, so a failed change leaves the
+ * transaction unreviewed. That includes `save_failed`, where Up took the
+ * category but Nest's copy kept the old one: no later sync corrects it, so the
+ * member saves again, which sets the same category on Up and retries the copy.
  */
 export function useTransactionReview(focusId: string | null): UseTransactionReviewResult {
   const householdId = useHouseholdId()
@@ -99,10 +100,7 @@ export function useTransactionReview(focusId: string | null): UseTransactionRevi
           body: { transaction_id: transactionId, category_id: categoryId },
         })
         if (error) {
-          const code = await functionFailureCode(error)
-          if (code !== 'save_failed') {
-            throw new ReviewError(code)
-          }
+          throw new ReviewError(await functionFailureCode(error))
         }
       }
       const { error } = await supabase.rpc('review_transaction', {

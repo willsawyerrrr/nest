@@ -32,7 +32,7 @@ const FAILURES: Record<CategoriseCode, { status: number; error: string }> = {
   },
   save_failed: {
     status: 500,
-    error: 'Up has the new category; Nest will show it after the next sync.',
+    error: "Up has the new category, but Nest's copy does not. Try again.",
   },
   server_error: { status: 500, error: 'Something went wrong. Try again.' },
 }

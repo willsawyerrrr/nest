@@ -55,7 +55,10 @@ const FAILURES: Record<string, [ErrorCode, string]> = {
   ],
   up_rejected: ['up_rejected', 'Up would not accept that category for this transaction.'],
   up_rate_limited: ['up_rate_limited', 'Up is rate limiting requests; try again in a minute.'],
-  save_failed: ['save_failed', 'Up took the new category; Nest shows it after its next sync.'],
+  save_failed: [
+    'save_failed',
+    "Up took the new category, but Nest's copy kept the old one; call this again.",
+  ],
 }
 
 const UNAVAILABLE: [ErrorCode, string] = ['up_unavailable', 'Up could not be reached; try again.']

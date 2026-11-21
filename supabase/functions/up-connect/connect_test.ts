@@ -7,6 +7,7 @@ function deps(overrides: Partial<ConnectDeps> = {}): ConnectDeps {
     validateToken: () => Promise.resolve(true),
     resolveMember: () => Promise.resolve({ memberId: 'm-1' }),
     storeToken: () => Promise.resolve(true),
+    registerWebhook: () => Promise.resolve(),
     ...overrides,
   }
 }
@@ -79,4 +80,48 @@ Deno.test('runConnect surfaces a member-resolution error', async () => {
 Deno.test('runConnect reports a store failure', async () => {
   const result = await runConnect('tok', deps({ storeToken: () => Promise.resolve(false) }))
   assertEquals(result.status, 500)
+})
+
+Deno.test('runConnect registers the webhook once the token is stored', async () => {
+  const order: string[] = []
+  const result = await runConnect(
+    'up:tok',
+    deps({
+      storeToken: () => {
+        order.push('store')
+        return Promise.resolve(true)
+      },
+      registerWebhook: (id, token) => {
+        order.push(`register ${id} ${token}`)
+        return Promise.resolve()
+      },
+    }),
+  )
+
+  assertEquals(result.status, 200)
+  assertEquals(order, ['store', 'register m-1 up:tok'])
+})
+
+Deno.test('runConnect stays connected when webhook registration fails', async () => {
+  const result = await runConnect(
+    'up:tok',
+    deps({ registerWebhook: () => Promise.reject(new Error('Up down')) }),
+  )
+  assertEquals(result, { status: 200, body: { connected: true } })
+})
+
+Deno.test('runConnect never registers a webhook when the store fails', async () => {
+  let registered = false
+  const result = await runConnect(
+    'up:tok',
+    deps({
+      storeToken: () => Promise.resolve(false),
+      registerWebhook: () => {
+        registered = true
+        return Promise.resolve()
+      },
+    }),
+  )
+  assertEquals(result.status, 500)
+  assertEquals(registered, false)
 })

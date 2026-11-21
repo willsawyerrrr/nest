@@ -88,6 +88,18 @@ export interface UpCategory {
   readonly relationships: { readonly parent: UpRelationship }
 }
 
+/** An Up webhook resource (subset of attributes). */
+export interface UpWebhook {
+  readonly id: string
+  readonly attributes: { readonly url: string }
+}
+
+/** A newly created webhook and the HMAC secret Up returns for it only once. */
+export interface CreatedUpWebhook {
+  readonly id: string
+  readonly secretKey: string
+}
+
 /** Filters narrowing a transaction listing to the slice the ledger wants. */
 export interface ListTransactionsOptions {
   /** Only transactions created at or after this instant (`filter[since]`). */
@@ -213,6 +225,54 @@ export class UpClient {
       }),
     })
     if (!response.ok) {
+      throw new UpApiError(response.status, path, await response.text())
+    }
+    await response.body?.cancel()
+  }
+
+  /** Lists every webhook registered for the token's owner. */
+  async listWebhooks(): Promise<UpWebhook[]> {
+    const webhooks: UpWebhook[] = []
+    for await (const webhook of this.paginate<UpWebhook>('/webhooks?page[size]=50')) {
+      webhooks.push(webhook)
+    }
+    return webhooks
+  }
+
+  /**
+   * Registers a webhook delivering to `url` (`POST /webhooks`), returning its id
+   * and the signing secret Up discloses only in this response. Any non-OK status
+   * throws an {@link UpApiError}.
+   */
+  async createWebhook(url: string, description: string): Promise<CreatedUpWebhook> {
+    const response = await this.fetchImpl(`${this.baseUrl}/webhooks`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${this.token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ data: { attributes: { url, description } } }),
+    })
+    if (!response.ok) {
+      throw new UpApiError(response.status, '/webhooks', await response.text())
+    }
+    const { data } = (await response.json()) as {
+      data: { id: string; attributes: { secretKey: string } }
+    }
+    return { id: data.id, secretKey: data.attributes.secretKey }
+  }
+
+  /**
+   * Deletes a webhook (`DELETE /webhooks/{id}`). One Up no longer has (a `404`)
+   * counts as deleted; any other non-OK status throws an {@link UpApiError}.
+   */
+  async deleteWebhook(id: string): Promise<void> {
+    const path = `/webhooks/${encodeURIComponent(id)}`
+    const response = await this.fetchImpl(`${this.baseUrl}${path}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${this.token}` },
+    })
+    if (!response.ok && response.status !== 404) {
       throw new UpApiError(response.status, path, await response.text())
     }
     await response.body?.cancel()

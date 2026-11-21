@@ -4,8 +4,8 @@ A phase (tracked in Linear): pull *all* actual Up transactions to reconcile
 spend and tax against the plan. It is layered on top of the plan-only app, Up
 savers, super, and gifts, and breaks into four stages:
 
-- [x] Account/transaction sync: scheduled poll, deduped on `external_id`
-  (poll-only; webhook ingestion is its own sub-stage below).
+- [x] Account/transaction sync: per-member webhooks for real-time ingestion,
+  backed by a scheduled poll, deduped on `external_id`.
 - [ ] Ledger UI (accounts + transactions) over synced data.
 - [ ] Reconcile actual spend against the budget.
 - [ ] Track actual tax paid (PAYG withheld) vs the estimate.
@@ -15,8 +15,8 @@ two reconciliation layers that consume the synced data.
 
 ## What exists
 
-The account sync, the transaction poll, and recategorising from Nest are built
-and deployed.
+The account sync, the transaction poll, webhook ingestion, and recategorising
+from Nest are built and deployed.
 
 - **`_shared/up.ts`** — a typed Up client (JSON:API, bearer per-member token). It
   models `UpTransaction` (status `HELD`/`SETTLED`, `description`, `message`,
@@ -30,8 +30,10 @@ and deployed.
   backoff from one second), each wait capped at 30 seconds. `listCategories()`
   reads the unpaginated taxonomy, and `categoriseTransaction(id, categoryId)`
   `PATCH`es a transaction's category (a child id, or null to clear it; `204` on
-  success, a `429` thrown rather than retried). It does **not** model tags or
-  webhook registration.
+  success, a `429` thrown rather than retried). `listWebhooks()`,
+  `createWebhook(url, description)` (returning the id and its once-only
+  `secretKey`) and `deleteWebhook(id)` (a `404` counts as deleted) manage the
+  member's webhooks. It does **not** model tags.
 - **`up-sync/map.ts`** — `mapTransaction(tx, accounts)` maps an `UpTransaction`
   onto the row `sync_up_transactions` takes (see the field mapping below),
   resolving the account from a lookup the sync layer passes in and returning
@@ -51,14 +53,18 @@ and deployed.
 - **`up-categorise/`** — recategorises one Up transaction from Nest (see
   [Recategorising from Nest](#recategorising-from-nest-up-categorise)). The MCP
   server's `categorise_transaction` tool calls it.
-- **`up-webhook/`** — deployed with `verify_jwt = false` (Up calls it
-  unauthenticated) and a working `X-Up-Authenticity-Signature` HMAC-SHA256 check
-  (`signature.ts`, constant-time compare). The handler switches on `PING` /
-  `TRANSACTION_CREATED` / `TRANSACTION_SETTLED` / `TRANSACTION_DELETED` but the
-  transaction branch is a **TODO** — it extracts the transaction id and returns
-  `200` without persisting anything. It reads a single `UP_WEBHOOK_SECRET` env
-  var (see the per-member-secret gap under webhook ingestion). The poll does not
-  depend on it, and the gift rescan cannot: no event fires on recategorisation.
+- **`up-webhook/`** — real-time ingestion (see [Webhook](#webhook--near-real-time-up-webhook)),
+  deployed with `verify_jwt = false` (Up calls it unauthenticated); the
+  member's own HMAC secret is the boundary. The flow is `handle.ts`.
+- **`_shared/upWebhook.ts`** — per-member registration (see
+  [Webhook registration](#webhook-registration)), shared by `up-connect` and
+  `up-sync`.
+- **`public.up_webhook`** — `member_id` (primary key, cascading from
+  `members`), `webhook_id` (Up's id), `created_at`. Server-only: no
+  `authenticated` grant or policy; `service_role` holds `select` and writes
+  through `store_up_webhook` / `clear_up_webhook`, which keep the row and its
+  Vault secret (`up_webhook_secret:<member_id>`, read only through
+  `up_webhook_secret_for_member`) in step.
 - **`public.transactions`** — `household_id`, `account_id` (FK
   `(id, household_id)`), `member_id` (nullable attribution), `category_id`
   (nullable), `external_category` (Up's child category),
@@ -85,10 +91,11 @@ and deployed.
   sits in `external_category`.
 - **`service_role` grants** — surgical: `select` on `members`,
   `select`/`insert`/`update` on `accounts` and on `account_balance`, and
-  `select` on `transactions`. `transactions` and `up_category` are written only
-  through the `sync_up_transactions`, `delete_up_transactions`,
-  `sync_up_categories`, and `set_up_transaction_category` SECURITY DEFINER RPCs,
-  so `service_role` holds no write grant on either table (per the surgical grant policy,
+  `select` on `transactions` and `up_webhook`. `transactions`, `up_category` and
+  `up_webhook` are written only through the `sync_up_transactions`,
+  `delete_up_transactions`, `sync_up_categories`, `set_up_transaction_category`,
+  `store_up_webhook`, and `clear_up_webhook` SECURITY DEFINER RPCs, so
+  `service_role` holds no write grant on any of them (per the surgical grant policy,
   [`operations.md`](operations.md#service_role-grants)).
 
 ## Up API facts that shape the design
@@ -124,8 +131,8 @@ transaction's category and tags and for webhooks:
   user**. `GET/DELETE /webhooks/{id}`, `POST /webhooks/{id}/ping`,
   `GET /webhooks/{id}/logs`. Events: `PING`, `TRANSACTION_CREATED`,
   `TRANSACTION_SETTLED`, `TRANSACTION_DELETED`. **Webhooks are per-token (per
-  user).** A delivery's body carries only the transaction id, not the member — the
-  receiver must know whose token fetches it (see webhook member routing below).
+  user).** A delivery's body carries only the transaction id, not the member — so
+  each member's webhook URL names them (see member routing below).
 - **Rate limits:** `429` on throttle, `X-RateLimit-Remaining` header; the
   client retries after `Retry-After`, else with exponential backoff.
 - **Categories:** `GET /categories` — non-paginated, fixed parent/child taxonomy
@@ -136,8 +143,8 @@ transaction's category and tags and for webhooks:
 ## 1. Transaction sync (foundation)
 
 Ingestion into `public.transactions` is idempotent on `(source='up',
-external_id)`, mirroring the account dedupe. The scheduled poll is built; webhook
-ingestion is the next sub-stage.
+external_id)`, mirroring the account dedupe. Webhooks land a transaction within
+seconds; the hourly poll is the backstop for any delivery that never arrives.
 
 ### Scheduled poll (built)
 
@@ -184,7 +191,7 @@ claimed it). A row recategorised away once older than the window keeps its gift
 category; dismissing it as "not a gift" clears it from the inbox.
 
 Recategorisation in the Up app between two non-gift categories behind the mark
-is not caught; nothing reads those categories until the category mirror
+is not caught (no webhook event fires for it either); nothing reads those categories until the category mirror
 (stage 3). A recategorisation made from Nest is recorded on the row at once (see
 below).
 
@@ -226,38 +233,34 @@ and an Up child category id or null to clear the category:
    notification, straight away. A failure here is `save_failed`: Up has the
    category, and the next sync's rescan or ledger pass brings the row in line.
 
-### Webhook — near-real-time (`up-webhook`, next)
+### Webhook — near-real-time (`up-webhook`)
 
-Fill in the existing TODO. On `TRANSACTION_CREATED` / `TRANSACTION_SETTLED`:
-resolve the member, fetch `GET /transactions/{id}` with that member's Vault token,
-map, and upsert. On `TRANSACTION_DELETED`: delete the matching
-`(source='up', external_id)` row. `PING` stays a bare `200`.
+**Member routing: per-member URL.** Each member's webhook delivers to
+`up-webhook?m=<member_id>`. The handler reads `m`, loads that member's secret
+from Vault (`up_webhook_secret_for_member`), and verifies the
+`X-Up-Authenticity-Signature` HMAC-SHA256 over the raw body (`signature.ts`,
+constant-time compare) before reading anything else. An unknown member, a
+missing secret, and a bad signature are the same bare `401`; the id is opaque,
+so a guessed one buys nothing without the secret.
 
-The hard part is **member routing**: the delivery body identifies only the
-transaction, and each member registers their own webhook with a distinct
-`secretKey`. Two viable approaches (an open question):
+- `PING` → `200`.
+- `TRANSACTION_CREATED` / `TRANSACTION_SETTLED` → `getTransaction` with the
+  member's Vault token, `mapTransaction` against the member's household's
+  account (a transaction on an account not yet synced is skipped for the poll to
+  land), and `sync_up_transactions`. `handleDelivery` returns the ids the upsert
+  newly inserted, for acting on newly arrived transactions.
+- `TRANSACTION_DELETED` → `delete_up_transactions`, which keeps a row a gift
+  purchase links.
 
-1. **Per-member URL** — register each member's webhook at a URL carrying their
-   member id (path segment or query, e.g.
-   `.../up-webhook/<member_id>` or `?m=<member_id>`). The handler reads the id,
-   loads that member's secret from Vault to verify the HMAC, then uses that
-   member's token to fetch. Clean routing; the id is opaque and the HMAC still
-   gates authenticity, so a guessed id buys nothing without the secret.
-2. **Try-all-secrets** — store all members' webhook secrets and verify the body
-   against each; the one that validates identifies the member. Works with a fixed
-   URL but is O(members) HMACs per delivery and muddier.
+A failure redelivery could fix (the database, an Up outage or rate limit) is a
+`500`, so Up retries; one it could not (a token Up rejects, a member gone, a
+transaction Up no longer has) is acknowledged with a `200` and logged. A signed
+body that is not a valid event is a `400`.
 
-Either way, **`UP_WEBHOOK_SECRET` (a single env var) must become per-member
-secrets in Vault** (e.g. `up_webhook_secret:<member_id>`), captured at
-registration time — Up returns each `secretKey` only once. Registration itself is
-new work (see below).
-
-Because a joint account is visible through both partners' tokens, a joint
-transaction fires **two** deliveries (one per member's webhook). The
-`(source, external_id)` upsert collapses them to one row — the same dedupe the
-account sync relies on. Attribution for a joint-account transaction is `member_id`
-null (mirror the account: derive `member_id` from the resolved account's
-`owner_member_id`, which is null for joint).
+A joint account is visible through both partners' tokens, so a joint
+transaction fires **two** deliveries, one per member's webhook. The
+`(source, external_id)` upsert collapses them to one row, attributed
+`member_id` null from the account, as the poll does.
 
 ### Field mapping (Up transaction → `public.transactions`)
 
@@ -302,23 +305,29 @@ instead, so tags stay unmapped.
 **Pending vs settled.** Both are persisted. A `HELD` transaction lands as
 `pending` with `posted_at = createdAt`; when it settles, the next poll upserts it
 to `settled` with `posted_at = settledAt`. A hold Up drops without settling
-(`TRANSACTION_DELETED`) is deleted only by the gift rescan, and only in the gift
-category; elsewhere it stays `pending` until webhook ingestion deletes it. The UI
+(`TRANSACTION_DELETED`) is deleted by its webhook delivery, or by the gift rescan
+in the gift category; one whose delivery never arrives stays `pending`. The UI
 and reconciliation can then choose whether to count pending spend (an open
 question — see reconciliation).
 
-### Webhook registration (new)
+### Webhook registration
 
-Nothing registers webhooks today. Add registration to the connect flow (or a
-dedicated action):
+`registerWebhook` (`_shared/upWebhook.ts`) is idempotent and runs:
 
-- On `up-connect` success (token stored), call `POST /webhooks` with the
-  function's public URL (per-member variant per the routing decision) and store
-  the returned `secretKey` in Vault (`up_webhook_secret:<member_id>`), plus the
-  webhook id (for later `DELETE`).
-- On `up-disconnect`, `DELETE /webhooks/{id}` and clear the stored secret.
-- Idempotency: check `GET /webhooks` before creating so reconnecting doesn't
-  breach the 10-per-user cap or leave orphans.
+- in `up-connect`, once the token is stored — best effort, so a failure leaves
+  the member connected;
+- in `up-sync`, for each connected member whose token lists their accounts but
+  who has no `up_webhook` row — best effort, never failing the run, which also
+  registers members connected before registration existed.
+
+It reads `GET /webhooks` and keeps a Nest webhook only when it is the stored one
+at the member's exact URL; any other pointing at `up-webhook` is deleted, since
+Up returns a secret only at creation and Nest has none for it. It creates one
+only when Up's 10-per-user cap leaves room after those deletes, storing the
+returned `secretKey` and id through `store_up_webhook`; a created webhook whose
+store fails is deleted again. `up-disconnect` deletes the webhook at Up (best
+effort) and clears the row and secret through `clear_up_webhook`, before
+clearing the token.
 
 ### Stages (smallest-useful-first)
 
@@ -326,15 +335,15 @@ dedicated action):
    an account's first run and a derived per-account `since` after,
    `category_id` null, the `transfer` kind, `member_id` from the account owner.
    This populates the ledger.
-2. **Webhook ingestion.** Per-member webhook registration on connect/disconnect,
-   per-member secrets in Vault, fill the `up-webhook` TODO (fetch-map-upsert +
-   delete). Poll becomes the backstop.
+2. **Webhook ingestion (built).** Per-member webhook registration on connect,
+   disconnect, and sync; per-member secrets in Vault; fetch-map-upsert and
+   delete per delivery. The poll is the backstop.
 3. **Up-category mirror.** Seed `public.categories` from `GET /categories`, map
    `category_id` on sync. Prerequisite for spend reconciliation.
 
 Risks for this section: **rate limits** on backfill (bounded window,
 `page[size]=100`, `429` retried after `Retry-After`); **webhook security** (HMAC per-member secret,
-constant-time compare — already in place; reject unsigned/mismatched);
+constant-time compare; reject unsigned/mismatched);
 **idempotency** (the `(source, external_id)` upsert + overlap window make
 re-delivery and re-poll safe; `TRANSACTION_DELETED` must delete); **backfill
 volume** (first run is the outlier — bound it); **member routing** correctness for
@@ -434,10 +443,9 @@ inferring it circularly from the estimate.
 - **Rate limits (`429`).** Backfill is the outlier: its window is bounded,
   pages are `page[size]=100`, and a `429` is retried after `Retry-After`.
   Steady-state incremental polls are one page per account.
-- **Webhook security.** HMAC-SHA256 over the raw body, per-member `secretKey`,
-  constant-time compare (already implemented); `verify_jwt = false` means the
-  signature **is** the boundary — reject unsigned/mismatched. Migrate the single
-  `UP_WEBHOOK_SECRET` to per-member Vault secrets.
+- **Webhook security.** HMAC-SHA256 over the raw body, per-member `secretKey`
+  in Vault, constant-time compare; `verify_jwt = false` means the signature
+  **is** the boundary — unsigned/mismatched is rejected.
 - **Backfill of history.** An account's first run only, from the start of the
   prior financial year. All-time would be a separate on-demand action.
 - **Idempotency.** `(source, external_id)` upsert + an overlap `since` window make
@@ -453,23 +461,18 @@ inferring it circularly from the estimate.
 
 ## Open questions (for the user to resolve later — not blocking)
 
-1. **Webhook member routing** — per-member URL (id in path/query) vs
-   try-all-secrets against a fixed URL. Recommend per-member URL.
-2. **Webhook vs poll balance** — webhooks as primary with the hourly poll as
-   backstop (recommended), or poll-only. How aggressively to rely on webhooks
-   given delivery can fail.
-3. **All-time history** — whether to offer an on-demand backfill past the prior
+1. **All-time history** — whether to offer an on-demand backfill past the prior
    financial year.
-4. **Category mapping** — how Up categories map onto `budget_group` /
+2. **Category mapping** — how Up categories map onto `budget_group` /
    `budget_line` for reconciliation (category→group vs category→line vs
    account-routed), once the category mirror fills `category_id`.
-5. **Tags** — whether to ingest Up tags at all. No column today, and the gift
+3. **Tags** — whether to ingest Up tags at all. No column today, and the gift
    use case is served by `external_category`, so nothing needs them yet.
-6. **Pending spend** — does reconciliation count `HELD`/pending transactions or
+4. **Pending spend** — does reconciliation count `HELD`/pending transactions or
    settled-only?
-7. **Reconciliation period** — fortnight (matches the plan) vs calendar month.
-8. **Actual PAYG source** — salary-credit inference (approximate, sync-only) vs a
+5. **Reconciliation period** — fortnight (matches the plan) vs calendar month.
+6. **Actual PAYG source** — salary-credit inference (approximate, sync-only) vs a
    dedicated payslip source (accurate, its own phase). Recommend gating actual
    withheld on payslips; use transactions to corroborate net pay.
-9. **Ledger UI placement** — a new Ledger/Transactions tab vs extending Net
+7. **Ledger UI placement** — a new Ledger/Transactions tab vs extending Net
    worth / Household.

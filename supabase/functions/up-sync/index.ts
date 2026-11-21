@@ -18,13 +18,15 @@
  * account resuming from its latest synced transaction, and rescans the
  * gift category over a trailing window so a transaction recategorised into or
  * out of gifts in the Up app is refreshed (see docs/up-ledger-sync.md). Once
- * per run it also refreshes `up_category` from Up's category taxonomy.
+ * per run it also refreshes `up_category` from Up's category taxonomy, and it
+ * registers an Up webhook for any connected member without one.
  */
 
 import { createClient } from '@supabase/supabase-js'
 import { UpClient } from '../_shared/up.ts'
 import { handlePreflight, json, requirePost } from '../_shared/http.ts'
 import { resolveCaller } from '../_shared/caller.ts'
+import { registerWithUp } from '../_shared/upWebhook.ts'
 import { isServiceRoleToken } from './auth.ts'
 import type { TransactionUpsert } from './map.ts'
 import { type AccountRow, runSync, type StoredGiftQuery, UP_GIFT_CATEGORY } from './sync.ts'
@@ -192,6 +194,17 @@ Deno.serve(async (request) => {
     disconnectMember: async (memberId: string) => {
       const { error } = await supabase.rpc('fail_up_token', { p_member_id: memberId })
       if (error) throw new Error(`Failed to disconnect member: ${error.message}`)
+    },
+    listMembersWithWebhook: async () => {
+      const { data, error } = await supabase.from('up_webhook').select('member_id')
+      if (error) throw new Error(`Failed to list webhooks: ${error.message}`)
+      return (data ?? []).map((row) => row.member_id as string)
+    },
+    registerWebhook: async (memberId, token) => {
+      const outcome = await registerWithUp(supabase, supabaseUrl, memberId, token)
+      if (outcome === 'cap_reached') {
+        console.error(`Up webhook cap reached for member ${memberId}; none registered`)
+      }
     },
   }, householdId)
 

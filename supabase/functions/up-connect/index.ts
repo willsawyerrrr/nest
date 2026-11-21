@@ -5,12 +5,14 @@
  *
  * Takes `{ token }`, validates it against Up (`UpClient.ping()`), and on success
  * stores it encrypted in Supabase Vault via the service-role-only
- * `store_up_token` RPC. The token is never returned to the client.
+ * `store_up_token` RPC. The token is never returned to the client. It then
+ * registers the member's Up webhook (see `_shared/upWebhook.ts`).
  */
 
 import { UpClient } from '../_shared/up.ts'
 import { handlePreflight, json, requirePost } from '../_shared/http.ts'
 import { resolveMemberWithAdmin } from '../_shared/caller.ts'
+import { registerWithUp } from '../_shared/upWebhook.ts'
 import { runConnect } from './connect.ts'
 
 Deno.serve(async (request) => {
@@ -38,6 +40,12 @@ Deno.serve(async (request) => {
         p_token: token,
       })
       return !error
+    },
+    registerWebhook: async (memberId, token) => {
+      const outcome = await registerWithUp(admin(), Deno.env.get('SUPABASE_URL')!, memberId, token)
+      if (outcome === 'cap_reached') {
+        console.error(`Up webhook cap reached for member ${memberId}; none registered`)
+      }
     },
   })
 

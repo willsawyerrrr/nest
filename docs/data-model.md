@@ -1100,6 +1100,12 @@ null; Up's own taxonomy is mirrored in `up_category`.
     assignable to a transaction.
   - `up-sync` refreshes it from Up's `GET /categories` once per run through
     `sync_up_categories`; `authenticated` can `select` every row and write none.
+- **up_webhook** — the Up webhook each connected member registered.
+  - `member_id` (primary key, `on delete cascade` from `members`), `webhook_id`
+    (Up's id, for replacing or deleting it), `created_at`. Its secret lives in
+    Vault, never here.
+  - Server-only: no `authenticated` grant or policy; `service_role` holds
+    `select` and writes through `store_up_webhook` / `clear_up_webhook`.
 
 ## Pay splits
 
@@ -1315,6 +1321,13 @@ that live in Vault:
   sync only).
 - `clear_up_token(member_id)` — delete the Vault secret and null
   `up_connected_at`.
+- `store_up_webhook(member_id, webhook_id, secret)` — upsert the member's Up
+  webhook secret into Vault under `up_webhook_secret:<member_id>` and its id
+  into `up_webhook`, replacing any prior pair.
+- `up_webhook_secret_for_member(member_id)` — return the decrypted webhook
+  secret (`up-webhook`'s signature check only).
+- `clear_up_webhook(member_id)` — delete the webhook secret and its
+  `up_webhook` row.
 - `upsert_accounts(rows jsonb)` — the `up-sync` / `redbark-sync` dual-write:
   for each row, upserts the account identity into `accounts` (on `(source,
   external_id)`) and its balance into `account_balance` (on `account_id`) in

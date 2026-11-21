@@ -2469,6 +2469,33 @@ export type Database = {
           },
         ]
       }
+      up_webhook: {
+        Row: {
+          created_at: string
+          member_id: string
+          webhook_id: string
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          member_id: string
+          webhook_id: string
+        }
+        Update: {
+          created_at?: string
+          member_id?: string
+          webhook_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'up_webhook_member_id_fkey'
+            columns: ['member_id']
+            isOneToOne: true
+            referencedRelation: 'members'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       wishlist_item: {
         Row: {
           amount_cents: number
@@ -2625,6 +2652,7 @@ export type Database = {
         Returns: Record<string, unknown>
       }
       clear_up_token: { Args: { p_member_id: string }; Returns: undefined }
+      clear_up_webhook: { Args: { p_member_id: string }; Returns: undefined }
       commit_planning_changes: {
         Args: {
           p_budget_line_creates?: Json
@@ -2773,6 +2801,10 @@ export type Database = {
         Returns: boolean
       }
       store_up_token: { Args: { p_member_id: string; p_token: string }; Returns: undefined }
+      store_up_webhook: {
+        Args: { p_member_id: string; p_secret: string; p_webhook_id: string }
+        Returns: undefined
+      }
       sync_up_categories: { Args: { p_rows: Json }; Returns: undefined }
       sync_up_transactions: {
         Args: { p_household_id: string; p_rows: Json }
@@ -2782,6 +2814,7 @@ export type Database = {
         }[]
       }
       up_token_for_member: { Args: { p_member_id: string }; Returns: string }
+      up_webhook_secret_for_member: { Args: { p_member_id: string }; Returns: string }
       upsert_accounts: { Args: { rows: Json }; Returns: undefined }
       upsert_payslip_with_lines: { Args: { p_lines: Json; p_payslip: Json }; Returns: string }
       vapid_keys: {

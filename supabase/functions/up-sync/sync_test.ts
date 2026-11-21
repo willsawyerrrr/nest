@@ -150,6 +150,8 @@ function deps(overrides: Partial<SyncDeps> = {}): SyncDeps {
     listCategories: () => Promise.resolve([]),
     syncCategories: () => Promise.resolve(),
     disconnectMember: () => Promise.resolve(),
+    listMembersWithWebhook: () => Promise.resolve(['m-1', 'm-2']),
+    registerWebhook: () => Promise.resolve(),
     ...overrides,
   }
 }
@@ -821,4 +823,56 @@ Deno.test('runSync retries a failed category refresh with the next member and st
   }
   assertEquals(attempts, 2)
   assertEquals(refreshed, 1)
+})
+
+Deno.test('runSync registers a webhook only for a member lacking one', async () => {
+  const registered: [string, string][] = []
+  await runSync(deps({
+    listConnectedMembers: () => Promise.resolve([member, otherMember]),
+    tokenFor: (memberId) => Promise.resolve(`tok-${memberId}`),
+    listMembersWithWebhook: () => Promise.resolve([member.memberId]),
+    registerWebhook: (memberId, token) => {
+      registered.push([memberId, token])
+      return Promise.resolve()
+    },
+  }))
+
+  assertEquals(registered, [[otherMember.memberId, `tok-${otherMember.memberId}`]])
+})
+
+Deno.test('runSync never registers a webhook through a token Up rejects', async () => {
+  let registered = false
+  await runSync(deps({
+    listAccounts: () => Promise.reject(new UpApiError(401, '/accounts', 'unauthorized')),
+    listMembersWithWebhook: () => Promise.resolve([]),
+    registerWebhook: () => {
+      registered = true
+      return Promise.resolve()
+    },
+  }))
+  assertEquals(registered, false)
+})
+
+Deno.test('runSync carries on when webhook registration fails', async () => {
+  const calls: SyncCall[] = []
+  const result = await runSync(deps({
+    ...recordSyncs(calls),
+    listMembersWithWebhook: () => Promise.resolve([]),
+    registerWebhook: () => Promise.reject(new Error('Up down')),
+    listAccountTransactions: () => Promise.resolve([transaction('tx-1', 'acc-1', null)]),
+  }))
+  assertEquals(result.transactions, 1)
+})
+
+Deno.test('runSync registers nothing when it cannot tell who has a webhook', async () => {
+  let registered = false
+  const result = await runSync(deps({
+    listMembersWithWebhook: () => Promise.reject(new Error('db down')),
+    registerWebhook: () => {
+      registered = true
+      return Promise.resolve()
+    },
+  }))
+  assertEquals(registered, false)
+  assertEquals(result.members, 1)
 })

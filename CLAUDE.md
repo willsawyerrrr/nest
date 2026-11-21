@@ -954,7 +954,12 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   `external_category` and its parent in `external_parent_category`, the
   household's own `category_id` null; a transfer between the owner's accounts as
   `kind = 'transfer'`; Up's message, note, transaction type, deep link,
-  categorisability and performing customer in their own columns). Each account
+  categorisability and performing customer in their own columns). Each member's
+  own Up webhook (`up-webhook?m=<member_id>`, registered idempotently under Up's
+  10-per-user cap by `up-connect`, or by `up-sync` for a connected member without
+  one, and deleted by `up-disconnect`; its HMAC secret in Vault, its id in
+  `up_webhook`) lands a created or settled transaction within seconds through
+  the same RPC and deletes a deleted one, the poll being the backstop. Each account
   resumes 24 hours behind its latest synced non-gift `posted_at`, an account with none
   backfilling from the start of the prior financial year. `notes`,
   `reviewed_at` and `reviewed_by_member_id` are the household's own and the sync

@@ -323,3 +323,66 @@ Deno.test('categoriseTransaction throws an UpApiError on a 429 without retrying'
   assertEquals(error.status, 429)
   assertEquals(calls, 1)
 })
+
+Deno.test('createWebhook posts the url and returns the id and once-only secret', async () => {
+  let request: { url: string; init?: RequestInit } | undefined
+  const fetchImpl: typeof fetch = (input, init) => {
+    request = { url: String(input), init }
+    return Promise.resolve(
+      new Response(
+        JSON.stringify({ data: { id: 'wh-1', attributes: { url: 'u', secretKey: 'shh' } } }),
+        { status: 201 },
+      ),
+    )
+  }
+
+  const created = await new UpClient('token', 'https://up.test', fetchImpl)
+    .createWebhook('https://nest.test/hook', 'Nest')
+
+  assertEquals(created, { id: 'wh-1', secretKey: 'shh' })
+  assertEquals(request?.url, 'https://up.test/webhooks')
+  assertEquals(request?.init?.method, 'POST')
+  assertEquals(JSON.parse(String(request?.init?.body)), {
+    data: { attributes: { url: 'https://nest.test/hook', description: 'Nest' } },
+  })
+})
+
+Deno.test('createWebhook throws UpApiError on a rejection', async () => {
+  const fetchImpl: typeof fetch = () => Promise.resolve(new Response('cap', { status: 400 }))
+  const error = await assertRejects(
+    () => new UpClient('token', 'https://up.test', fetchImpl).createWebhook('u', 'Nest'),
+    UpApiError,
+  )
+  assertEquals(error.status, 400)
+})
+
+Deno.test('deleteWebhook treats a 404 as deleted and throws on anything else', async () => {
+  const calls: string[] = []
+  let status = 404
+  const fetchImpl: typeof fetch = (input, init) => {
+    calls.push(`${init?.method} ${String(input)}`)
+    return Promise.resolve(new Response(null, { status }))
+  }
+  const client = new UpClient('token', 'https://up.test', fetchImpl)
+
+  await client.deleteWebhook('wh-1')
+  status = 204
+  await client.deleteWebhook('wh-1')
+  status = 500
+  await assertRejects(() => client.deleteWebhook('wh-1'), UpApiError)
+  assertEquals(calls[0], 'DELETE https://up.test/webhooks/wh-1')
+})
+
+Deno.test('listWebhooks walks every page', async () => {
+  const fetchImpl: typeof fetch = (input) =>
+    Promise.resolve(
+      String(input).includes('after=')
+        ? jsonResponse({ data: [{ id: 'wh-2', attributes: { url: 'b' } }], links: { next: null } })
+        : jsonResponse({
+          data: [{ id: 'wh-1', attributes: { url: 'a' } }],
+          links: { next: 'https://up.test/webhooks?after=x' },
+        }),
+    )
+  const webhooks = await new UpClient('token', 'https://up.test', fetchImpl).listWebhooks()
+  assertEquals(webhooks.map((w) => w.id), ['wh-1', 'wh-2'])
+})

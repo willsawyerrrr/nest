@@ -204,6 +204,11 @@ instance and can also be run locally.
   `share_grant` as `authenticated` is refused outright, a co-member's household
   cannot see another household's share, and `revoke_share_grant` deletes the
   row (a no-op when there is none).
+- `member_vault_cleanup.sql` — the assertions that deleting a member deletes
+  their Up token and Up webhook secret from Vault, directly or through their
+  household's cascade, leaving a co-member's, another household's, and
+  non-member secrets untouched, and that a member with no secrets deletes
+  cleanly.
 - `redbark_connection.sql` — the assertions that a Redbark bank connection is
   readable by any member of its household (a co-member's connection included —
   attribution, not privacy, same as `accounts.owner_member_id`) but never
@@ -222,7 +227,7 @@ instance and can also be run locally.
 `deduction_donation_group.sql` → `share_grant.sql` →
 `notification_preference.sql` → `apns_device.sql` → `notification_log.sql` →
 `reconcile_source_accounts.sql` → `reconcile_joint_up_accounts.sql` →
-`redbark_connection.sql` → `wishlist_item.sql` → `calendar_feed.sql` →
+`member_vault_cleanup.sql` → `redbark_connection.sql` → `wishlist_item.sql` → `calendar_feed.sql` →
 `inflow_joint_split.sql` → `trade.sql` → `trade_unit_price.sql` →
 `equity_exercise_sale.sql`.
 Because the real migrations and policies are applied, the assertions test the
@@ -256,6 +261,7 @@ psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/apns_device.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/notification_log.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/reconcile_source_accounts.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/reconcile_joint_up_accounts.sql
+psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/member_vault_cleanup.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/redbark_connection.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/wishlist_item.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/calendar_feed.sql

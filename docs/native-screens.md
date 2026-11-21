@@ -85,7 +85,12 @@ what-if and the planning baseline, and snapshots
 
 ## Summary
 
-`Route.summary` is native (`SummaryScreen`): the allocation donut (Swift Charts
+`Route.summary` is native (`SummaryScreen`): the "N to review" card
+(`TransactionReviewCard`, linking to [Transaction review](#transaction-review)),
+shown while the member's `transaction_review` preference is on (an absent row
+means off) and N > 0, where N is a head count (`SupabaseAPI.count`) of the
+transactions the review screen lists (`TransactionReviewRows.awaitingReview`);
+the allocation donut (Swift Charts
 `SectorMark`) with a take-home/gross toggle (persisted in `UserDefaults`), stat
 tiles and legend; allowance progress per member; the cash-flow Sankey (below);
 the reconciliation ledger; and the one-off money note. The figures come from the engine's `summariseHousehold`.

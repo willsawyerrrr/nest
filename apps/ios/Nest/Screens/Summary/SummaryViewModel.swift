@@ -18,6 +18,9 @@ struct SummaryContent: Equatable, Sendable {
 @MainActor @Observable
 final class SummaryViewModel {
     private(set) var state: ScreenState<SummaryContent> = .loading
+    /// How many transactions await the member's review, or nil while loading,
+    /// while their transaction review prompt is off, or when the count fails.
+    private(set) var toReview: Int?
     var basis: IncomeBasis {
         didSet { defaults.set(basis.rawValue, forKey: Self.basisKey) }
     }
@@ -50,8 +53,15 @@ final class SummaryViewModel {
         basis = defaults.string(forKey: Self.basisKey).flatMap(IncomeBasis.init) ?? .takeHome
     }
 
-    /// Streams the screen's rows until the fresh fetch lands. Call from `.task`.
+    /// Streams the screen's rows until the fresh fetch lands, counting the
+    /// transactions awaiting review alongside. Call from `.task`.
     func load() async {
+        async let review: Void = loadReviewCount()
+        await loadSummary()
+        await review
+    }
+
+    private func loadSummary() async {
         let instant = now()
         let stream = RowsCombiner.stream(
             initial: SummaryRows(),
@@ -82,6 +92,32 @@ final class SummaryViewModel {
             } else {
                 state = .failed(failure)
             }
+        }
+    }
+
+    /// Counts the transactions awaiting review when the member's transaction review
+    /// prompt is on (an absent preference row means off): the one toggle governs
+    /// the push and the Summary card alike.
+    func loadReviewCount() async {
+        do {
+            var preferences: [NotificationPreference] = []
+            for try await snapshot in data.rows(
+                NotificationPreference.self,
+                filters: [.eq("trigger", NotificationTrigger.transactionReview.rawValue)],
+                cached: false)
+            {
+                preferences = snapshot.rows
+            }
+            guard NotificationsPresentation.isEnabled(.transactionReview, in: preferences) else {
+                toReview = nil
+                return
+            }
+            toReview = try await data.count(
+                LedgerTransaction.self, filters: TransactionReviewRows.awaitingReview)
+        } catch is CancellationError {
+            return
+        } catch {
+            toReview = nil
         }
     }
 

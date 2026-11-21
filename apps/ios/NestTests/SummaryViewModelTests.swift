@@ -28,10 +28,15 @@ private enum Fixtures {
     private final class Server: @unchecked Sendable {
         var bodies: [String: String] = [:]
         var failing: Set<String> = []
+        var headers: [String: [String: String]] = [:]
         private let lock = NSLock()
-        private var recorded: [String] = []
-        var paths: [String] { lock.withLock { recorded } }
-        func record(_ path: String) { lock.withLock { recorded.append(path) } }
+        private var recorded: [URLRequest] = []
+        var paths: [String] { lock.withLock { recorded.map(Self.table) } }
+        var requests: [URLRequest] { lock.withLock { recorded } }
+        func record(_ request: URLRequest) { lock.withLock { recorded.append(request) } }
+        static func table(_ request: URLRequest) -> String {
+            request.url!.path.split(separator: "/").last.map(String.init) ?? ""
+        }
     }
 
     private func makeData(_ server: Server, directory: URL) -> NestData {
@@ -40,14 +45,14 @@ private enum Fixtures {
                 baseURL: URL(string: "https://example.supabase.co")!, anonKey: "a",
                 accessToken: { "t" },
                 send: { request in
-                    let table = request.url!.path.split(separator: "/").last.map(String.init) ?? ""
-                    server.record(table)
+                    let table = Server.table(request)
+                    server.record(request)
                     let failed = server.failing.contains(table)
                     return (
                         Data((failed ? "{}" : server.bodies[table] ?? "[]").utf8),
                         HTTPURLResponse(
                             url: request.url!, statusCode: failed ? 500 : 200, httpVersion: nil,
-                            headerFields: nil)!)
+                            headerFields: server.headers[table])!)
                 }),
             cache: RowCache(directory: directory), userID: { "u" })
     }
@@ -136,8 +141,61 @@ private enum Fixtures {
             Set(server.paths) == [
                 "inflows", "tax_profile", "super_contribution", "help_debt", "deduction", "members",
                 "budget_line", "member_allowance", "temporary_item", "savings_goal",
-                "accounts_with_balance",
+                "accounts_with_balance", "notification_preference",
             ])
+    }
+
+    private static func preference(enabled: Bool) -> String {
+        #"""
+        [{"id":"p","household_id":"h","member_id":"m","trigger":"transaction_review",
+        "enabled":\#(enabled),"created_at":"t","updated_at":"t"}]
+        """#
+    }
+
+    @Test func anAbsentReviewPreferenceShowsNoPromptAndCountsNothing() async {
+        let server = Server()
+        let model = model(makeData(server, directory: directory()))
+        await model.load()
+        #expect(model.toReview == nil)
+        #expect(!server.paths.contains("transactions"))
+        let preferences = server.requests.first { Server.table($0) == "notification_preference" }
+        #expect(preferences?.url?.query?.contains("trigger=eq.transaction_review") == true)
+    }
+
+    @Test func aDisabledReviewPreferenceShowsNoPrompt() async {
+        let server = Server()
+        server.bodies["notification_preference"] = Self.preference(enabled: false)
+        let model = model(makeData(server, directory: directory()))
+        await model.load()
+        #expect(model.toReview == nil)
+        #expect(!server.paths.contains("transactions"))
+    }
+
+    @Test func anEnabledReviewPreferenceCountsTheTransactionsAwaitingReview() async throws {
+        let server = Server()
+        server.bodies["notification_preference"] = Self.preference(enabled: true)
+        server.headers["transactions"] = ["Content-Range": "0-2/3"]
+        let model = model(makeData(server, directory: directory()))
+        await model.load()
+        #expect(model.toReview == 3)
+        let count = try #require(server.requests.first { Server.table($0) == "transactions" })
+        #expect(count.httpMethod == "HEAD")
+        let items = URLComponents(url: count.url!, resolvingAgainstBaseURL: false)?.queryItems ?? []
+        #expect(
+            Dictionary(uniqueKeysWithValues: items.map { ($0.name, $0.value ?? "") }) == [
+                "select": "id", "source": "eq.up", "is_categorizable": "eq.true",
+                "reviewed_at": "is.null",
+            ])
+    }
+
+    @Test func aFailedCountShowsNoPrompt() async {
+        let server = Server()
+        server.bodies["notification_preference"] = Self.preference(enabled: true)
+        server.failing = ["transactions"]
+        let model = model(makeData(server, directory: directory()))
+        await model.load()
+        #expect(model.toReview == nil)
+        #expect(model.state.value?.summary == Fixtures.summary)
     }
 
     @Test func aFailureWithNothingCachedIsFailed() async {
@@ -197,6 +255,11 @@ private enum Fixtures {
             "Savings", "Investments", "After Saving",
         ])
         #expect(presentation.ledger(.gross).prefix(3).map(\.label) == ["Gross", "Tax", "Salary sacrifice"])
+    }
+
+    @Test func reviewDetailPluralisesTheTransactions() {
+        #expect(SummaryPresentation.reviewDetail(1) == "Confirm the category of your new Up transaction.")
+        #expect(SummaryPresentation.reviewDetail(2) == "Confirm the category of your new Up transactions.")
     }
 
     @Test func portionsDivideByTheBasis() {

@@ -427,6 +427,12 @@ service-role-only SECURITY DEFINER RPCs (see [`data-model.md`](data-model.md#rpc
 by the equally service-role-only `vapid_keys()`, the APNs set by `apns_keys()`, and the Anthropic key by
 `anthropic_api_key()`.
 
+Deleting a member, directly or with their household, deletes their
+`up_token:<member_id>` and `up_webhook_secret:<member_id>` through the
+`members_clear_vault_secrets` trigger. Their webhook stays registered at Up,
+which SQL cannot reach; its deliveries get `401` from `up-webhook` (no secret
+for the member) and are otherwise harmless.
+
 ## Web Push VAPID keypair setup
 
 `push-key` and `push-test` sign every push with a VAPID keypair (RFC 8292) held

@@ -58,6 +58,8 @@ and so without the trigger.
     RLS; the token itself lives only in Vault and is never exposed here. The
     token is stored/read/cleared solely by SECURITY DEFINER RPCs granted to
     `service_role` (`store_up_token` / `up_token_for_member` / `clear_up_token`).
+    Deleting a member deletes their Up token and webhook secret from Vault
+    (`members_clear_vault_secrets`, an `after delete` SECURITY DEFINER trigger).
     It is service-role-write-only: `authenticated` holds column-scoped UPDATE on
     `name`/`email` only, so a client cannot forge its Up connection status.
   - `service_role` holds the table grants the Up edge functions read under:

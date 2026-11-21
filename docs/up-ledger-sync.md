@@ -198,7 +198,8 @@ below).
 
 **`sync_up_transactions(p_household_id, p_rows)`** upserts on `(source,
 external_id)` and returns `table(id, inserted)` (`xmax = 0` on a fresh insert),
-so a caller can act on newly arrived transactions. It never writes `notes`,
+which is what prompts review of a newly arrived transaction (see
+[Review prompt](#review-prompt-on-first-sight)). It never writes `notes`,
 the review columns, `category_id`, or `created_at`; it restamps `external_category_since` only when
 `external_category` changes, so the gift-candidate notification fires for a
 recategorisation into gifts; it holds a linked `gift_purchase` to its
@@ -279,8 +280,8 @@ so a guessed one buys nothing without the secret.
 - `TRANSACTION_CREATED` / `TRANSACTION_SETTLED` → `getTransaction` with the
   member's Vault token, `mapTransaction` against the member's household's
   account (a transaction on an account not yet synced is skipped for the poll to
-  land), and `sync_up_transactions`. `handleDelivery` returns the ids the upsert
-  newly inserted, for acting on newly arrived transactions.
+  land), and `sync_up_transactions`. The ids the upsert newly inserted prompt
+  their review (below).
 - `TRANSACTION_DELETED` → `delete_up_transactions`, which keeps a row a gift
   purchase links.
 
@@ -293,6 +294,35 @@ A joint account is visible through both partners' tokens, so a joint
 transaction fires **two** deliveries, one per member's webhook. The
 `(source, external_id)` upsert collapses them to one row, attributed
 `member_id` null from the account, as the poll does.
+
+### Review prompt on first sight
+
+Both ingestion paths hand the rows `sync_up_transactions` reports newly inserted
+to `promptReviewOfInserted` (`_shared/notifyClient.ts`) — the poll once per
+household after its members sync, the webhook per delivery — which sends a
+`transaction_review` push through the shared delivery loop
+(`_shared/notify.ts`). Best effort: a failure is logged and costs the ingestion
+nothing, and `notify-eval` re-evaluates the last 2 days daily as a backstop. The
+dedupe key is the transaction id, so whichever path runs first is the only one
+to send.
+
+- **Which rows.** `is_categorizable` (so transfers, round-ups and covers are
+  skipped; pending holds are included), unreviewed, and dated by Up
+  (`posted_at`) within 48 hours of the ledger's first sight (`created_at`), so a
+  backfill of history is never announced. A row a gift purchase links is
+  skipped.
+- **Who.** An individual account's owner. A joint account's transaction goes
+  only to its purchaser, so a gift bought on it never pings its recipient. Up's
+  `performingCustomer.displayName` is the customer's Up handle (`$alex`), not
+  their Nest name, so `up_customer_handles` learns each member's handles from
+  their own individual accounts — where every transaction is theirs — and a
+  handle seen on exactly one member names them. A member with no handle on
+  record matches on a whole or first name equal to the handle without its `$`.
+  Without exactly one match nobody is notified, and the skip is logged.
+- **Opt-in.** An absent `notification_preference` row means off for this
+  trigger alone; the same toggle shows the Summary's "N to review" card.
+- **Payload.** `Myer · $42.10` / `Clothing & Accessories — right category?`
+  (the `up_category` name), opening `/transactions/review?id=<id>`.
 
 ### Field mapping (Up transaction → `public.transactions`)
 

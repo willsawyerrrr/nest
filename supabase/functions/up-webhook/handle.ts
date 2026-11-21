@@ -45,6 +45,8 @@ export interface DeliveryDeps {
   syncTransactions: (householdId: string, rows: TransactionUpsert[]) => Promise<SyncedTransaction[]>
   /** Deletes a household's Up rows Up no longer has, keeping any a gift purchase links. */
   deleteTransactions: (householdId: string, externalIds: string[]) => Promise<void>
+  /** Prompts review of the rows this delivery newly inserted. Best effort: it logs rather than throws. */
+  promptReview: (householdId: string, insertedIds: string[]) => Promise<void>
 }
 
 export interface DeliveryResult {
@@ -70,6 +72,8 @@ function result(status: number, body: string, insertedIds: string[] = []): Deliv
  * as `up-sync` does, and upsert it through `sync_up_transactions`, so a joint
  * account's two deliveries (one per member's webhook) collapse to one row; a
  * transaction on an account not yet synced is skipped for the poll to land.
+ * A newly inserted row prompts its owner, or a joint account's purchaser, to
+ * review it.
  * `TRANSACTION_DELETED` deletes the row unless a gift purchase links it.
  *
  * A failure retrying could fix (the database, an Up outage or rate limit) is a
@@ -131,7 +135,9 @@ export async function handleDelivery(
     if (!row) return result(200, 'Ignored')
 
     const synced = await deps.syncTransactions(householdId, [row])
-    return result(200, 'OK', synced.filter((tx) => tx.inserted).map((tx) => tx.id))
+    const insertedIds = synced.filter((tx) => tx.inserted).map((tx) => tx.id)
+    await deps.promptReview(householdId, insertedIds)
+    return result(200, 'OK', insertedIds)
   } catch (error) {
     console.error(`Handling ${eventType} for member ${memberId} failed:`, error)
     return isUpAuthError(error) ? result(200, 'Ignored') : result(500, 'Error')

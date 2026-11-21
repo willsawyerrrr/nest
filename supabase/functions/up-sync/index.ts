@@ -19,13 +19,16 @@
  * gift category over a trailing window so a transaction recategorised into or
  * out of gifts in the Up app is refreshed (see docs/up-ledger-sync.md). Once
  * per run it also refreshes `up_category` from Up's category taxonomy, and it
- * registers an Up webhook for any connected member without one.
+ * registers an Up webhook for any connected member without one. The rows it
+ * newly inserts prompt their owner, or a joint account's purchaser, to review
+ * them (`_shared/transactionReview.ts`).
  */
 
 import { createClient } from '@supabase/supabase-js'
 import { UpClient } from '../_shared/up.ts'
 import { handlePreflight, json, requirePost } from '../_shared/http.ts'
 import { resolveCaller } from '../_shared/caller.ts'
+import { promptReviewOfInserted } from '../_shared/notifyClient.ts'
 import { registerWithUp } from '../_shared/upWebhook.ts'
 import { isServiceRoleToken } from './auth.ts'
 import type { TransactionUpsert } from './map.ts'
@@ -206,6 +209,8 @@ Deno.serve(async (request) => {
         console.error(`Up webhook cap reached for member ${memberId}; none registered`)
       }
     },
+    promptReview: (householdId, insertedIds) =>
+      promptReviewOfInserted(supabase, householdId, insertedIds),
   }, householdId)
 
   return json(result, 200)

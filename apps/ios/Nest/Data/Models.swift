@@ -1023,6 +1023,11 @@ enum NotificationTrigger: String, Codable, CaseIterable, Sendable {
     case giftPurchaseUnassigned = "gift_purchase_unassigned"
     case giftCandidateNew = "gift_candidate_new"
     case upDisconnected = "up_disconnected"
+    case transactionReview = "transaction_review"
+
+    /// Whether the trigger is on for a member with no preference row, as the
+    /// evaluator's `DEFAULT_ENABLED`: every trigger but the opt-in transaction review.
+    var enabledByDefault: Bool { self != .transactionReview }
 }
 
 /// Row of `notification_preference`.

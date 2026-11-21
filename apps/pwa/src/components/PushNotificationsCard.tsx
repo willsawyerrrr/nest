@@ -39,6 +39,10 @@ const TRIGGER_COPY: Record<NotificationTrigger, { label: string; detail: string 
     label: 'Your Up connection needs reconnecting',
     detail: 'When Up rejects your personal access token and syncing stops.',
   },
+  transaction_review: {
+    label: 'A new transaction to review',
+    detail: 'Each new Up transaction you make, to confirm its category.',
+  },
 }
 
 export interface PushNotificationsCardProps {

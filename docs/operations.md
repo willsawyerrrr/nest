@@ -278,7 +278,9 @@ write goes through a SECURITY DEFINER RPC — the token reads, `upsert_accounts`
 `set_up_transaction_category`, `store_up_webhook`, `clear_up_webhook`, and
 `reconcile_source_accounts` — which runs as its owner, so neither `transactions`
 nor `up_category` carries a `service_role` write grant (`up_webhook` holds only
-`select`, `20261120230000_up_webhook.sql`) and the sync can delete a stale
+`select`, `20261120230000_up_webhook.sql`, and `up_category` only `select`, for
+the transaction-review prompt's category name,
+`20261121000000_transaction_review_notification.sql`) and the sync can delete a stale
 `accounts` row through `reconcile_source_accounts` despite holding no `delete`
 on the table itself. Any future server-side code
 touching other public tables must add its own grants deliberately — the
@@ -322,7 +324,11 @@ unassigned-purchase trigger, `20261020000000_unassigned_gift_purchase_notificati
 and `20260917000000` revokes the short-lived grants
 that `20260915000000` had added while it re-derived those amounts. It also holds
 `select` on `notification_preference` and `select`/`insert` on `notification_log`; every
-write to a preference is a member's own.
+write to a preference is a member's own. `up-sync` and `up-webhook` send the
+transaction-review prompt through the same delivery loop under those grants and
+the push tables', plus `up_customer_handles` (an invoker-rights function granted
+to `service_role` alone, reading `transactions` and `accounts` under their
+existing `select`).
 
 `calendar-ics`, the anonymous iCalendar feed, reads the tables whose dated rows
 become events with a service-role client (a subscribing calendar client has no

@@ -234,6 +234,11 @@ export interface SyncDeps {
   listMembersWithWebhook: () => Promise<string[]>
   /** Registers a member's Up webhook with their token; may throw. */
   registerWebhook: (memberId: string, token: string) => Promise<void>
+  /**
+   * Prompts review of the ledger rows the run newly inserted for one household.
+   * Best effort: it logs rather than throws.
+   */
+  promptReview: (householdId: string, insertedIds: string[]) => Promise<void>
 }
 
 export interface SyncResult {
@@ -299,16 +304,19 @@ export function buildAccountRows(
 /**
  * Lands `rows` for one household in {@link SYNC_BATCH_SIZE} batches, one row per
  * Up id (the last wins), since a single upsert cannot touch one row twice.
- * Returns how many rows it landed.
+ * Returns how many rows it landed, adding the ids of the ones it newly inserted
+ * to `inserted`.
  */
 async function landTransactions(
   deps: SyncDeps,
   householdId: string,
   rows: TransactionUpsert[],
+  inserted: string[],
 ): Promise<number> {
   const unique = [...new Map(rows.map((row) => [row.external_id, row])).values()]
   for (let i = 0; i < unique.length; i += SYNC_BATCH_SIZE) {
-    await deps.syncTransactions(householdId, unique.slice(i, i + SYNC_BATCH_SIZE))
+    const synced = await deps.syncTransactions(householdId, unique.slice(i, i + SYNC_BATCH_SIZE))
+    for (const row of synced) if (row.inserted) inserted.push(row.id)
   }
   return unique.length
 }
@@ -339,6 +347,7 @@ async function syncLedger(
   accounts: ReadonlyMap<string, SyncedAccount>,
   settled: Set<string>,
   now: Date,
+  inserted: string[],
 ): Promise<number> {
   let landed = 0
   for (const account of accounts.values()) {
@@ -349,7 +358,7 @@ async function syncLedger(
     // newest row it landed and the next run re-reads everything after it.
     const rows = mapTransactions(transactions, accounts)
       .sort((a, b) => Date.parse(a.posted_at) - Date.parse(b.posted_at))
-    landed += await landTransactions(deps, member.householdId, rows)
+    landed += await landTransactions(deps, member.householdId, rows, inserted)
     settled.add(account.id)
   }
   return landed
@@ -373,6 +382,7 @@ async function syncGiftWindow(
   token: string,
   accounts: ReadonlyMap<string, SyncedAccount>,
   since: Date,
+  inserted: string[],
 ): Promise<number> {
   const listed = await deps.listGiftTransactions(token, since)
   const listedIds = new Set(listed.map((transaction) => transaction.id))
@@ -394,6 +404,7 @@ async function syncGiftWindow(
     deps,
     member.householdId,
     mapTransactions([...listed, ...refreshed], accounts),
+    inserted,
   )
   if (gone.length > 0) await deps.deleteTransactions(member.householdId, gone)
   return landed
@@ -447,6 +458,9 @@ async function syncGiftWindow(
  * the run: a failure, or a failure to read who has one, is logged and retried
  * next run.
  *
+ * Once a household's members are synced, the rows the run newly inserted for
+ * it are handed to `promptReview`, which notifies their owner or purchaser.
+ *
  * `householdId` scopes the run to one household's connected members (a caller's
  * manual refresh); null syncs every connected member (the cron path).
  */
@@ -474,11 +488,11 @@ export async function runSync(
   // their tokens returned — the inputs the joint reconcile is gated on.
   const households = new Map<
     string,
-    { connected: number; synced: number; presentExternalIds: Set<string> }
+    { connected: number; synced: number; presentExternalIds: Set<string>; inserted: string[] }
   >()
   for (const member of members) {
     const household = households.get(member.householdId) ??
-      { connected: 0, synced: 0, presentExternalIds: new Set<string>() }
+      { connected: 0, synced: 0, presentExternalIds: new Set<string>(), inserted: [] }
     household.connected += 1
     households.set(member.householdId, household)
   }
@@ -561,13 +575,28 @@ export async function runSync(
     }
 
     try {
-      transactions += await syncLedger(deps, member, token, synced, settledAccounts, now)
+      transactions += await syncLedger(
+        deps,
+        member,
+        token,
+        synced,
+        settledAccounts,
+        now,
+        household.inserted,
+      )
     } catch (error) {
       console.error(`Transaction sync failed for member ${member.memberId}:`, error)
     }
 
     try {
-      transactions += await syncGiftWindow(deps, member, token, synced, giftSince)
+      transactions += await syncGiftWindow(
+        deps,
+        member,
+        token,
+        synced,
+        giftSince,
+        household.inserted,
+      )
     } catch (error) {
       console.error(`Gift transaction rescan failed for member ${member.memberId}:`, error)
     }
@@ -588,6 +617,10 @@ export async function runSync(
     } catch (error) {
       console.error(`Joint account reconcile failed for household ${householdId}:`, error)
     }
+  }
+
+  for (const [householdId, household] of households) {
+    await deps.promptReview(householdId, household.inserted)
   }
 
   return { members: members.length, accounts, transactions }

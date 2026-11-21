@@ -347,7 +347,8 @@ channel:
   today's data with the pure `@nest/plan` / `@nest/tax` engines, and pushes to
   each member with a device (of either kind) who has not turned that trigger off — a per-trigger
   toggle on the Notifications settings page, `notification_preference`,
-  absent ⇒ on — and has no matching `notification_log` row in the dedupe window:
+  absent ⇒ on for every trigger but `transaction_review` — and has no matching
+  `notification_log` row in the dedupe window:
   - **buffer_negative** — `summarise().afterSaving.fortnightlyCents` is below
     zero. Dedupe: the financial year, re-sent after 14 days.
   - **goal_eta_slipped** — a dated goal's `projectGoal()` completion is past its
@@ -375,12 +376,32 @@ channel:
     individually owned, so the firing is restricted to the one member who can
     see it (`accounts.owner_member_id`); a joint account's candidate notifies
     both.
+  - **transaction_review** — the backstop for the prompt `up-sync` and
+    `up-webhook` send as each Up transaction lands (below): a categorisable,
+    unreviewed row first seen in the last 2 days. Dedupe: the transaction id.
 
   It appends a `notification_log` row only once a device took the push, so a
   transient total failure is retried next day, and prunes `404`/`410` endpoints.
-  The decision logic is the pure, DI-tested `notify-eval/eval.ts`. Deposit-landed
-  and bill-due triggers need ingestion and are out of scope; per-member,
-  per-timezone scheduling is a follow-up.
+  The decision logic is the pure, DI-tested `notify-eval/eval.ts`; the delivery
+  loop (devices, preferences, dedupe, log, prune) is `_shared/notify.ts`, its
+  service-role wiring `_shared/notifyClient.ts`, both shared with the ingestion
+  path. Deposit-landed and bill-due triggers need ingestion and are out of
+  scope; per-member, per-timezone scheduling is a follow-up.
+- **transaction_review** is sent at ingestion rather than daily: `up-sync` and
+  `up-webhook` hand the rows `sync_up_transactions` reports newly inserted to
+  `_shared/transactionReview.ts`, which prompts for each categorisable,
+  unreviewed one Up dated within 48 hours of its first sight (so backfilled
+  history never is; pending holds included, transfers, round-ups and covers
+  excluded by `is_categorizable`). An individual account notifies its owner; a
+  joint account only its purchaser, so a gift bought on it never pings its
+  recipient. Up names the purchaser by handle (`performing_customer_name`,
+  e.g. `$alex`), which `up_customer_handles` matches against the handles each
+  member's own individual accounts carry, falling back to a whole or first name
+  for a member with none; without exactly one match nobody is notified and the
+  skip is logged. A transaction a gift purchase links is never prompted. The
+  trigger is opt-in: an absent preference row means off, and the same toggle
+  shows the Summary's "N to review" card. The payload is `<merchant> · <amount>`
+  / `<Up category> — right category?`, opening `/transactions/review?id=<id>`.
 - VAPID setup and rotation, and the iOS install/version requirements, are in
   [`operations.md`](operations.md#web-push-vapid-keypair-setup); the APNs auth key
   setup is in [`operations.md`](operations.md#apns-auth-key-setup).

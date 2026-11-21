@@ -33,6 +33,7 @@ import { EmptyState } from './EmptyState'
 import { MoneyText } from './MoneyText'
 import { PageSection } from './PageSection'
 import { SankeyOrderSelect } from './SankeyOrderSelect'
+import { TransactionReviewCard } from './TransactionReviewCard'
 
 // The donut's recharts graphic is loaded on demand so the charting library
 // stays out of the default `/summary` route's bundle; the fallback reserves the
@@ -69,6 +70,11 @@ interface SummaryViewProps {
    * Absent ⇒ the Sankey starts from a single Gross income or Available node.
    */
   sources?: InflowSource[]
+  /**
+   * How many Up transactions await the member's review, shown as a card linking
+   * to the review screen; null when the member has the review prompt off.
+   */
+  toReview?: number | null
 }
 
 const percent = new Intl.NumberFormat('en-AU', {
@@ -522,7 +528,13 @@ function OneOffNote({ oneOffCents }: { oneOffCents: number }) {
  * ledger of rows shows on narrow screens; a table appears at wider breakpoints.
  * Any one-off money the year carries is reported under the ledger, outside it.
  */
-export function SummaryView({ summary, baseline, lines = [], sources = [] }: SummaryViewProps) {
+export function SummaryView({
+  summary,
+  baseline,
+  lines = [],
+  sources = [],
+  toReview = null,
+}: SummaryViewProps) {
   const wide = useIsWide()
   const [mode, setMode] = useLocalStorage<IncomeBasis>({
     key: INCOME_BASIS_STORAGE_KEY,
@@ -550,6 +562,7 @@ export function SummaryView({ summary, baseline, lines = [], sources = [] }: Sum
 
   return (
     <PageSection title="Summary">
+      {toReview !== null && <TransactionReviewCard count={toReview} />}
       {!hasData ? (
         <EmptyState>
           Nothing to reconcile yet. Add inflows and budget items to see how your money is allocated.

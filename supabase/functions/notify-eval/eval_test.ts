@@ -1,10 +1,10 @@
 import { assert, assertEquals } from '@std/assert'
+import type { ReviewTransactionRow } from '../_shared/transactionReview.ts'
 import type { DeliveryOutcome, PushDevice, PushPayload } from '../_shared/webpush.ts'
 import {
   type ApnsDeviceRow,
   daysUntil,
   evaluateHousehold,
-  formatCents,
   type HouseholdBundle,
   type LogRow,
   type NotifyEvalDeps,
@@ -60,6 +60,9 @@ function bundle(overrides: Partial<HouseholdBundle> = {}): HouseholdBundle {
     accounts: [],
     giftTransactionDismissals: [],
     memberConnections: [],
+    reviewTransactions: [],
+    upHandles: [],
+    upCategories: [],
     savers: [],
     ...overrides,
   }
@@ -488,14 +491,83 @@ Deno.test('up_disconnected fires again as a fresh occurrence after a later, dist
   assertEquals(firstFiring.dedupeKey === secondFiring.dedupeKey, false)
 })
 
-// ── helpers ────────────────────────────────────────────────────────────────
+// ── transaction_review: the backstop ──────────────────────────────────────
 
-Deno.test('formatCents renders integer cents as dollars', () => {
-  assertEquals(formatCents(0), '$0.00')
-  assertEquals(formatCents(123_45), '$123.45')
-  assertEquals(formatCents(-1_234_500), '-$12,345.00')
-  assertEquals(formatCents(9), '$0.09')
+/** A categorisable Up purchase first seen an hour before `NOW`. */
+function reviewTransaction(overrides: Partial<ReviewTransactionRow> = {}): ReviewTransactionRow {
+  return {
+    id: 'tx-r',
+    account_id: 'a-1',
+    description: 'Myer',
+    amount_cents: -42_10,
+    posted_at: '2027-02-15T07:30:00Z',
+    created_at: '2027-02-15T08:00:00Z',
+    is_categorizable: true,
+    reviewed_at: null,
+    external_category: 'clothing-and-accessories',
+    performing_customer_name: '$alex',
+    ...overrides,
+  }
+}
+
+Deno.test('transaction_review fires for the owner of an individual account', () => {
+  const firings = evaluateHousehold(
+    bundle({
+      accounts: [{ id: 'a-1', owner_member_id: 'm-1' }],
+      reviewTransactions: [reviewTransaction()],
+      upCategories: [{ id: 'clothing-and-accessories', name: 'Clothing & Accessories' }],
+    }),
+    NOW,
+  ).filter((firing) => firing.trigger === 'transaction_review')
+  assertEquals(firings, [{
+    trigger: 'transaction_review',
+    dedupeKey: 'tx-r',
+    visibleToMemberId: 'm-1',
+    payload: {
+      title: 'Myer · $42.10',
+      body: 'Clothing & Accessories — right category?',
+      url: '/transactions/review?id=tx-r',
+    },
+  }])
 })
+
+Deno.test('transaction_review skips a transaction a gift purchase already links', () => {
+  const firings = evaluateHousehold(
+    bundle({
+      accounts: [{ id: 'a-1', owner_member_id: 'm-1' }],
+      reviewTransactions: [reviewTransaction()],
+      giftPurchases: [{
+        id: 'gp-1',
+        amount_cents: 42_10,
+        description: 'Myer',
+        gift_budget_id: 'gb-1',
+        gift_discretionary_budget_id: null,
+        transaction_id: 'tx-r',
+        created_at: '2027-02-15T08:30:00Z',
+      }],
+    }),
+    NOW,
+  )
+  assert(!firings.some((firing) => firing.trigger === 'transaction_review'))
+})
+
+Deno.test('transaction_review on a joint account goes only to the matched purchaser', () => {
+  const firings = evaluateHousehold(
+    bundle({
+      accounts: [{ id: 'a-1', owner_member_id: null }],
+      memberConnections: [
+        { id: 'm-1', name: 'Alex', up_sync_failed_at: null },
+        { id: 'm-2', name: 'Sam', up_sync_failed_at: null },
+      ],
+      upHandles: [{ member_id: 'm-1', handle: '$alex' }, { member_id: 'm-2', handle: '$sam' }],
+      reviewTransactions: [reviewTransaction()],
+    }),
+    NOW,
+  ).filter((firing) => firing.trigger === 'transaction_review')
+  assertEquals(firings.map((firing) => firing.visibleToMemberId), ['m-1'])
+})
+
+// ── helpers ────────────────────────────────────────────────────────────────
 
 Deno.test('daysUntil and upcomingJune30 count whole UTC days', () => {
   assertEquals(daysUntil(new Date('2027-02-15T23:00:00Z'), '2027-02-20'), 5)

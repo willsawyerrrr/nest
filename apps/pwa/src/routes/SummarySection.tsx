@@ -3,6 +3,7 @@ import { usePlanningMode } from '../components/PlanningModeProvider'
 import { SummaryView } from '../components/SummaryView'
 import { useBreakdowns } from '../hooks/useBreakdowns'
 import { useBudgetLines, type BudgetLine } from '../hooks/useBudgetLines'
+import { useCurrentMember } from '../hooks/useCurrentMember'
 import { useDeductions } from '../hooks/useDeductions'
 import { useGifts } from '../hooks/useGifts'
 import { useGoals, type Goal } from '../hooks/useGoals'
@@ -10,11 +11,13 @@ import { useHelpDebts } from '../hooks/useHelpDebts'
 import { useInflows, type Inflow } from '../hooks/useInflows'
 import { useMemberAllowances } from '../hooks/useMemberAllowances'
 import { useMembers } from '../hooks/useMembers'
+import { useNotificationPreferences } from '../hooks/useNotificationPreferences'
 import { useNow } from '../hooks/useNow'
 import { useSavers } from '../hooks/useSavers'
 import { useSuperContributions } from '../hooks/useSuperContributions'
 import { useTaxProfiles } from '../hooks/useTaxProfiles'
 import { useTemporaryItems } from '../hooks/useTemporaryItems'
+import { useTransactionReviewCount } from '../hooks/useTransactionReviewCount'
 import { toAssignableAllowances } from '../lib/allowances'
 import { derivedAmountContext } from '../lib/breakdowns'
 import { cashFlowLines, inflowSources } from '../lib/cashFlow'
@@ -36,6 +39,13 @@ export function SummarySection() {
   const deductions = useDeductions()
   const goals = useGoals()
   const savers = useSavers()
+  // The review prompt's one toggle governs the push and this card alike; the
+  // card waits on neither, appearing once both resolve.
+  const { member: currentMember } = useCurrentMember()
+  const notificationPreferences = useNotificationPreferences(currentMember?.id ?? null)
+  const reviewOn =
+    !notificationPreferences.loading && notificationPreferences.enabled('transaction_review')
+  const toReview = useTransactionReviewCount(reviewOn)
 
   if (
     membersLoading ||
@@ -107,6 +117,7 @@ export function SummarySection() {
       summary={summary}
       lines={lines}
       sources={sources}
+      toReview={toReview}
       {...(baseline && { baseline })}
     />
   )

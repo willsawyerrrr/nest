@@ -1,3 +1,4 @@
+import { MemoryRouter } from 'react-router-dom'
 import { useMediaQuery } from '@mantine/hooks'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -70,6 +71,20 @@ describe('SummaryView', () => {
     }
     render(<SummaryView summary={summary} baseline={baseline} />)
     expect(screen.queryByText(/→/)).not.toBeInTheDocument()
+  })
+
+  it('leads with the to-review card when transactions await the member’s review', () => {
+    render(
+      <MemoryRouter>
+        <SummaryView summary={summary} toReview={2} />
+      </MemoryRouter>,
+    )
+    expect(screen.getByText('2 to review')).toBeInTheDocument()
+  })
+
+  it('shows no to-review card while the review prompt is off', () => {
+    render(<SummaryView summary={summary} />)
+    expect(screen.queryByText(/to review/)).not.toBeInTheDocument()
   })
 
   it('renders available fortnightly and portion, omitting annual on the narrow ledger', () => {

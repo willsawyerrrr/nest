@@ -10,41 +10,39 @@
  * has no `auth.uid()` for the households' own RLS to match), evaluates the
  * triggers with the pure `@nest/plan` / `@nest/tax` engines, and pushes to each
  * member who has a device, has left the trigger on, and has not already been
- * told. The send paths are `_shared/webpush.ts` (installed PWAs) and
- * `_shared/apns.ts` (the native app), both shared with `push-test`. Either may be
- * unconfigured: its devices are skipped, and the run only refuses when neither
- * is.
+ * told, through the delivery loop and service-role wiring `up-sync` and
+ * `up-webhook` share (`_shared/notify.ts`, `_shared/notifyClient.ts`). Either
+ * send path — Web Push or APNs — may be unconfigured: its devices are skipped,
+ * and the run only refuses when neither is.
  */
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { handlePreflight, json, requirePost } from '../_shared/http.ts'
 import { loadBudgetSummaryBundle, readHouseholdTable } from '../_shared/householdBuffer.ts'
-import { type ApnsSender, createApnsSender, loadApnsKeys } from '../_shared/apns.ts'
-import { loadVapidKeys } from '../_shared/vapid.ts'
-import { createPushSender, type PushSender } from '../_shared/webpush.ts'
+import {
+  deliveryDeps,
+  loadSenders,
+  readUpCategories,
+  readUpHandles,
+  REVIEW_TRANSACTION_COLUMNS,
+} from '../_shared/notifyClient.ts'
+import { REVIEW_BACKSTOP_DAYS, type ReviewTransactionRow } from '../_shared/transactionReview.ts'
 import { isServiceRoleToken } from '../up-sync/auth.ts'
 import {
   type AccountBalanceRow,
   type AccountOwnerRow,
-  type ApnsDeviceRow,
   type BudgetLineRow,
   type GiftPurchaseRow,
   type GiftTransactionDismissalRow,
   type HouseholdBundle,
-  type LogRow,
   type MemberConnectionRow,
   NEW_GIFT_CANDIDATE_WINDOW_DAYS,
-  type PreferenceRow,
   runNotifyEval,
   type SavingsGoalRow,
-  type SubscriptionRow,
   type TemporaryItemRow,
   type TransactionRow,
   UP_GIFT_CATEGORY,
 } from './eval.ts'
-
-/** How far back `notification_log` is read for the dedupe check. */
-const LOG_LOOKBACK_DAYS = 40
 
 /**
  * The household's gift-category transactions that entered the category inside
@@ -67,29 +65,25 @@ async function readGiftTransactions(
   return (data ?? []) as TransactionRow[]
 }
 
-/** Stands in for a sender that is not configured; its devices are never loaded. */
-const unconfigured = () => Promise.resolve({ delivered: false, gone: false } as const)
-
-/** The Web Push sender, or `null` when the VAPID keys are unset or malformed. */
-async function loadWebPushSender(admin: SupabaseClient): Promise<PushSender | null> {
-  const keys = await loadVapidKeys(admin)
-  if (!keys) return null
-  try {
-    return await createPushSender(keys)
-  } catch {
-    return null
-  }
-}
-
-/** The APNs sender, or `null` when the APNs credentials are unset or malformed. */
-async function loadApnsSender(admin: SupabaseClient): Promise<ApnsSender | null> {
-  const keys = await loadApnsKeys(admin)
-  if (!keys) return null
-  try {
-    return await createApnsSender(keys)
-  } catch {
-    return null
-  }
+/**
+ * The household's categorisable, unreviewed Up transactions first seen within
+ * the review backstop window — the only rows the review prompt can fire for.
+ */
+async function readReviewTransactions(
+  admin: SupabaseClient,
+  householdId: string,
+): Promise<ReviewTransactionRow[]> {
+  const since = new Date(Date.now() - REVIEW_BACKSTOP_DAYS * 86_400_000).toISOString()
+  const { data, error } = await admin
+    .from('transactions')
+    .select(REVIEW_TRANSACTION_COLUMNS)
+    .eq('household_id', householdId)
+    .eq('source', 'up')
+    .eq('is_categorizable', true)
+    .is('reviewed_at', null)
+    .gte('created_at', since)
+  if (error) throw new Error(`Failed to read transactions: ${error.message}`)
+  return (data ?? []) as ReviewTransactionRow[]
 }
 
 Deno.serve(async (request) => {
@@ -111,14 +105,14 @@ Deno.serve(async (request) => {
 
   const admin = createClient(supabaseUrl, serviceRoleKey)
 
-  const [sendPush, sendApns] = await Promise.all([loadWebPushSender(admin), loadApnsSender(admin)])
-  if (!sendPush && !sendApns) {
+  const senders = await loadSenders(admin)
+  if (!senders.sendPush && !senders.sendApns) {
     return json({ error: 'Push notifications are not configured.' }, 503)
   }
-
-  const sinceIso = new Date(Date.now() - LOG_LOOKBACK_DAYS * 86_400_000).toISOString()
+  const upCategories = await readUpCategories(admin)
 
   const result = await runNotifyEval({
+    ...deliveryDeps(admin, senders),
     now: () => new Date(),
     loadHouseholdIds: async () => {
       const { data, error } = await admin.from('members').select('household_id')
@@ -133,6 +127,8 @@ Deno.serve(async (request) => {
         transactions,
         accounts,
         giftTransactionDismissals,
+        reviewTransactions,
+        upHandles,
       ] = await Promise.all([
         loadBudgetSummaryBundle(admin, householdId, financialYear),
         readHouseholdTable(admin, householdId, 'account_balance'),
@@ -142,6 +138,8 @@ Deno.serve(async (request) => {
         readGiftTransactions(admin, householdId),
         readHouseholdTable(admin, householdId, 'accounts'),
         readHouseholdTable(admin, householdId, 'gift_transaction_dismissal'),
+        readReviewTransactions(admin, householdId),
+        readUpHandles(admin, householdId),
       ])
       return {
         ...base,
@@ -156,61 +154,10 @@ Deno.serve(async (request) => {
         // `base.members` already selected `*`, so up_sync_failed_at and name
         // are present even though its narrower TS type doesn't declare them.
         memberConnections: base.members as unknown as MemberConnectionRow[],
+        reviewTransactions,
+        upHandles,
+        upCategories,
       }
-    },
-    loadSubscriptions: async (householdId): Promise<SubscriptionRow[]> => {
-      if (!sendPush) return []
-      const { data, error } = await admin
-        .from('push_subscription')
-        .select('id, member_id, endpoint, p256dh, auth')
-        .eq('household_id', householdId)
-      if (error) throw new Error(`Failed to read push_subscription: ${error.message}`)
-      return (data ?? []) as SubscriptionRow[]
-    },
-    loadApnsDevices: async (householdId): Promise<ApnsDeviceRow[]> => {
-      if (!sendApns) return []
-      const { data, error } = await admin
-        .from('apns_device')
-        .select('id, member_id, token, environment')
-        .eq('household_id', householdId)
-      if (error) throw new Error(`Failed to read apns_device: ${error.message}`)
-      return (data ?? []) as ApnsDeviceRow[]
-    },
-    loadPreferences: async (householdId): Promise<PreferenceRow[]> => {
-      const { data, error } = await admin
-        .from('notification_preference')
-        .select('member_id, trigger, enabled')
-        .eq('household_id', householdId)
-      if (error) throw new Error(`Failed to read notification_preference: ${error.message}`)
-      return (data ?? []) as PreferenceRow[]
-    },
-    loadRecentLog: async (householdId): Promise<LogRow[]> => {
-      const { data, error } = await admin
-        .from('notification_log')
-        .select('member_id, trigger, dedupe_key, sent_at')
-        .eq('household_id', householdId)
-        .gte('sent_at', sinceIso)
-      if (error) throw new Error(`Failed to read notification_log: ${error.message}`)
-      return (data ?? []) as LogRow[]
-    },
-    sendPush: sendPush ?? unconfigured,
-    sendApns: sendApns ?? unconfigured,
-    prune: async (deviceIds) => {
-      const { error } = await admin.from('push_subscription').delete().in('id', deviceIds)
-      if (error) throw new Error(`Failed to prune push_subscription: ${error.message}`)
-    },
-    pruneApns: async (deviceIds) => {
-      const { error } = await admin.from('apns_device').delete().in('id', deviceIds)
-      if (error) throw new Error(`Failed to prune apns_device: ${error.message}`)
-    },
-    recordLog: async ({ householdId, memberId, trigger, dedupeKey }) => {
-      const { error } = await admin.from('notification_log').insert({
-        household_id: householdId,
-        member_id: memberId,
-        trigger,
-        dedupe_key: dedupeKey,
-      })
-      if (error) throw new Error(`Failed to record notification_log: ${error.message}`)
     },
   })
 

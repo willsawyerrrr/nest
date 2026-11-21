@@ -25,7 +25,7 @@ enum NotificationsPresentation {
     /// The triggers in the order the list shows them (`up_disconnected` is not offered).
     static let listed: [NotificationTrigger] = [
         .bufferNegative, .goalEtaSlipped, .temporaryItemExpiring, .fyBoundary,
-        .giftPurchaseUnassigned, .giftCandidateNew,
+        .giftPurchaseUnassigned, .giftCandidateNew, .transactionReview,
     ]
 
     static func copy(_ trigger: NotificationTrigger) -> (label: String, detail: String) {
@@ -50,16 +50,19 @@ enum NotificationsPresentation {
                 "Your Up connection needs reconnecting",
                 "When Up rejects your personal access token and syncing stops."
             )
+        case .transactionReview:
+            ("A new transaction to review", "Each new Up transaction you make, to confirm its category.")
         }
     }
 
-    /// Whether a trigger is on: an absent row means on. `overrides` holds
-    /// choices still being saved.
+    /// Whether a trigger is on: an absent row means `enabledByDefault`.
+    /// `overrides` holds choices still being saved.
     static func isEnabled(
         _ trigger: NotificationTrigger, in preferences: [NotificationPreference],
         overrides: [NotificationTrigger: Bool] = [:]
     ) -> Bool {
-        overrides[trigger] ?? preferences.first { $0.trigger == trigger }?.enabled ?? true
+        overrides[trigger] ?? preferences.first { $0.trigger == trigger }?.enabled
+            ?? trigger.enabledByDefault
     }
 
     static func toggles(

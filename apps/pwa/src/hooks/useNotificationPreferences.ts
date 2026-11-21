@@ -13,7 +13,17 @@ export const NOTIFICATION_TRIGGERS: readonly NotificationTrigger[] = [
   'fy_boundary',
   'gift_purchase_unassigned',
   'gift_candidate_new',
+  'transaction_review',
 ]
+
+/**
+ * Whether a trigger is on for a member with no preference row, matching the
+ * evaluator's `DEFAULT_ENABLED`: every trigger but `transaction_review`, a
+ * prompt per transaction that a member opts in to.
+ */
+export function enabledByDefault(trigger: NotificationTrigger): boolean {
+  return trigger !== 'transaction_review'
+}
 
 interface PreferenceUpsert {
   member_id: string
@@ -23,7 +33,7 @@ interface PreferenceUpsert {
 
 export interface UseNotificationPreferencesResult {
   loading: boolean
-  /** Whether a trigger is on for the signed-in member — true when no row exists yet. */
+  /** Whether a trigger is on for the signed-in member — {@link enabledByDefault} when no row exists yet. */
   enabled: (trigger: NotificationTrigger) => boolean
   /** Turns a trigger on or off for the signed-in member (upserts its row). */
   setEnabled: (trigger: NotificationTrigger, next: boolean) => Promise<void>
@@ -32,8 +42,8 @@ export interface UseNotificationPreferencesResult {
 /**
  * The signed-in member's notification on/off choices. RLS scopes
  * `notification_preference` to the member, so a household read returns only
- * their own rows; an absent row means the trigger is on, matching the
- * evaluator's default. `memberId` is null until the members load resolves,
+ * their own rows; an absent row means {@link enabledByDefault}, matching the
+ * evaluator. `memberId` is null until the members load resolves,
  * which only blocks writing.
  */
 export function useNotificationPreferences(
@@ -45,7 +55,8 @@ export function useNotificationPreferences(
   >({ table: 'notification_preference', onConflict: 'member_id,trigger' })
 
   const enabled = useCallback(
-    (trigger: NotificationTrigger) => rows?.find((row) => row.trigger === trigger)?.enabled ?? true,
+    (trigger: NotificationTrigger) =>
+      rows?.find((row) => row.trigger === trigger)?.enabled ?? enabledByDefault(trigger),
     [rows],
   )
 

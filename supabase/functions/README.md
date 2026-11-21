@@ -620,11 +620,16 @@ that decides when to notify.
     no `gift_purchase.transaction_id` links and no `gift_transaction_dismissal`
     sets aside. Dedupe key: the transaction id. Restricted to the member who
     can see the transaction's account (`accounts.owner_member_id`; a joint
-    account notifies both) — the one trigger whose firing is member-scoped
-    rather than household-wide.
+    account notifies both).
+  - **transaction_review** — the backstop for the prompt `up-sync` and
+    `up-webhook` send as each Up transaction lands: a categorisable, unreviewed
+    row first seen in the last 2 days, dated by Up within 48 hours of that first
+    sight. Dedupe key: the transaction id. Restricted to an individual
+    account's owner, or a joint account's purchaser (`_shared/transactionReview.ts`).
 
   — and for each member with a device, the trigger left on
-  (`notification_preference`), not restricted away by the firing's own member
+  (`notification_preference`; absent ⇒ on, except `transaction_review`, which is
+  opt-in), not restricted away by the firing's own member
   scope, and with no matching `notification_log` row in the dedupe window,
   sends `{ title, body, url }` to each of its devices via
   `_shared/webpush.ts` and `_shared/apns.ts` and appends a `notification_log`
@@ -633,7 +638,11 @@ that decides when to notify.
   are pruned from their own tables. A member with only native devices is notified
   like any other. The decision logic is the
   pure, DI-tested `notify-eval/eval.ts`; its `buffer_negative` figure is the
-  shared household buffer (see [Household buffer](#household-buffer)).
+  shared household buffer (see [Household buffer](#household-buffer)). The
+  delivery loop is `_shared/notify.ts` and its service-role wiring
+  `_shared/notifyClient.ts`, which `up-sync` and `up-webhook` call
+  (`promptReviewOfInserted`) with the rows `sync_up_transactions` reports newly
+  inserted, best effort, so a failure costs the ingestion nothing.
 
 `@nest/plan` and `@nest/tax` reach the edge runtime through
 `_shared/vendor/`. The Supabase CLI bundles each function inside a container

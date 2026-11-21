@@ -4,12 +4,10 @@
  * the real service-role reads and the shared Web Push and APNs senders.
  *
  * For each household it reconciles the plan with the pure `@nest/plan` /
- * `@nest/tax` engines, checks its conditions against today's data, and — for
- * each member who has a device (a Web Push subscription or a native APNs
- * token), has left the trigger on, and has not already
- * been told — sends `{ title, body, url }` and records a `notification_log`
- * row. The log row is the dedupe: a `(member, trigger, dedupe_key)` already
- * present (within the trigger's re-notify window) is skipped.
+ * `@nest/tax` engines, checks its conditions against today's data, and hands
+ * the firings to the shared delivery loop (`_shared/notify.ts`), which pushes
+ * to each member who may see one, has a device, has the trigger on, and has
+ * not already been told, logging each send as its dedupe.
  */
 
 import { fortnightlyCents, type Frequency, projectGoal } from '@nest/plan'
@@ -20,18 +18,30 @@ import {
   summariseHouseholdFromRows,
   type TemporaryItemRow as BufferTemporaryItemRow,
 } from '@nest/household'
-import type { ApnsDevice } from '../_shared/apns.ts'
-import type { DeliveryOutcome, PushDevice, PushPayload } from '../_shared/webpush.ts'
+import {
+  addDeliverySummary,
+  deliverFirings,
+  type DeliveryDeps,
+  type DeliverySummary,
+  emptyDeliverySummary,
+  type Firing,
+  formatCents,
+} from '../_shared/notify.ts'
+import {
+  reviewFirings,
+  type ReviewTransactionRow,
+  type UpCategoryNameRow,
+  type UpHandleRow,
+} from '../_shared/transactionReview.ts'
 
-/** The today's-data conditions, matching the `notification_trigger` enum. */
-export type Trigger =
-  | 'buffer_negative'
-  | 'goal_eta_slipped'
-  | 'temporary_item_expiring'
-  | 'fy_boundary'
-  | 'gift_purchase_unassigned'
-  | 'gift_candidate_new'
-  | 'up_disconnected'
+export type {
+  ApnsDeviceRow,
+  Firing,
+  LogRow,
+  PreferenceRow,
+  SubscriptionRow,
+  Trigger,
+} from '../_shared/notify.ts'
 
 /** A day either side of `targetDate` counts as "within 14 days". */
 export const EXPIRY_WINDOW_DAYS = 14
@@ -56,9 +66,6 @@ export const NEW_GIFT_CANDIDATE_WINDOW_DAYS = 7
  * ledger backfills in the gift category is never announced as new.
  */
 export const GIFT_CANDIDATE_MAX_AGE_DAYS = 365
-
-/** After this long a still-negative buffer is notified again. */
-export const BUFFER_RENOTIFY_DAYS = 14
 
 /** The Up category `up-sync` ingests as gift candidates. */
 export const UP_GIFT_CATEGORY = 'gifts-and-charity'
@@ -146,93 +153,25 @@ export interface HouseholdBundle extends BudgetSummaryBundle {
    * {@link BudgetSummaryBundle}'s own `members` (id and date of birth only).
    */
   memberConnections: readonly MemberConnectionRow[]
+  /** Categorisable, unreviewed Up transactions first seen within the review backstop window. */
+  reviewTransactions: readonly ReviewTransactionRow[]
+  /** The Up handles each member's own individual accounts carry. */
+  upHandles: readonly UpHandleRow[]
+  upCategories: readonly UpCategoryNameRow[]
 }
 
-/** One opted-in device with the member it belongs to. */
-export interface SubscriptionRow extends PushDevice {
-  member_id: string
-}
-
-/** One native install with the member it belongs to. */
-export interface ApnsDeviceRow extends ApnsDevice {
-  member_id: string
-}
-
-/** A member's on/off choice for one trigger; an absent row means on. */
-export interface PreferenceRow {
-  member_id: string
-  trigger: Trigger
-  enabled: boolean
-}
-
-/** A past send, for the dedupe check. */
-export interface LogRow {
-  member_id: string
-  trigger: Trigger
-  dedupe_key: string
-  sent_at: string
-}
-
-/** A trigger that fired for a household, with the notification it produces. */
-export interface Firing {
-  trigger: Trigger
-  dedupeKey: string
-  payload: PushPayload
-  /**
-   * Restricts the firing to one member — e.g. a gift candidate on an
-   * individually-owned account, which only its owner can see. Undefined means
-   * every member with a device may be told, as the rest of the triggers are:
-   * household-wide facts with no single owner.
-   */
-  visibleToMemberId?: string
-}
-
-export interface NotifyEvalDeps {
+export interface NotifyEvalDeps extends DeliveryDeps {
   now: () => Date
   /** Every household with at least one member. */
   loadHouseholdIds: () => Promise<string[]>
   loadBundle: (householdId: string, financialYear: number) => Promise<HouseholdBundle>
-  loadSubscriptions: (householdId: string) => Promise<SubscriptionRow[]>
-  loadApnsDevices: (householdId: string) => Promise<ApnsDeviceRow[]>
-  loadPreferences: (householdId: string) => Promise<PreferenceRow[]>
-  /** Recent `notification_log` rows for the household (the dedupe ledger). */
-  loadRecentLog: (householdId: string) => Promise<LogRow[]>
-  /** Sends one encrypted push; resolves — never throws — with the outcome. */
-  sendPush: (device: PushDevice, payload: PushPayload) => Promise<DeliveryOutcome>
-  /** Sends one APNs notification; resolves — never throws — with the outcome. */
-  sendApns: (device: ApnsDevice, payload: PushPayload) => Promise<DeliveryOutcome>
-  /** Deletes the subscription rows a push service reported gone. */
-  prune: (deviceIds: string[]) => Promise<void>
-  /** Deletes the APNs device rows APNs reported dead. */
-  pruneApns: (deviceIds: string[]) => Promise<void>
-  recordLog: (
-    row: { householdId: string; memberId: string; trigger: Trigger; dedupeKey: string },
-  ) => Promise<void>
 }
 
 /** What the run reports, so a cron log line says what it did. */
-export interface NotifyEvalSummary {
+export interface NotifyEvalSummary extends DeliverySummary {
   households: number
   /** Distinct (household, trigger) conditions that fired. */
   firings: number
-  /** (member, trigger) notifications recorded this run. */
-  notified: number
-  /** Individual device deliveries a push service (Web Push or APNs) accepted. */
-  sent: number
-  /** Dead subscriptions and APNs devices removed. */
-  pruned: number
-  /** (member, trigger) pairs skipped: trigger off or already sent. */
-  skipped: number
-  /** Device deliveries that failed transiently (retried next run). */
-  failed: number
-}
-
-/** `$1,234.56` from an integer-cents figure. */
-export function formatCents(cents: number): string {
-  const sign = cents < 0 ? '-' : ''
-  const abs = Math.abs(Math.round(cents))
-  const centsPart = String(abs % 100).padStart(2, '0')
-  return `${sign}$${Math.floor(abs / 100).toLocaleString('en-AU')}.${centsPart}`
 }
 
 /** Whole days from `now`'s calendar date to the ISO date `iso`, both at UTC midnight. */
@@ -427,6 +366,18 @@ export function evaluateHousehold(bundle: HouseholdBundle, now: Date): Firing[] 
     })
   }
 
+  // The backstop for the prompt up-sync and up-webhook send as each
+  // transaction lands: a delivery that failed then is retried here.
+  firings.push(
+    ...reviewFirings(bundle.reviewTransactions, {
+      accounts: bundle.accounts,
+      members: bundle.memberConnections,
+      handles: bundle.upHandles,
+      categories: bundle.upCategories,
+      linkedTransactionIds,
+    }, now),
+  )
+
   return firings
 }
 
@@ -466,135 +417,18 @@ function isNewGiftCandidate(
     postedMs <= GIFT_CANDIDATE_MAX_AGE_DAYS * 86_400_000
 }
 
-/** Whether a `(member, trigger, dedupeKey)` was already sent inside its window. */
-function alreadySent(log: readonly LogRow[], memberId: string, firing: Firing, now: Date): boolean {
-  const matches = log.filter(
-    (row) =>
-      row.member_id === memberId &&
-      row.trigger === firing.trigger &&
-      row.dedupe_key === firing.dedupeKey,
-  )
-  if (matches.length === 0) return false
-  // A still-negative buffer is worth another nudge after two weeks; every other
-  // trigger's key is meant to fire once (a new goal target date, a new item, a
-  // new financial year each make a fresh key).
-  if (firing.trigger !== 'buffer_negative') return true
-  const cutoff = now.getTime() - BUFFER_RENOTIFY_DAYS * 86_400_000
-  return matches.some((row) => Date.parse(row.sent_at) >= cutoff)
-}
-
-/** One device to attempt for a member, whichever service delivers to it. */
-interface Target {
-  kind: 'web' | 'apns'
-  id: string
-  send: (payload: PushPayload) => Promise<DeliveryOutcome>
-}
-
 /** Runs the evaluation across every household. */
 export async function runNotifyEval(deps: NotifyEvalDeps): Promise<NotifyEvalSummary> {
   const now = deps.now()
   const financialYear = financialYearForDate(now)
-  const summary: NotifyEvalSummary = {
-    households: 0,
-    firings: 0,
-    notified: 0,
-    sent: 0,
-    pruned: 0,
-    skipped: 0,
-    failed: 0,
-  }
+  const summary: NotifyEvalSummary = { households: 0, firings: 0, ...emptyDeliverySummary() }
 
   for (const householdId of await deps.loadHouseholdIds()) {
     summary.households += 1
     const bundle = await deps.loadBundle(householdId, financialYear)
     const firings = evaluateHousehold(bundle, now)
-    if (firings.length === 0) continue
     summary.firings += firings.length
-
-    const [subscriptions, apnsDevices] = await Promise.all([
-      deps.loadSubscriptions(householdId),
-      deps.loadApnsDevices(householdId),
-    ])
-    if (subscriptions.length === 0 && apnsDevices.length === 0) continue
-    const preferences = await deps.loadPreferences(householdId)
-    const log = await deps.loadRecentLog(householdId)
-
-    const devicesByMember = new Map<string, Target[]>()
-    const addTarget = (memberId: string, target: Target) => {
-      const list = devicesByMember.get(memberId) ?? []
-      list.push(target)
-      devicesByMember.set(memberId, list)
-    }
-    for (const subscription of subscriptions) {
-      addTarget(subscription.member_id, {
-        kind: 'web',
-        id: subscription.id,
-        send: (payload) => deps.sendPush(subscription, payload),
-      })
-    }
-    for (const device of apnsDevices) {
-      addTarget(device.member_id, {
-        kind: 'apns',
-        id: device.id,
-        send: (payload) => deps.sendApns(device, payload),
-      })
-    }
-    const disabled = new Set(
-      preferences.filter((pref) => !pref.enabled).map((pref) =>
-        `${pref.member_id}:${pref.trigger}`
-      ),
-    )
-
-    const gone: Record<Target['kind'], string[]> = { web: [], apns: [] }
-    for (const firing of firings) {
-      for (const [memberId, devices] of devicesByMember) {
-        if (firing.visibleToMemberId != null && firing.visibleToMemberId !== memberId) {
-          continue
-        }
-        if (disabled.has(`${memberId}:${firing.trigger}`)) {
-          summary.skipped += 1
-          continue
-        }
-        if (alreadySent(log, memberId, firing, now)) {
-          summary.skipped += 1
-          continue
-        }
-
-        let delivered = false
-        for (const device of devices) {
-          const outcome = await device.send(firing.payload)
-          if (outcome.delivered) {
-            summary.sent += 1
-            delivered = true
-          } else if (outcome.gone) {
-            gone[device.kind].push(device.id)
-          } else {
-            summary.failed += 1
-          }
-        }
-
-        // Log only once a device took it, so a run where every endpoint failed
-        // transiently is retried tomorrow rather than silently deduped away.
-        if (delivered) {
-          await deps.recordLog({
-            householdId,
-            memberId,
-            trigger: firing.trigger,
-            dedupeKey: firing.dedupeKey,
-          })
-          summary.notified += 1
-        }
-      }
-    }
-
-    if (gone.web.length > 0) {
-      await deps.prune(gone.web)
-      summary.pruned += gone.web.length
-    }
-    if (gone.apns.length > 0) {
-      await deps.pruneApns(gone.apns)
-      summary.pruned += gone.apns.length
-    }
+    addDeliverySummary(summary, await deliverFirings(deps, householdId, firings, now))
   }
 
   return summary

@@ -1170,11 +1170,13 @@ sets the split in Up by hand and confirms the amount app-side. See
   - `id`, `household_id`, `member_id`, `trigger`, `enabled` (`not null default
     true`), `created_at`, `updated_at`. `unique (member_id, trigger)`; an absent
     row means the trigger is on, so a member who never opens the settings
-    receives every trigger. Composite FK `(member_id, household_id)` → `members`
+    receives every trigger — except `transaction_review`, which is opt-in: an
+    absent row means off. Composite FK `(member_id, household_id)` → `members`
     `on delete cascade`.
   - `trigger` is the `notification_trigger` enum: `buffer_negative`,
     `goal_eta_slipped`, `temporary_item_expiring`, `fy_boundary`,
-    `gift_purchase_unassigned`, `gift_candidate_new`. Each is a
+    `gift_purchase_unassigned`, `gift_candidate_new`, `up_disconnected`,
+    `transaction_review`. Each but `up_disconnected` is a
     per-trigger toggle on the Notifications settings page
     (`useNotificationPreferences`), shown once a device is subscribed or the page
     is running in the native app.
@@ -1183,8 +1185,8 @@ sets the split in Up by hand and confirms the amount app-side. See
     four grants; `service_role` holds `select` alone — the evaluator reads
     preferences and never writes one.
 
-- **notification_log** — the evaluator's dedupe ledger: one row per push
-  `notify-eval` sent.
+- **notification_log** — the notifiers' dedupe ledger: one row per push
+  `notify-eval`, `up-sync` or `up-webhook` sent.
   - `id`, `household_id`, `member_id`, `trigger`, `dedupe_key`, `sent_at`
     (`default now()`). `unique (member_id, trigger, dedupe_key)` is the dedupe —
     a key already present (within the trigger's re-notify window) is not re-sent.
@@ -1193,7 +1195,9 @@ sets the split in Up by hand and confirms the amount app-side. See
   - `dedupe_key` per trigger: the financial year for `buffer_negative`
     (re-notified after 14 days) and `fy_boundary`, `<goal_id>:<target_date>` for
     `goal_eta_slipped`, the item id for `temporary_item_expiring`, the purchase id for
-    `gift_purchase_unassigned`, and the transaction id for `gift_candidate_new`.
+    `gift_purchase_unassigned`, the transaction id for `gift_candidate_new` and
+    `transaction_review`, and `<member_id>:<failed_at>` for `up_disconnected`. A
+    send logged twice by concurrent notifiers keeps the first row.
   - RLS is enabled with **no `authenticated` policy and no `authenticated`
     grant** — a member sees that a notification arrived, never the ledger.
     `service_role` holds `select` and `insert` only.

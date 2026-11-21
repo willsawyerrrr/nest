@@ -2813,6 +2813,13 @@ export type Database = {
           inserted: boolean
         }[]
       }
+      up_customer_handles: {
+        Args: { p_household_id: string }
+        Returns: {
+          handle: string
+          member_id: string
+        }[]
+      }
       up_token_for_member: { Args: { p_member_id: string }; Returns: string }
       up_webhook_secret_for_member: { Args: { p_member_id: string }; Returns: string }
       upsert_accounts: { Args: { rows: Json }; Returns: undefined }
@@ -2855,6 +2862,7 @@ export type Database = {
         | 'gift_purchase_unassigned'
         | 'gift_candidate_new'
         | 'up_disconnected'
+        | 'transaction_review'
       one_off_tax_treatment:
         'ordinary' | 'genuine_redundancy' | 'employment_termination' | 'unused_leave'
       payslip_line_kind: 'earning' | 'tax'
@@ -3008,6 +3016,7 @@ export const Constants = {
         'gift_purchase_unassigned',
         'gift_candidate_new',
         'up_disconnected',
+        'transaction_review',
       ],
       one_off_tax_treatment: [
         'ordinary',

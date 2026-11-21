@@ -233,7 +233,10 @@ and an Up child category id or null to clear the category:
    `external_category_since` restamped on a change), so a transaction moved into
    `gifts-and-charity` joins the Gifts inbox, and its gift-candidate
    notification, straight away. A failure here is `save_failed`: Up has the
-   category, and the next sync's rescan or ledger pass brings the row in line.
+   category but the row keeps the old one. No sync corrects it (the ledger pass
+   re-reads only about the last day, and Up raises no event on a
+   recategorisation), so the caller retries; setting the same category on Up
+   again is idempotent.
 
 ### Reviewing transactions (`/transactions/review`)
 
@@ -262,9 +265,9 @@ the household's own note, prefilled from `notes`, with three actions:
 Every row with a `deep_link_url` also carries **Open in Up**: Up's API exposes
 no cover data, so fixing a cover happens in Up. A refused category change leaves
 the transaction unreviewed and renders Nest's own copy per `up-categorise` code
-(`up_not_connected` and `up_auth_failed` link to Connections); `save_failed`
-means Up took the category, so the review goes ahead and the next sync brings
-the row in line.
+(`up_not_connected` and `up_auth_failed` link to Connections). That includes
+`save_failed`: Up took the category but Nest's copy did not, so the transaction
+stays unreviewed with the picker's choice kept, and saving again retries.
 
 ### Webhook — near-real-time (`up-webhook`)
 

@@ -205,7 +205,7 @@ enum ReviewFixtures {
         #expect(!server.requests.contains { $0.path == "review_transaction" })
     }
 
-    @Test func recordsTheReviewWhenUpTookTheCategoryButNestCouldNot() async {
+    @Test func leavesTheTransactionUnreviewedWhenUpTookTheCategoryButNestCouldNot() async {
         let server = Server()
         server.categorise = (500, #"{"code":"save_failed","error":"x"}"#)
         let model = TransactionReviewViewModel(data: makeData(server))
@@ -213,8 +213,8 @@ enum ReviewFixtures {
 
         let outcome = await model.review(transactionID: "t1", note: "", category: .set("x"))
 
-        #expect(outcome == .saved)
-        #expect(server.requests.contains { $0.path == "review_transaction" })
+        #expect(outcome == .failed(code: "save_failed"))
+        #expect(!server.requests.contains { $0.path == "review_transaction" })
     }
 
     @Test func aFailedReviewHasNoCode() async {

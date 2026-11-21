@@ -62,6 +62,9 @@ describe('reviewErrorMessage', () => {
     expect(reviewErrorMessage('up_not_connected')).toBe(
       'Connect Up in Connections to change a category.',
     )
+    expect(reviewErrorMessage('save_failed')).toBe(
+      "Saved in Up, but Nest couldn't update its copy. Try again.",
+    )
     expect(reviewErrorMessage('something_new')).toBe('Could not save this review. Try again.')
     expect(reviewErrorMessage(null)).toBe('Could not save this review. Try again.')
   })

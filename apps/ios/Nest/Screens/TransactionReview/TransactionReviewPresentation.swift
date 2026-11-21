@@ -124,6 +124,7 @@ struct TransactionReviewPresentation: Equatable, Sendable {
         case "up_transaction_not_found": "Up has no such transaction for your token."
         case "up_rejected": "Up would not accept that category for this transaction."
         case "up_unavailable": "Up is unavailable right now. Try again shortly."
+        case "save_failed": "Saved in Up, but Nest couldn't update its copy. Try again."
         default: "Could not save this review. Try again."
         }
     }

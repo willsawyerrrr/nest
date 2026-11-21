@@ -17,6 +17,15 @@ describe('TransactionReviewCard', () => {
     )
   })
 
+  it('names a single transaction in the singular', () => {
+    render(
+      <MemoryRouter>
+        <TransactionReviewCard count={1} />
+      </MemoryRouter>,
+    )
+    expect(screen.getByText(/your new Up transaction\./)).toBeInTheDocument()
+  })
+
   it('renders nothing when none await review', () => {
     render(<TransactionReviewCard count={0} />)
     expect(screen.queryByText(/to review/)).not.toBeInTheDocument()

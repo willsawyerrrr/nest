@@ -38,6 +38,23 @@ describe('useTransactionReviewCount', () => {
     expect(builder.is).toHaveBeenCalledWith('reviewed_at', null)
   })
 
+  it('reads a missing count as none', async () => {
+    builder.result = { count: null, error: null }
+    const { result } = renderHook(() => useTransactionReviewCount(true), {
+      wrapper: makeWrapper(),
+    })
+    await waitFor(() => expect(result.current).toBe(0))
+  })
+
+  it('stays unresolved when the count fails', async () => {
+    builder.result = { count: null, error: new Error('denied') }
+    const { result } = renderHook(() => useTransactionReviewCount(true), {
+      wrapper: makeWrapper(),
+    })
+    await waitFor(() => expect(from).toHaveBeenCalled())
+    expect(result.current).toBeNull()
+  })
+
   it('reads nothing while the review prompt is off', async () => {
     const { result } = renderHook(() => useTransactionReviewCount(false), {
       wrapper: makeWrapper(),

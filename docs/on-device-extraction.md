@@ -133,3 +133,13 @@ What they show:
 
 The synthetic documents are clean digital renders. Photographed or scanned
 documents will be harder for every path, so these figures are an upper bound.
+
+## Native receipt path
+
+The native apps' receipt extractor follows these findings: the PDF text layer or
+Vision OCR as input (never image input), dates converted in Swift, explicit
+checks that the document looks like a receipt and that every value read is
+printed in it, and a context-window guard, with the server as the fallback. The
+corpus's receipts and non-receipts are frozen as
+`apps/ios/NestTests/Fixtures/deduction-corpus-parity.json`; see
+[`native-screens.md`](native-screens.md#uploads).

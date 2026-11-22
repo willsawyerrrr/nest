@@ -1,0 +1,87 @@
+[
+  {
+    "id": "receipt-1",
+    "financialYear": 2026,
+    "text": "BRIGHT OFFICE SUPPLIES\nABN 11 000 000 000\nDate  03/05/2026\n\nErgonomic mouse  $59.95\nUSB-C hub  $89.00\n\nGST included  $13.54\nTOTAL  $148.95",
+    "label": {
+      "description": "Bright Office Supplies",
+      "deductionDate": "2026-05-03",
+      "amount": "$148.95"
+    },
+    "expected": {
+      "description": "Bright Office Supplies",
+      "deductionDate": "2026-05-03",
+      "amountCents": 14895
+    }
+  },
+  {
+    "id": "receipt-2",
+    "financialYear": 2026,
+    "text": "METRO TECH REPAIRS\nABN 11 000 000 000\nInvoice date  19/01/2026\nDue date  02/02/2026\n\nLaptop screen repair  $249.00\n\nGST included  $22.64\nTOTAL  $249.00",
+    "label": {
+      "description": "Metro Tech Repairs",
+      "deductionDate": "2026-01-19",
+      "amount": "$249.00"
+    },
+    "expected": {
+      "description": "Metro Tech Repairs",
+      "deductionDate": "2026-01-19",
+      "amountCents": 24900
+    }
+  },
+  {
+    "id": "receipt-3",
+    "financialYear": 2026,
+    "text": "CORNER STATIONERS\nABN 11 000 000 000\nDate  07/02/2026\n\nNotebooks x3  $14.85\nPens  $6.95\n\nGST included  $1.98\nTOTAL  $21.80\nCash tendered  $50.00\nChange  $28.20",
+    "label": {
+      "description": "Corner Stationers",
+      "deductionDate": "2026-02-07",
+      "amount": "$21.80"
+    },
+    "expected": {
+      "description": "Corner Stationers",
+      "deductionDate": "2026-02-07",
+      "amountCents": 2180
+    }
+  },
+  {
+    "id": "receipt-4",
+    "financialYear": 2026,
+    "text": "TAX INVOICE\nABN 11 000 000 000\nDate  21/02/2026\n\nStanding desk  $549.00\n\nGST included  $49.91\nTOTAL  $549.00",
+    "label": {
+      "description": "Standing desk",
+      "deductionDate": "2026-02-21",
+      "amount": "$549.00"
+    },
+    "expected": {
+      "description": "Standing desk",
+      "deductionDate": "2026-02-21",
+      "amountCents": 54900
+    }
+  },
+  {
+    "id": "receipt-5",
+    "financialYear": 2026,
+    "text": "HARBOUR SAFETY GEAR\nABN 11 000 000 000\nDate  17/02/2026\n\nSteel cap boots  $189.50\nHi-vis vest  $24.95\nGloves  $12.95\n\nGST included  $20.67\nTOTAL  $227.40",
+    "label": {
+      "description": "Harbour Safety Gear",
+      "deductionDate": "2026-02-17",
+      "amount": "$227.40"
+    },
+    "expected": {
+      "description": "Harbour Safety Gear",
+      "deductionDate": "2026-02-17",
+      "amountCents": 22740
+    }
+  },
+  {
+    "id": "other-letter",
+    "financialYear": 2026,
+    "text": "Riverside Community Library\nMembership renewal\n\nDear member,\nYour library membership expires on 30/06/2026.\nRenew online at no charge."
+  },
+  {
+    "id": "other-bank",
+    "financialYear": 2026,
+    "text": "Example Bank\nAccount summary\nOpening balance  $2,310.55\nClosing balance  $2,845.10\nInterest earned  $1.12"
+  }
+]

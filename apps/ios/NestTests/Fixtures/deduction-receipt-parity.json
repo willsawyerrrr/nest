@@ -1,0 +1,570 @@
+{
+  "amounts": [
+    {
+      "input": "0.00",
+      "expected": 0
+    },
+    {
+      "input": "0",
+      "expected": 0
+    },
+    {
+      "input": "1.23",
+      "expected": 123
+    },
+    {
+      "input": "45.00",
+      "expected": 4500
+    },
+    {
+      "input": "4120.50",
+      "expected": 412050
+    },
+    {
+      "input": "4,120.50",
+      "expected": 412050
+    },
+    {
+      "input": "1,234",
+      "expected": 123400
+    },
+    {
+      "input": "12,345.67",
+      "expected": 1234567
+    },
+    {
+      "input": "1,234,567.89",
+      "expected": 123456789
+    },
+    {
+      "input": "$1,234",
+      "expected": 123400
+    },
+    {
+      "input": "$4,120.50",
+      "expected": 412050
+    },
+    {
+      "input": "A$99.95",
+      "expected": 9995
+    },
+    {
+      "input": "AUD 1,000.00",
+      "expected": 100000
+    },
+    {
+      "input": "aud1,000.00",
+      "expected": 100000
+    },
+    {
+      "input": "AU$12",
+      "expected": 1200
+    },
+    {
+      "input": "4120",
+      "expected": 412000
+    },
+    {
+      "input": "4120.5",
+      "expected": 412050
+    },
+    {
+      "input": ".5",
+      "expected": 50
+    },
+    {
+      "input": ".05",
+      "expected": 5
+    },
+    {
+      "input": "  4,120.50  ",
+      "expected": 412050
+    },
+    {
+      "input": "$ 4,120.50",
+      "expected": 412050
+    },
+    {
+      "input": "4 120.50",
+      "expected": 412050
+    },
+    {
+      "input": "4 120.50",
+      "expected": 412050
+    },
+    {
+      "input": "1,234.\n56",
+      "expected": 123456
+    },
+    {
+      "input": "(1,234.56)",
+      "expected": -123456
+    },
+    {
+      "input": "($1,234.56)",
+      "expected": -123456
+    },
+    {
+      "input": "( 45.00 )",
+      "expected": -4500
+    },
+    {
+      "input": "(0.00)",
+      "expected": 0
+    },
+    {
+      "input": "-45.00",
+      "expected": -4500
+    },
+    {
+      "input": "-$45.00",
+      "expected": -4500
+    },
+    {
+      "input": "$-45.00",
+      "expected": -4500
+    },
+    {
+      "input": "45.00-",
+      "expected": -4500
+    },
+    {
+      "input": "+45.00",
+      "expected": 4500
+    },
+    {
+      "input": "--45.00",
+      "expected": null
+    },
+    {
+      "input": "(-45.00)",
+      "expected": null
+    },
+    {
+      "input": "(45.00-)",
+      "expected": null
+    },
+    {
+      "input": "45.00+-",
+      "expected": null
+    },
+    {
+      "input": "",
+      "expected": null
+    },
+    {
+      "input": "   ",
+      "expected": null
+    },
+    {
+      "input": "-",
+      "expected": null
+    },
+    {
+      "input": "—",
+      "expected": null
+    },
+    {
+      "input": "N/A",
+      "expected": null
+    },
+    {
+      "input": "not shown",
+      "expected": null
+    },
+    {
+      "input": "null",
+      "expected": null
+    },
+    {
+      "input": "one thousand",
+      "expected": null
+    },
+    {
+      "input": "1.2O5",
+      "expected": null
+    },
+    {
+      "input": "12.34.56",
+      "expected": null
+    },
+    {
+      "input": "1,234.5,6",
+      "expected": null
+    },
+    {
+      "input": "$",
+      "expected": null
+    },
+    {
+      "input": "4120.50 CR",
+      "expected": null
+    },
+    {
+      "input": "gross: 4120.50",
+      "expected": null
+    },
+    {
+      "input": "1e5",
+      "expected": null
+    },
+    {
+      "input": "0x10",
+      "expected": null
+    },
+    {
+      "input": "1.005",
+      "expected": null
+    },
+    {
+      "input": "4120.500",
+      "expected": null
+    },
+    {
+      "input": "1,234.5678",
+      "expected": null
+    },
+    {
+      "input": "1234,56",
+      "expected": null
+    },
+    {
+      "input": "12,34",
+      "expected": null
+    },
+    {
+      "input": "1.234,56",
+      "expected": null
+    },
+    {
+      "input": "1,2345",
+      "expected": null
+    },
+    {
+      "input": "8.29",
+      "expected": 829
+    },
+    {
+      "input": "4,120.15",
+      "expected": 412015
+    },
+    {
+      "input": "1.13",
+      "expected": 113
+    },
+    {
+      "input": "4.35",
+      "expected": 435
+    },
+    {
+      "input": "99,999,999,999.99",
+      "expected": 9999999999999
+    },
+    {
+      "input": "0000099.99",
+      "expected": 9999
+    },
+    {
+      "input": "99999999999999.99",
+      "expected": null
+    },
+    {
+      "input": "99999999999999999999",
+      "expected": null
+    },
+    {
+      "input": "1.",
+      "expected": null
+    },
+    {
+      "input": "12,345,67",
+      "expected": null
+    },
+    {
+      "input": "١٢٣.٤٥",
+      "expected": null
+    },
+    {
+      "input": "﻿12.50",
+      "expected": 1250
+    },
+    {
+      "input": "$$5",
+      "expected": 500
+    },
+    {
+      "input": "A$A$5",
+      "expected": 500
+    },
+    {
+      "input": "1,23",
+      "expected": null
+    },
+    {
+      "input": "0,123.00",
+      "expected": 12300
+    }
+  ],
+  "dates": [
+    {
+      "input": "2026-07-06",
+      "expected": "2026-07-06"
+    },
+    {
+      "input": "  2026-07-06  ",
+      "expected": "2026-07-06"
+    },
+    {
+      "input": "2024-02-29",
+      "expected": "2024-02-29"
+    },
+    {
+      "input": "2026-02-29",
+      "expected": null
+    },
+    {
+      "input": "2026-02-31",
+      "expected": null
+    },
+    {
+      "input": "2026-13-01",
+      "expected": null
+    },
+    {
+      "input": "2026-00-10",
+      "expected": null
+    },
+    {
+      "input": "2026-04-00",
+      "expected": null
+    },
+    {
+      "input": "2026-04-31",
+      "expected": null
+    },
+    {
+      "input": "2000-02-29",
+      "expected": "2000-02-29"
+    },
+    {
+      "input": "1900-02-29",
+      "expected": null
+    },
+    {
+      "input": "06/07/2026",
+      "expected": null
+    },
+    {
+      "input": "2026-7-6",
+      "expected": null
+    },
+    {
+      "input": "2026-07-06T00:00:00Z",
+      "expected": null
+    },
+    {
+      "input": "yesterday",
+      "expected": null
+    },
+    {
+      "input": "",
+      "expected": null
+    },
+    {
+      "input": "0000-01-01",
+      "expected": "0000-01-01"
+    },
+    {
+      "input": "٢٠٢٦-٠٧-٠٦",
+      "expected": null
+    }
+  ],
+  "receipts": [
+    {
+      "input": {
+        "is_receipt": true,
+        "not_receipt_reason": null,
+        "description": "Officeworks",
+        "deduction_date": "2026-07-06",
+        "amount": "124.50"
+      },
+      "expected": {
+        "isReceipt": true,
+        "notReceiptReason": null,
+        "description": "Officeworks",
+        "deductionDate": "2026-07-06",
+        "amountCents": 12450,
+        "missing": [],
+        "unreadable": []
+      }
+    },
+    {
+      "input": {
+        "is_receipt": true,
+        "not_receipt_reason": null,
+        "description": "  Officeworks  ",
+        "deduction_date": null,
+        "amount": "$1,124.50"
+      },
+      "expected": {
+        "isReceipt": true,
+        "notReceiptReason": null,
+        "description": "Officeworks",
+        "deductionDate": null,
+        "amountCents": 112450,
+        "missing": [
+          "deduction_date"
+        ],
+        "unreadable": []
+      }
+    },
+    {
+      "input": {
+        "is_receipt": true,
+        "not_receipt_reason": null,
+        "description": "N/A",
+        "deduction_date": "-",
+        "amount": "not stated"
+      },
+      "expected": {
+        "isReceipt": true,
+        "notReceiptReason": null,
+        "description": null,
+        "deductionDate": null,
+        "amountCents": null,
+        "missing": [
+          "description",
+          "deduction_date",
+          "amount_cents"
+        ],
+        "unreadable": []
+      }
+    },
+    {
+      "input": {
+        "is_receipt": true,
+        "not_receipt_reason": null,
+        "description": "Red Cross",
+        "deduction_date": "06/07/2026",
+        "amount": "12O.50"
+      },
+      "expected": {
+        "isReceipt": true,
+        "notReceiptReason": null,
+        "description": "Red Cross",
+        "deductionDate": null,
+        "amountCents": null,
+        "missing": [],
+        "unreadable": [
+          "deduction_date",
+          "amount_cents"
+        ]
+      }
+    },
+    {
+      "input": {
+        "is_receipt": true,
+        "not_receipt_reason": null,
+        "description": null,
+        "deduction_date": null,
+        "amount": null
+      },
+      "expected": {
+        "isReceipt": true,
+        "notReceiptReason": null,
+        "description": null,
+        "deductionDate": null,
+        "amountCents": null,
+        "missing": [
+          "description",
+          "deduction_date",
+          "amount_cents"
+        ],
+        "unreadable": []
+      }
+    },
+    {
+      "input": {
+        "is_receipt": true,
+        "not_receipt_reason": null,
+        "description": "Refund",
+        "deduction_date": "2026-03-01",
+        "amount": "(45.00)"
+      },
+      "expected": {
+        "isReceipt": true,
+        "notReceiptReason": null,
+        "description": "Refund",
+        "deductionDate": "2026-03-01",
+        "amountCents": -4500,
+        "missing": [],
+        "unreadable": []
+      }
+    },
+    {
+      "input": {
+        "is_receipt": true,
+        "not_receipt_reason": null,
+        "description": "Charger",
+        "deduction_date": "2026-02-31",
+        "amount": "1,234.5678"
+      },
+      "expected": {
+        "isReceipt": true,
+        "notReceiptReason": null,
+        "description": "Charger",
+        "deductionDate": null,
+        "amountCents": null,
+        "missing": [],
+        "unreadable": [
+          "deduction_date",
+          "amount_cents"
+        ]
+      }
+    },
+    {
+      "input": {
+        "is_receipt": false,
+        "not_receipt_reason": " A boarding pass ",
+        "description": null,
+        "deduction_date": null,
+        "amount": null
+      },
+      "expected": {
+        "isReceipt": false,
+        "notReceiptReason": "A boarding pass",
+        "description": null,
+        "deductionDate": null,
+        "amountCents": null,
+        "missing": [
+          "description",
+          "deduction_date",
+          "amount_cents"
+        ],
+        "unreadable": []
+      }
+    },
+    {
+      "input": {
+        "is_receipt": false,
+        "not_receipt_reason": "unknown",
+        "description": null,
+        "deduction_date": null,
+        "amount": null
+      },
+      "expected": {
+        "isReceipt": false,
+        "notReceiptReason": null,
+        "description": null,
+        "deductionDate": null,
+        "amountCents": null,
+        "missing": [
+          "description",
+          "deduction_date",
+          "amount_cents"
+        ],
+        "unreadable": []
+      }
+    }
+  ]
+}

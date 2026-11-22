@@ -219,7 +219,8 @@ which can differ from the Summary by that interest.
    `create_deduction_with_receipt`. The financial year is the one the date
    falls in.
 
-Values read from the document are AI-extracted and should be checked against
+MCP document tools always read on the server (Claude); the on-device path is
+native-app only. Values read from the document are AI-extracted and should be checked against
 it; the result lists which fields they were. Any failure after the upload
 deletes the stored file.
 

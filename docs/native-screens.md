@@ -278,7 +278,8 @@ engine reports (`financialYearOptions`), opening on the current one.
 - **Add card.** Opens on the kind of deduction (work expense, donation, tax agent fee),
   the receipt input (a file, a photo, or files dropped on it) and "Enter details
   manually". One receipt is stored under the id the form minted and read through
-  `deduction-extract` (primed for the kind); the read pre-fills the description, amount
+  `deduction-extract` (primed for the kind), or by the on-device model first when Apple
+  Intelligence is ready (see Uploads); the read pre-fills the description, amount
   and date the member has not typed (`DeductionFormState.prefill`), and every failure
   reads as its own note without blocking the save. Several receipts go to the bulk
   review instead. A deduction saves through `create_deduction_with_receipt`.
@@ -625,7 +626,7 @@ the id the form minted, so a retry rewrites the same slip.
 - `UploadRules` — the PWA's `uploadFile.ts`: the 25 MiB limit and its message, content
   type and extractability decided by extension, safe storage key names, and HEIC/HEIF
   converted to JPEG where it decodes.
-- `OnDeviceExtraction` — routes a stored payslip or receipt through a registered
+- `OnDeviceExtraction` — routes a stored payslip or receipt (only receipts have an extractor) through a registered
   `OnDeviceExtractor` when the system language model is ready (OS 26 or later, an
   eligible device, Apple Intelligence on, model downloaded; checked through
   `SystemLanguageModel.availability` behind `#available`), and otherwise through the
@@ -653,7 +654,8 @@ the id the form minted, so a retry rewrites the same slip.
   `fields_parity_test.ts` and through the port by `ReceiptFieldsParityTests`) and
   `deduction-corpus-parity.json` (the eval corpus's synthetic receipts and non-receipts;
   see [`on-device-extraction.md`](on-device-extraction.md)). The live model is not run in
-  CI. Payslips and trade documents have no on-device extractor yet.
+  CI. Payslips and trade documents have no on-device extractor: a payslip's route is
+  registered with none, so it is read by `payslip-extract`.
 - `UploadQueue` — the native `useUploadQueue`: store, then read, then hand back a draft.
   At most three files are in flight and 20 open per panel (the rest are left out with
   the usual message); a failed, unreadable or unsupported file never stops the others;

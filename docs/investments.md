@@ -98,6 +98,9 @@ still stored and linked, with a note that it cannot be read automatically, and
 the card offers one blank trade form to fill in by hand; a HEIC photo is
 converted to JPEG in the browser where possible and then read.
 
+- Trade documents are read only on the server (`trade-extract`, Claude), from the
+  PWA, the native apps, and the MCP tool `create_trades_from_document`; the file
+  is sent to Anthropic. The on-device model has no trade extractor.
 - Extraction writes nothing. Each draft is the member's to **save**, edit, or
   **discard**; the first save stores the document, and the rest reuse it.
 - Units and money are the literal printed text, converted in TypeScript: a price

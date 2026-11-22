@@ -101,6 +101,15 @@ enum PayslipExtractionReader {
         return extraction
     }
 
+    /// An on-device result as the outcome the server path gives the same verdict.
+    static func outcome(_ result: OnDeviceResult<PayslipExtraction>) -> ExtractionOutcome {
+        switch result {
+        case .read(let extraction): .read(extraction)
+        case .notADocument(let reason): .notPayslip(message: notPayslipMessage, reason: reason)
+        case .unsupported: .unsupported(message: unsupportedMessage)
+        }
+    }
+
     /// Reads a non-2xx body into the state the form shows. The function's own message
     /// is preferred where it sent one; a plain fallback stands in otherwise.
     static func readFailure(_ data: Data?) -> ExtractionOutcome {

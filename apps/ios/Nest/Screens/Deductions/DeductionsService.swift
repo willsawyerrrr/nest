@@ -8,6 +8,7 @@ struct DeductionsService: Sendable {
     static let bucket = "receipts"
 
     var data: NestData
+    var onDevice = OnDeviceExtraction<DeductionExtraction>()
 
     private static let deductionTables: Set<String> = ["deduction_receipt", "deduction_group"]
 
@@ -170,6 +171,13 @@ struct DeductionsService: Sendable {
     func extract(path: String, category: DeductionCategory, financialYear: Int) async
         -> DeductionExtractionOutcome
     {
+        let api = data.api
+        let local = await onDevice.read(
+            path: path, financialYear: financialYear, category: category
+        ) {
+            try await api.download(bucket: Self.bucket, path: path)
+        }
+        if let local { return DeductionExtractor.outcome(local) }
         let response: (status: Int, data: Data)
         do {
             response = try await data.api.invokeRaw(

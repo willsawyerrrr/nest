@@ -126,6 +126,7 @@ protocol PayslipsServicing: Sendable {
 struct PayslipsService: PayslipsServicing {
     static let bucket = "payslips"
     var data: NestData = .live
+    var onDevice = OnDeviceExtraction<PayslipExtraction>()
 
     private struct ExtractBody: Encodable, Sendable {
         let path: String
@@ -177,6 +178,11 @@ struct PayslipsService: PayslipsServicing {
     }
 
     func read(path: String, financialYear: Int) async -> ExtractionOutcome {
+        let api = data.api
+        let local = await onDevice.read(path: path, financialYear: financialYear) {
+            try await api.download(bucket: Self.bucket, path: path)
+        }
+        if let local { return PayslipExtractionReader.outcome(local) }
         do {
             let response = try await data.api.invokeRaw(
                 "payslip-extract", body: ExtractBody(path: path, financialYear: financialYear))

@@ -39,33 +39,74 @@ enum OnDeviceResult<Extraction: Sendable>: Sendable {
     case unsupported
 }
 
-/// Whether the system on-device model can run: OS 26 or later, an eligible device,
-/// Apple Intelligence on, and the model downloaded.
-enum OnDeviceModel {
-    static var isReady: Bool {
-        #if canImport(FoundationModels)
-            if #available(iOS 26, macOS 26, *), case .available = SystemLanguageModel.default.availability {
-                return true
-            }
-        #endif
-        return false
+/// Why the system on-device model cannot run, as shown beside the setting.
+enum OnDeviceUnavailability: Equatable, Sendable {
+    case osTooOld
+    case deviceNotEligible
+    case appleIntelligenceOff
+    case modelNotReady
+
+    var reason: String {
+        switch self {
+        case .osTooOld: "Requires iOS 26, iPadOS 26 or macOS 26 or later."
+        case .deviceNotEligible: "This device doesn't support Apple Intelligence."
+        case .appleIntelligenceOff: "Turn on Apple Intelligence in Settings."
+        case .modelNotReady: "The Apple Intelligence model is still downloading."
+        }
     }
 }
 
-/// Routes a document through the first registered on-device extractor when the model is
-/// ready, leaving everything else to the server.
+/// Whether the system on-device model can run: OS 26 or later, an eligible device,
+/// Apple Intelligence on, and the model downloaded.
+enum OnDeviceModel {
+    /// Why the model cannot run, or nil when it is ready.
+    static var unavailability: OnDeviceUnavailability? {
+        #if canImport(FoundationModels)
+            guard #available(iOS 26, macOS 26, *) else { return .osTooOld }
+            switch SystemLanguageModel.default.availability {
+            case .available: return nil
+            case .unavailable(.deviceNotEligible): return .deviceNotEligible
+            case .unavailable(.appleIntelligenceNotEnabled): return .appleIntelligenceOff
+            case .unavailable: return .modelNotReady
+            }
+        #else
+            return .osTooOld
+        #endif
+    }
+
+    static var isReady: Bool { unavailability == nil }
+}
+
+/// The per-device choice to read documents on this device, kept in `UserDefaults`.
+/// On unless turned off.
+enum OnDevicePreference {
+    static let key = "read-documents-on-device"
+
+    /// Whether documents may be read on this device; the model still has to be ready.
+    static func isEnabled(_ defaults: UserDefaults = .standard) -> Bool {
+        defaults.object(forKey: key) as? Bool ?? true
+    }
+
+    static func setEnabled(_ enabled: Bool, _ defaults: UserDefaults = .standard) {
+        defaults.set(enabled, forKey: key)
+    }
+}
+
+/// Routes a document through the first registered on-device extractor when the device
+/// preference is on and the model is ready, leaving everything else to the server.
 struct OnDeviceExtraction<Extraction: Sendable>: Sendable {
     var extractors: [any OnDeviceExtractor<Extraction>] = []
     var isModelReady: @Sendable () -> Bool = { OnDeviceModel.isReady }
+    var isEnabled: @Sendable () -> Bool = { OnDevicePreference.isEnabled() }
 
     /// The on-device result, or nil when the server should read the document: no extractor
-    /// is registered, the model is not ready, the file is not a readable type, the file
+    /// is registered, the preference is off, the model is not ready, the file is not a readable type, the file
     /// could not be fetched, or the extractor failed.
     func read(
         path: String, financialYear: Int, category: DeductionCategory? = nil,
         download: @Sendable () async throws -> Data
     ) async -> OnDeviceResult<Extraction>? {
-        guard let extractor = extractors.first, isModelReady(), UploadRules.canExtract(path),
+        guard let extractor = extractors.first, isEnabled(), isModelReady(), UploadRules.canExtract(path),
             let data = try? await download()
         else { return nil }
         let request = OnDeviceRequest(

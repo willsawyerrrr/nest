@@ -87,6 +87,7 @@ enum Route: String, CaseIterable, Identifiable, Hashable {
     case connections = "/settings/connections"
     case notifications = "/settings/notifications"
     case planningMode = "/settings/planning-mode"
+    case documents = "/settings/documents"
     // Routes outside the primary nav.
     case planning = "/planning"
     case allowance = "/allowance"
@@ -122,6 +123,7 @@ enum Route: String, CaseIterable, Identifiable, Hashable {
         case .connections: "Connections"
         case .notifications: "Notifications"
         case .planningMode: "Planning mode"
+        case .documents: "Documents"
         case .planning: "Planning"
         case .allowance: "Allowance"
         case .whatsNew: "What's new"
@@ -136,7 +138,7 @@ enum Route: String, CaseIterable, Identifiable, Hashable {
         case .inflows, .budget, .breakdowns, .gifts, .splits: .plan
         case .netWorth, .goals, .wishlist, .superannuation, .equity, .investments: .grow
         case .tax, .payslips, .deductions, .helpDebt, .eofy: .tax
-        case .household, .members, .connections, .notifications, .planningMode: .settings
+        case .household, .members, .connections, .notifications, .planningMode, .documents: .settings
         case .planning, .allowance, .whatsNew, .transactionReview: nil
         }
     }
@@ -155,6 +157,7 @@ enum Route: String, CaseIterable, Identifiable, Hashable {
         case .planning: .native(AnyView(PlanningScreen()))
         case .splits: .native(AnyView(SplitsScreen()))
         case .planningMode: .native(AnyView(PlanningModeScreen()))
+        case .documents: .native(AnyView(DocumentsSettingsScreen()))
         case .wishlist: .native(AnyView(WishlistScreen()))
         case .household: .native(AnyView(HouseholdScreen()))
         case .netWorth: .native(AnyView(NetWorthScreen()))

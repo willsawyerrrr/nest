@@ -625,6 +625,14 @@ the id the form minted, so a retry rewrites the same slip.
 - `UploadRules` — the PWA's `uploadFile.ts`: the 25 MiB limit and its message, content
   type and extractability decided by extension, safe storage key names, and HEIC/HEIF
   converted to JPEG where it decodes.
+- `OnDeviceExtraction` — routes a stored payslip or receipt through a registered
+  `OnDeviceExtractor` when the system language model is ready (OS 26 or later, an
+  eligible device, Apple Intelligence on, model downloaded; checked through
+  `SystemLanguageModel.availability` behind `#available`), and otherwise through the
+  server functions. The file is fetched from Storage, so only readable types route. An
+  extractor's not-a-document and unsupported verdicts map to the same outcomes and copy
+  as the server's; any other failure falls back to the server. Trade documents have no
+  on-device route and always use `trade-extract`.
 - `UploadQueue` — the native `useUploadQueue`: store, then read, then hand back a draft.
   At most three files are in flight and 20 open per panel (the rest are left out with
   the usual message); a failed, unreadable or unsupported file never stops the others;

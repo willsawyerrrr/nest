@@ -161,6 +161,11 @@ struct SupabaseAPI: Sendable {
         return url
     }
 
+    /// The bytes of the object at `path` in the private `bucket`.
+    func download(bucket: String, path: String) async throws -> Data {
+        try await request("GET", path: "storage/v1/object/authenticated/\(bucket)/\(path)")
+    }
+
     /// Stores `data` at `path` in the private `bucket` as `contentType`.
     func upload(bucket: String, path: String, data: Data, contentType: String) async throws {
         _ = try await request(

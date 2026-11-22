@@ -58,6 +58,15 @@ enum DeductionExtractor {
         return extraction
     }
 
+    /// An on-device result as the outcome the server path gives the same verdict.
+    static func outcome(_ result: OnDeviceResult<DeductionExtraction>) -> DeductionExtractionOutcome {
+        switch result {
+        case .read(let extraction): .read(extraction)
+        case .notADocument(let reason): .notReceipt(message: notReceiptMessage, reason: reason)
+        case .unsupported: .unsupported(unsupportedMessage)
+        }
+    }
+
     /// Reads a non-2xx body into the state the form shows.
     static func readFailure(_ data: Data?) -> DeductionExtractionOutcome {
         let body = data.flatMap { (try? JSONSerialization.jsonObject(with: $0)) as? [String: Any] }

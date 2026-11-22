@@ -1,4 +1,5 @@
 import type { AccountDirectoryEntry } from '../hooks/useAccountDirectory'
+import type { Account } from '../hooks/useAccounts'
 import type { BudgetLine } from '../hooks/useBudgetLines'
 import type { GiftDiscretionaryBudget, GiftPurchase } from '../hooks/useGifts'
 import type { Goal } from '../hooks/useGoals'
@@ -181,6 +182,11 @@ export function makeGoal(overrides: Partial<Goal> = {}): Goal {
 
 /** Builds an accounts row for a synced Up saver. */
 export function makeSaver(overrides: Partial<Saver> = {}): Saver {
+  return makeAccount(overrides)
+}
+
+/** Builds an `accounts_with_balance` row, defaulting to a joint Up saver. */
+export function makeAccount(overrides: Partial<Account> = {}): Account {
   return {
     id: 'a1',
     household_id: 'h1',

@@ -36,11 +36,16 @@ export interface DeductionFields {
  * they typed is never quietly replaced by one a model read. Only the ADD form
  * uses this — editing an existing deduction carries no attachment mechanics —
  * so there is no saved-row case to seed the claimed set from, unlike
- * `usePayslipFields`.
+ * `usePayslipFields`. A form opened from a transaction starts with every field
+ * claimed (`claimedFields`), so a receipt read later never overwrites the
+ * transaction's own figures.
  */
-export function useDeductionFields(initial: DeductionFieldValues): DeductionFields {
+export function useDeductionFields(
+  initial: DeductionFieldValues,
+  claimedFields: readonly (keyof DeductionFieldValues)[] = [],
+): DeductionFields {
   const [values, setValues] = useState(initial)
-  const [claimed] = useState(() => new Set<keyof DeductionFieldValues>())
+  const [claimed] = useState(() => new Set<keyof DeductionFieldValues>(claimedFields))
 
   const setDescription = useCallback(
     (value: string) => {

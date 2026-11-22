@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useState } from 'react'
 import {
   ActionIcon,
   Alert,
@@ -34,13 +34,15 @@ import {
   dollarsToCents,
   formatCents,
   formatCentsRate,
+  toNumericValue,
   workUseAmountCents,
 } from '../lib/money'
 import { currentTaxConfig } from '../lib/tax'
+import type { TransactionDeductionDraft } from '../lib/transactionDeduction'
 import { prepareUpload } from '../lib/uploadFile'
+import { ConditionalDropArea } from './ConditionalDropArea'
 import { ExtractionNote, ReadFromReceipt } from './DeductionExtractionNote'
 import { EnumSegmentedControl } from './EnumSelect'
-import { FileDropArea } from './FileDropArea'
 import { FormShell } from './FormShell'
 import { MoneyInput } from './MoneyInput'
 
@@ -81,6 +83,13 @@ interface DeductionFormProps {
    * into the form.
    */
   onAddFiles?: ((files: File[], category: DeductionCategory) => void) | undefined
+  /**
+   * The transaction a new deduction is created from. The form opens on its
+   * fields, prefilled from the transaction and linked to it on save; the
+   * receipt can still be attached, and the category, basis, and work use are
+   * chosen as usual.
+   */
+  transaction?: TransactionDeductionDraft | undefined
   /** When editing, the deduction's stored receipt, if it has one. */
   receipt?: DeductionReceiptRow | undefined
   /** When editing, stores a file as the deduction's receipt, replacing any current one. */
@@ -112,30 +121,6 @@ const CATEGORY_OPTIONS: { value: DeductionCategory; label: string }[] = [
 const NO_GROUP = 'none'
 
 /**
- * A distance or hours figure as a `NumberInput` value, or `''` when unset.
- * `distance_km` and `work_from_home_hours` are `numeric(8,2)`, so may arrive as strings.
- */
-function toNumericValue(km: number | string | null | undefined): number | string {
-  if (km == null || km === '') {
-    return ''
-  }
-  return typeof km === 'number' ? km : Number.parseFloat(km)
-}
-
-/** Wraps `children` in a drop area while `enabled`, else leaves them as they are. */
-function ConditionalDropArea({
-  enabled,
-  onFiles,
-  children,
-}: {
-  enabled: boolean
-  onFiles: (files: File[]) => void
-  children: ReactNode
-}) {
-  return enabled ? <FileDropArea onFiles={onFiles}>{children}</FileDropArea> : <>{children}</>
-}
-
-/**
  * Presentational add/edit form for a single deduction, tagged to the member the
  * section belongs to.
  *
@@ -150,6 +135,11 @@ function ConditionalDropArea({
  * deduction and its uploaded receipt together, in one transaction
  * (`create_deduction_with_receipt`). A file the member removes or replaces, or
  * the whole add flow they cancel, is deleted again, best effort.
+ *
+ * Given a `transaction`, the add form opens on its fields, prefilled from the
+ * ledger transaction (description, absolute amount, date) with those three
+ * fields kept against a later receipt read, and saves the link to it. The
+ * receipt prompt stays, for one receipt read into this form.
  *
  * Editing an existing deduction carries none of the extraction: its receipt is
  * attached, replaced, or removed from a control here that writes straight
@@ -224,6 +214,7 @@ export function DeductionForm({
   initial,
   draft,
   onAddFiles,
+  transaction,
   receipt,
   onUploadReceipt,
   onRemoveReceipt,
@@ -234,22 +225,29 @@ export function DeductionForm({
   const adding = initial === undefined
   const read = draft?.extraction?.fields
 
-  const fields = useDeductionFields({
-    description:
-      initial?.description ?? (typeof read?.description === 'string' ? read.description : ''),
-    // The full cost, not the apportioned amount_cents: editing a part-claimed
-    // deduction re-opens on what it cost, with the claimed share recomputed from
-    // it and the percentage below, rather than showing back a figure that was
-    // itself derived.
-    amount: centsToDollars(
-      initial?.full_amount_cents ??
-        initial?.amount_cents ??
-        (typeof read?.amount_cents === 'number' ? read.amount_cents : undefined),
-    ),
-    deductionDate:
-      initial?.deduction_date ??
-      (typeof read?.deduction_date === 'string' ? read.deduction_date : todayIso()),
-  })
+  const fields = useDeductionFields(
+    {
+      description:
+        initial?.description ??
+        transaction?.description ??
+        (typeof read?.description === 'string' ? read.description : ''),
+      // The full cost, not the apportioned amount_cents: editing a part-claimed
+      // deduction re-opens on what it cost, with the claimed share recomputed from
+      // it and the percentage below, rather than showing back a figure that was
+      // itself derived.
+      amount: centsToDollars(
+        initial?.full_amount_cents ??
+          initial?.amount_cents ??
+          transaction?.amountCents ??
+          (typeof read?.amount_cents === 'number' ? read.amount_cents : undefined),
+      ),
+      deductionDate:
+        initial?.deduction_date ??
+        transaction?.deductionDate ??
+        (typeof read?.deduction_date === 'string' ? read.deduction_date : todayIso()),
+    },
+    transaction ? ['description', 'amount', 'deductionDate'] : [],
+  )
   // Chosen when adding; an existing deduction keeps the basis it was created
   // with, since a deduction on the wrong one is deleted and re-added.
   // Why the receipt picked on an existing deduction was not attached.
@@ -320,7 +318,7 @@ export function DeductionForm({
   if (receiptSettled && !revealed) {
     setRevealed(true)
   }
-  const showFields = !adding || draft !== undefined || revealed
+  const showFields = !adding || draft !== undefined || transaction !== undefined || revealed
   // One receipt is read into this form; several go to the bulk upload and the
   // form gives way to their review.
   const handleFiles = (files: File[]) => {
@@ -429,6 +427,7 @@ export function DeductionForm({
         // database to the same rule.
         full_amount_cents: isDerived ? computedAmountCents : fullAmountCents,
         work_use_percent: workUsePercentNumber,
+        ...(adding && transaction && { transaction_id: transaction.transactionId }),
       },
       receiptPath: adding ? (draft?.path ?? receipts.path) : null,
     }),
@@ -456,6 +455,12 @@ export function DeductionForm({
           onChange={setCategory}
           data={categoryOptions}
         />
+      )}
+
+      {transaction && (
+        <Text size="sm" c="dimmed">
+          From the transaction &ldquo;{transaction.description}&rdquo;.
+        </Text>
       )}
 
       {draft && (

@@ -492,6 +492,7 @@ export type Database = {
           household_id: string
           id: string
           member_id: string
+          transaction_id: string | null
           updated_at: string
           work_from_home_hours: number | null
           work_use_percent: number
@@ -511,6 +512,7 @@ export type Database = {
           household_id: string
           id?: string
           member_id: string
+          transaction_id?: string | null
           updated_at?: string
           work_from_home_hours?: number | null
           work_use_percent?: number
@@ -529,6 +531,7 @@ export type Database = {
           household_id?: string
           id?: string
           member_id?: string
+          transaction_id?: string | null
           updated_at?: string
           work_from_home_hours?: number | null
           work_use_percent?: number
@@ -553,6 +556,13 @@ export type Database = {
             columns: ['member_id', 'household_id']
             isOneToOne: false
             referencedRelation: 'members'
+            referencedColumns: ['id', 'household_id']
+          },
+          {
+            foreignKeyName: 'deduction_transaction_id_household_id_fkey'
+            columns: ['transaction_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'transactions'
             referencedColumns: ['id', 'household_id']
           },
         ]

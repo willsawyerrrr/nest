@@ -57,6 +57,7 @@ function makeDeduction(overrides: Partial<DeductionRow> = {}): DeductionRow {
     full_amount_cents: 1_200_00,
     work_use_percent: 100,
     category: 'work_expense',
+    transaction_id: null,
     created_at: '',
     updated_at: '',
     ...overrides,
@@ -166,6 +167,80 @@ describe('DeductionsScreen', () => {
     const card = screen.getByText('Home office').closest('.mantine-Card-root') as HTMLElement
     expect(within(card).getByText('$1,200.00')).toBeInTheDocument()
     expect(within(card).getByText(/1 Aug 2026/)).toBeInTheDocument()
+  })
+
+  it('names the transaction a deduction was created from', () => {
+    renderScreen({
+      deductions: [makeDeduction({ transaction_id: 'tx1' })],
+      sources: {
+        tx1: {
+          id: 'tx1',
+          description: 'Bunnings',
+          amount_cents: -1_200_00,
+          posted_at: '2026-08-01T02:00:00+00:00',
+        },
+      },
+    })
+    expect(screen.getByText(/From Bunnings/)).toBeInTheDocument()
+  })
+
+  it('shows no source for a hand-entered deduction', () => {
+    renderScreen()
+    expect(screen.queryByText(/^From /)).not.toBeInTheDocument()
+  })
+
+  it('opens the signed-in member’s add form prefilled from a transaction', async () => {
+    const onCreate = vi.fn().mockResolvedValue(undefined)
+    const onFromTransactionDone = vi.fn()
+    renderScreen({
+      deductions: [],
+      currentMemberId: 'm1',
+      onCreate,
+      onFromTransactionDone,
+      fromTransaction: {
+        transactionId: 'tx1',
+        description: 'Bunnings',
+        amountCents: 120_00,
+        deductionDate: '2026-08-14',
+        financialYear: 2027,
+      },
+    })
+    // One form only: Sam, another member, gets none.
+    expect(screen.getAllByLabelText(/description/i)).toHaveLength(1)
+    expect(screen.getByLabelText(/description/i)).toHaveValue('Bunnings')
+
+    const submit = screen
+      .getAllByRole('button', { name: /add deduction/i })
+      .find((button) => button.getAttribute('type') === 'submit')!
+    await userEvent.click(submit)
+    await waitFor(() => expect(onCreate).toHaveBeenCalled())
+    expect(onCreate.mock.calls[0]![0].input).toMatchObject({
+      member_id: 'm1',
+      amount_cents: 120_00,
+      transaction_id: 'tx1',
+    })
+    await waitFor(() => expect(onFromTransactionDone).toHaveBeenCalled())
+  })
+
+  it('saves a deduction from a transaction without a handler for finishing', async () => {
+    const onCreate = vi.fn().mockResolvedValue(undefined)
+    renderScreen({
+      deductions: [],
+      currentMemberId: 'm1',
+      onCreate,
+      fromTransaction: {
+        transactionId: 'tx1',
+        description: 'Bunnings',
+        amountCents: 120_00,
+        deductionDate: '2026-08-14',
+        financialYear: 2027,
+      },
+    })
+    const submit = screen
+      .getAllByRole('button', { name: /add deduction/i })
+      .find((button) => button.getAttribute('type') === 'submit')!
+    await userEvent.click(submit)
+    await waitFor(() => expect(onCreate).toHaveBeenCalled())
   })
 
   it('renders the claimed distance beside the date of a distance-basis deduction', () => {

@@ -62,6 +62,12 @@ instance and can also be run locally.
   deduction to one receipt, and that the migration introducing the constraint
   keeps the earliest of several receipts, drops only the surplus rows, leaves a
   single receipt alone, and rewrites nothing on a second pass.
+- `deduction_transaction.sql` — the assertions that `deduction.transaction_id`
+  links a deduction to its source transaction: `create_deduction_with_receipt`
+  carries the link and a retried save keeps it, a transaction backs at most one
+  deduction, another household's transaction is refused, deleting the deduction
+  frees the transaction, and deleting the transaction clears the link and keeps
+  the deduction.
 - `deduction_group.sql` — the assertions that grouping a member's deductions
   keeps each payment a deduction in its own right: the group totals its members,
   the composite reference refuses a payment from another financial year or

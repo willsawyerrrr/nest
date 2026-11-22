@@ -183,6 +183,7 @@ export const rows = {
       work_use_percent: 60,
       distance_km: null,
       work_from_home_hours: null,
+      transaction_id: null,
       group_id: null,
     },
   ],

@@ -224,7 +224,18 @@ and so without the trigger.
     `distance_km` and `work_from_home_hours` (`numeric(8,2)`, nullable), `full_amount_cents` (bigint,
     `>= 0`), `work_use_percent` (`numeric(5,2)`, default 100), `category`
     (`deduction_category` enum: `work_expense` default, `donation`, or
-    `tax_agent_fees`), `created_at`, `updated_at`.
+    `tax_agent_fees`), `transaction_id` (uuid, nullable), `created_at`,
+    `updated_at`.
+  - `transaction_id` is the ledger transaction the deduction was created from,
+    null for a hand-entered one. Composite foreign key
+    `(transaction_id, household_id)` → `transactions`, `on delete set null` on
+    that column alone, so losing the transaction leaves the deduction standing as
+    a hand-entered one, and deleting the deduction frees the transaction. A
+    partial unique index on `transaction_id` keeps it one deduction per
+    transaction. Set when the deduction is created
+    (`create_deduction_with_receipt` carries it and never rewrites it on a
+    retried save); the amount, date, and description are the member's own once
+    saved.
   - `financial_year` is the year the expense is claimed in and is stored rather
     than derived from `deduction_date`, with no constraint tying the two: an
     expense incurred near a year boundary is claimed in whichever year the
@@ -1302,7 +1313,7 @@ transaction, not for the privileges.
   receipt rather than duplicating either. It carries the deduction's `basis`
   and, on the distance and hours bases, its `distance_km` or `work_from_home_hours`; the group it is filed under
   (`group_id`); its work-use apportioning (`full_amount_cents`,
-  `work_use_percent`); and its `category`: the add form writes every new deduction through this
+  `work_use_percent`); its `category`; and the `transaction_id` it was created from: the add form writes every new deduction through this
   function, so a column it does not name is one the add path cannot set, and a
   work-travel deduction, a grouped payment, or a part-claimed expense would
   otherwise save wrong or fail the apportioning constraint outright. A payload

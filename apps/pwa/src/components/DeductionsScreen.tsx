@@ -25,6 +25,7 @@ import type { Member } from '../hooks/useMembers'
 import { useSharedFiles } from '../hooks/useSharedFiles'
 import { droppedGroupId, groupDropId, UNGROUPED_DROP_ID } from '../lib/deductionDrop'
 import { formatCents } from '../lib/money'
+import type { SourceTransaction, TransactionDeductionDraft } from '../lib/transactionDeduction'
 import { AppCard } from './AppCard'
 import { DropTarget } from './DeductionDrop'
 import { DeductionForm } from './DeductionForm'
@@ -48,6 +49,15 @@ interface DeductionsScreenProps {
   onFinancialYearChange: (financialYear: number) => void
   /** Storing, discarding, and reading receipts picked before a new deduction exists. */
   attachments: DeductionAttachments
+  /** The transactions behind the deductions created from one, by id. */
+  sources?: Readonly<Record<string, SourceTransaction>>
+  /**
+   * A transaction to create a deduction from. The signed-in member's list opens
+   * an add form prefilled from it, above their deductions.
+   */
+  fromTransaction?: TransactionDeductionDraft | null
+  /** Closes the add form opened from `fromTransaction`, saved or cancelled. */
+  onFromTransactionDone?: () => void
   /**
    * The signed-in member. Receipts shared into the native app from other apps
    * are queued as work expenses on this member's list.
@@ -85,6 +95,10 @@ interface DeductionsScreenProps {
  * is this member's own, and its groups are this year's, so every target shown
  * is one the deduction's composite reference accepts. The form's Group picker
  * is the keyboard path.
+ *
+ * Opened from a transaction (`fromTransaction`), the signed-in member's list
+ * starts with an add form prefilled from it; a deduction created from a
+ * transaction names it beneath its row.
  */
 function MemberDeductions({
   member,
@@ -94,6 +108,9 @@ function MemberDeductions({
   attachments,
   financialYear,
   receivesSharedFiles,
+  sources,
+  fromTransaction,
+  onFromTransactionDone,
   onCreate,
   onUpdate,
   onDelete,
@@ -111,6 +128,9 @@ function MemberDeductions({
   attachments: DeductionAttachments
   financialYear: number
   receivesSharedFiles: boolean
+  sources: Readonly<Record<string, SourceTransaction>>
+  fromTransaction: TransactionDeductionDraft | null
+  onFromTransactionDone: () => void
   onCreate: (submission: DeductionSubmission) => Promise<void>
   onUpdate: (id: string, input: DeductionInput) => Promise<void>
   onDelete: (id: string) => Promise<void>
@@ -208,6 +228,7 @@ function MemberDeductions({
       <Item
         deduction={deduction}
         receipt={receiptFor(deduction)}
+        source={deduction.transaction_id ? sources[deduction.transaction_id] : undefined}
         onEdit={onEdit}
         onDelete={onDeleteItem}
         signedUrl={signedUrl}
@@ -238,6 +259,21 @@ function MemberDeductions({
           groups={groups}
           onCreate={onCreate}
         />
+
+        {fromTransaction && (
+          <DeductionForm
+            member={member}
+            attachments={attachments}
+            financialYear={financialYear}
+            groups={groups}
+            transaction={fromTransaction}
+            onSubmit={async (submission) => {
+              await onCreate(submission)
+              onFromTransactionDone()
+            }}
+            onCancel={onFromTransactionDone}
+          />
+        )}
 
         <EditableList<DeductionGroupRow, DeductionGroupInput>
           items={groups}
@@ -390,6 +426,9 @@ export function DeductionsScreen({
   availableFinancialYears,
   onFinancialYearChange,
   attachments,
+  sources = {},
+  fromTransaction = null,
+  onFromTransactionDone = () => {},
   currentMemberId,
   onCreate,
   onUpdate,
@@ -422,6 +461,9 @@ export function DeductionsScreen({
           attachments={attachments}
           financialYear={financialYear}
           receivesSharedFiles={member.id === currentMemberId}
+          sources={sources}
+          fromTransaction={member.id === currentMemberId ? fromTransaction : null}
+          onFromTransactionDone={onFromTransactionDone}
           onCreate={onCreate}
           onUpdate={onUpdate}
           onDelete={onDelete}

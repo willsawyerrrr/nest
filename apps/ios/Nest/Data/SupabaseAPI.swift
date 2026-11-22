@@ -24,6 +24,9 @@ struct Filter: Equatable, Sendable {
     static func isNull(_ column: String) -> Filter {
         .init(column: column, op: "is", value: "null")
     }
+    static func notNull(_ column: String) -> Filter {
+        .init(column: column, op: "not.is", value: "null")
+    }
 }
 
 /// Sort for a select: `order=column.asc|desc`.

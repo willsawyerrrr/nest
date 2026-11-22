@@ -44,6 +44,7 @@ const deduction = (
   distance_km: null,
   work_from_home_hours: null,
   group_id: null,
+  transaction_id: null,
   created_at: STAMP,
   updated_at: STAMP,
   ...overrides,

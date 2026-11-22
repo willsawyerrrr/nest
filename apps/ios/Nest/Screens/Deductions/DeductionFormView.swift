@@ -77,7 +77,9 @@ struct DeductionFormView: View {
         guard let state = attachment?.state else { return false }
         return state != .idle && state != .uploading && state != .reading
     }
-    private var showFields: Bool { !form.adding || draft != nil || revealed || receiptSettled }
+    private var showFields: Bool {
+        !form.adding || draft != nil || form.transactionID != nil || revealed || receiptSettled
+    }
     private var showDetails: Bool { form.adding || detailsToggled }
     private var receiptBusy: Bool { attachment?.busy ?? false }
     private var canSubmit: Bool { form.canSubmit(receiptBusy: receiptBusy) }

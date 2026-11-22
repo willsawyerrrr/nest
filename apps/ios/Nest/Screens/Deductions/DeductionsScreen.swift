@@ -11,7 +11,9 @@ final class DeductionsRevision {
 
 /// The native Deductions route: each member's deductions for a financial year with a
 /// running total, groups of payments, the receipt-first add card, the bulk receipt
-/// review and drag-to-group filing. Mirrors the web `DeductionsScreen`.
+/// review and drag-to-group filing. Mirrors the web `DeductionsScreen`. A `draft`
+/// (a transaction's "Create deduction") opens the signed-in member's add form
+/// prefilled, in the draft's financial year.
 struct DeductionsScreen: View {
     @State private var model: DeductionsViewModel
     /// Whether this screen takes the files shared into the app from other apps.
@@ -19,8 +21,11 @@ struct DeductionsScreen: View {
     @Environment(\.openURL) private var openURL
     private let revision = DeductionsRevision.shared
 
-    init(model: DeductionsViewModel = DeductionsViewModel(), consumesSharedFiles: Bool = false) {
-        _model = State(initialValue: model)
+    init(
+        model: DeductionsViewModel? = nil, draft: TransactionDeductionDraft? = nil,
+        consumesSharedFiles: Bool = false
+    ) {
+        _model = State(initialValue: model ?? DeductionsViewModel(draft: draft))
         self.consumesSharedFiles = consumesSharedFiles
     }
 
@@ -73,7 +78,9 @@ private struct DeductionsPage: View {
             ForEach(presentation.members) { member in
                 MemberSection(
                     model: model, content: content, presentation: presentation,
-                    member: member, openURL: openURL)
+                    member: member,
+                    draft: member.id == content.currentMemberID ? model.draft : nil,
+                    openURL: openURL)
             }
         }
         .scrollDismissesKeyboard(.interactively)
@@ -87,8 +94,11 @@ private struct MemberSection: View {
     let content: DeductionsContent
     let presentation: DeductionsPresentation
     let member: MemberDeductions
+    /// The transaction the add form opens prefilled from, until it is saved or cancelled.
+    let draft: TransactionDeductionDraft?
     let openURL: (URL) -> Void
 
+    @State private var draftClosed = false
     @State private var drag = DeductionDrag()
     @State private var addingGroup = false
     @State private var editingGroup: String?
@@ -110,6 +120,8 @@ private struct MemberSection: View {
         content.rows.deductions.filter { $0.memberId == member.member.id }
     }
     private var queue: UploadQueue<DeductionDraft> { model.queue(for: member.member.id) }
+    /// The prefilled form is showing: a draft not yet saved or cancelled.
+    private var draftOpen: Bool { draft != nil && !draftClosed }
 
     var body: some View {
         VStack(alignment: .leading, spacing: FormMetric.xs) {
@@ -234,11 +246,20 @@ private struct MemberSection: View {
             onMove: { deduction, groupID in Task { await model.move(deduction, to: groupID) } }
         ) {
             VStack(alignment: .leading, spacing: 6) {
-                if member.ungrouped.isEmpty && !addingDeduction {
+                if member.ungrouped.isEmpty && !addingDeduction && !draftOpen {
                     NestEmptyState(text: "No deductions yet.")
                 }
                 ForEach(member.ungrouped) { deduction in paymentRow(deduction) }
-                if addingDeduction {
+                if draftOpen, let draft {
+                    DeductionFormView(
+                        state: DeductionFormState(
+                            memberID: member.member.id, financialYear: content.financialYear,
+                            groups: groups, transaction: draft),
+                        attachment: ReceiptAttachment(handlers: model.attachmentHandlers),
+                        figures: ScreenEngine.figures,
+                        onSubmit: { try await model.create($0); draftClosed = true },
+                        onCancel: { draftClosed = true })
+                } else if addingDeduction {
                     DeductionFormView(
                         state: DeductionFormState(
                             memberID: member.member.id, financialYear: content.financialYear,
@@ -274,6 +295,7 @@ private struct MemberSection: View {
             let receipt = presentation.receipt(for: deduction)
             DeductionItemView(
                 deduction: deduction, hasReceipt: receipt != nil,
+                source: deduction.transactionId.flatMap { content.sourceTransactions[$0] },
                 // A donation sits in its donations group and nowhere else, so it has no grip.
                 drag: deduction.category == .donation ? nil : drag,
                 onViewReceipt: {

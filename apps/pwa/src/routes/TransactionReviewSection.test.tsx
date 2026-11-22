@@ -6,6 +6,7 @@ import { TransactionReviewSection } from './TransactionReviewSection'
 const hooks = vi.hoisted(() => ({
   useTransactionReview: vi.fn(),
   useAccountDirectory: vi.fn(),
+  useDeductedTransactionIds: vi.fn(),
   screenProps: null as Record<string, unknown> | null,
 }))
 
@@ -17,6 +18,9 @@ vi.mock('../hooks/useTransactionReview', () => ({
 }))
 vi.mock('../hooks/useAccountDirectory', () => ({
   useAccountDirectory: hooks.useAccountDirectory,
+}))
+vi.mock('../hooks/useDeductionTransactions', () => ({
+  useDeductedTransactionIds: hooks.useDeductedTransactionIds,
 }))
 vi.mock('../components/TransactionReviewScreen', () => ({
   TransactionReviewScreen: (props: Record<string, unknown>) => {
@@ -48,6 +52,7 @@ beforeEach(() => {
     accounts: [{ id: 'a1', name: '💸 Spending' }],
     loading: false,
   })
+  hooks.useDeductedTransactionIds.mockReturnValue({ ids: new Set(['t9']), loading: false })
 })
 
 describe('TransactionReviewSection', () => {
@@ -66,6 +71,7 @@ describe('TransactionReviewSection', () => {
       focused: null,
       categories: [],
       accountNames: { a1: 'Spending' },
+      deductedIds: new Set(['t9']),
       onReview: review,
     })
   })

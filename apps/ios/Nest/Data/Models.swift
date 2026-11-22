@@ -467,6 +467,7 @@ struct Deduction: NestRow {
     let householdId: String
     let id: String
     let memberId: String
+    let transactionId: String?
     let updatedAt: String
     let workFromHomeHours: Double?
     let workUsePercent: Double
@@ -485,6 +486,7 @@ struct Deduction: NestRow {
         case householdId = "household_id"
         case id
         case memberId = "member_id"
+        case transactionId = "transaction_id"
         case updatedAt = "updated_at"
         case workFromHomeHours = "work_from_home_hours"
         case workUsePercent = "work_use_percent"

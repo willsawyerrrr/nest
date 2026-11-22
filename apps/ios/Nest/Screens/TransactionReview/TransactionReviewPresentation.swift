@@ -24,7 +24,15 @@ struct ReviewRow: Equatable, Sendable, Identifiable {
     let upNote: String?
     let upMessage: String?
     let deepLink: URL?
+    /// Whether a deduction was already created from the transaction.
+    let hasDeduction: Bool
     var id: String { transaction.id }
+
+    /// The deduction form's prefill, offered for an outflow with no deduction yet.
+    var deductionDraft: TransactionDeductionDraft? {
+        transaction.amountCents < 0 && !hasDeduction
+            ? TransactionDeductionDraft(transaction: transaction) : nil
+    }
 }
 
 /// The review screen's figures and copy, mirroring the PWA's
@@ -47,12 +55,15 @@ struct TransactionReviewPresentation: Equatable, Sendable {
                 account.id.map { ($0, accountLabel(account.name ?? "")) }
             }, uniquingKeysWith: { first, _ in first })
         let focused = source.focused.first
+        let deducted = Set(source.deductions.compactMap(\.transactionId))
         var transactions = source.transactions
         if let focused, !transactions.contains(where: { $0.id == focused.id }) {
             transactions.insert(focused, at: 0)
         }
         rows = transactions.map {
-            Self.row($0, categories: source.categories, accountName: names[$0.accountId], calendar: calendar)
+            Self.row(
+                $0, categories: source.categories, accountName: names[$0.accountId],
+                hasDeduction: deducted.contains($0.id), calendar: calendar)
         }
         focusedID = focused?.id
         groups = Self.groups(source.categories)
@@ -61,7 +72,7 @@ struct TransactionReviewPresentation: Equatable, Sendable {
 
     static func row(
         _ transaction: LedgerTransaction, categories: [UpCategory], accountName: String?,
-        calendar: Calendar = .current
+        hasDeduction: Bool = false, calendar: Calendar = .current
     ) -> ReviewRow {
         let date = BudgetPresentation.date(
             GiftsPresentation.localDate(transaction.postedAt, calendar: calendar))
@@ -76,7 +87,8 @@ struct TransactionReviewPresentation: Equatable, Sendable {
             isGift: transaction.externalCategory == giftCategory,
             upNote: transaction.upNote.flatMap { $0.isEmpty ? nil : $0 },
             upMessage: transaction.upMessage.flatMap { $0.isEmpty ? nil : $0 },
-            deepLink: transaction.deepLinkUrl.flatMap(URL.init(string:)))
+            deepLink: transaction.deepLinkUrl.flatMap(URL.init(string:)),
+            hasDeduction: hasDeduction)
     }
 
     /// Up's child categories grouped under their parents, both alphabetical,

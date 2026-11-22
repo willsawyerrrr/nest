@@ -262,6 +262,17 @@ the household's own note, prefilled from `notes`, with three actions:
 - **It's a gift** — `up-categorise` to `gifts-and-charity`, then
   `review_transaction`, and a notice linking to Gifts, whose inbox lists it.
 
+An outflow (negative `amount_cents`) with no deduction yet also offers **Create
+deduction**, opening `/deductions?transaction=<id>` on the Deductions screen:
+the signed-in member's add form, prefilled with the transaction's description
+(or `Card purchase` when unnamed), its absolute amount, its local posting date,
+and the financial year that date falls in. The member picks the category,
+basis, and work use as usual; a donation still files into the Donations group,
+and a receipt can still be attached. Saving stores `deduction.transaction_id`.
+A transaction that has a deduction shows a `Deduction` pill and no button, and
+the database refuses a second deduction on it. The deduction shows
+`From <description> · <date>` beneath its row.
+
 Every row with a `deep_link_url` also carries **Open in Up**: Up's API exposes
 no cover data, so fixing a cover happens in Up. A refused category change leaves
 the transaction unreviewed and renders Nest's own copy per `up-categorise` code

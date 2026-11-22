@@ -67,6 +67,33 @@ struct MemberDeductions: Equatable, Identifiable, Sendable {
     var id: String { member.id }
 }
 
+/// A ledger outflow a deduction is created from, prefilling the add form: the
+/// transaction's own words, its amount as a positive figure and its local date.
+struct TransactionDeductionDraft: Hashable, Sendable {
+    let transactionID: String
+    let description: String
+    let amountCents: Int
+    /// The local `yyyy-MM-dd` date the transaction posted.
+    let date: String
+
+    init(transactionID: String, description: String, amountCents: Int, date: String) {
+        self.transactionID = transactionID
+        self.description = description
+        self.amountCents = amountCents
+        self.date = date
+    }
+
+    init(transaction: LedgerTransaction, calendar: Calendar = .current) {
+        transactionID = transaction.id
+        description = transaction.description.isEmpty ? "Card purchase" : transaction.description
+        amountCents = abs(transaction.amountCents)
+        date = GiftsPresentation.localDate(transaction.postedAt, calendar: calendar)
+    }
+
+    /// The financial year the deduction is claimed in.
+    var financialYear: Int { DeductionsPresentation.financialYear(ofISODate: date) }
+}
+
 /// The Deductions screen's derived figures and labels, mirroring the PWA's
 /// `DeductionsScreen`, `DeductionItem` and `DeductionGroup` so both surfaces total,
 /// group and label identically.
@@ -115,6 +142,22 @@ struct DeductionsPresentation: Sendable {
             return "\(date) · \(number(deduction.workUsePercent))% work use"
         }
         return date
+    }
+
+    /// The AU financial year, labelled by its ending year, that an ISO date falls in.
+    static func financialYear(ofISODate iso: String) -> Int {
+        let parts = iso.prefix(10).split(separator: "-").compactMap { Int($0) }
+        guard parts.count == 3 else { return 0 }
+        return parts[1] >= 7 ? parts[0] + 1 : parts[0]
+    }
+
+    /// `From Bunnings · 3 Nov 2026`, naming the transaction a deduction was created from.
+    static func sourceLabel(_ transaction: LedgerTransaction, calendar: Calendar = .current)
+        -> String
+    {
+        let title = transaction.description.isEmpty ? "Card purchase" : transaction.description
+        let date = formatISODate(GiftsPresentation.localDate(transaction.postedAt, calendar: calendar))
+        return "From \(title) · \(date)"
     }
 
     /// `1 Aug 2026` for an ISO date, built without a timezone shift.

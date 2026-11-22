@@ -39,6 +39,7 @@ enum ReviewFixtures {
     private final class Server: @unchecked Sendable {
         var list = "[\(ReviewFixtures.transaction("t1"))]"
         var focused = "[]"
+        var deductions = "[]"
         var failing: Set<String> = []
         /// A status and body answered by `up-categorise`.
         var categorise: (Int, String) = (200, "{}")
@@ -59,6 +60,7 @@ enum ReviewFixtures {
             case "transactions": return (200, query.contains("id=eq.") ? focused : list)
             case "up_category": return (200, ReviewFixtures.categories)
             case "account_directory": return (200, ReviewFixtures.accounts)
+            case "deduction": return (200, deductions)
             case "up-categorise": return categorise
             case "review_transaction": return (reviewStatus, "{}")
             default: return (200, "[]")
@@ -102,6 +104,46 @@ enum ReviewFixtures {
         #expect(list.query.contains("order=posted_at.desc"))
         #expect(list.query.contains("limit=100"))
         #expect(!server.requests.contains { $0.query.contains("id=eq.") })
+    }
+
+    @Test func offersCreateDeductionOnAnOutflowWithNoDeduction() async throws {
+        let server = Server()
+        let model = TransactionReviewViewModel(data: makeData(server))
+        await model.load()
+
+        let row = try #require(model.state.value?.rows.first)
+        #expect(!row.hasDeduction)
+        let draft = try #require(row.deductionDraft)
+        #expect(draft.transactionID == "t1")
+        #expect(draft.description == "Cafe Lune")
+        #expect(draft.amountCents == 4_250)
+        let read = try #require(server.requests.first { $0.path == "deduction" })
+        #expect(read.query.contains("transaction_id=not.is.null"))
+    }
+
+    @Test func aTransactionWithADeductionIsMarkedAndOffersNoSecond() async throws {
+        let server = Server()
+        server.deductions = """
+            [{"id":"d1","household_id":"h","member_id":"m1","financial_year":2027,\
+            "description":"Cafe Lune","amount_cents":4250,"full_amount_cents":4250,\
+            "work_use_percent":100,"deduction_date":"2026-11-20","basis":"amount",\
+            "category":"work_expense","distance_km":null,"work_from_home_hours":null,\
+            "group_id":null,"transaction_id":"t1",\(ReviewFixtures.stamp)}]
+            """
+        let model = TransactionReviewViewModel(data: makeData(server))
+        await model.load()
+
+        let row = try #require(model.state.value?.rows.first)
+        #expect(row.hasDeduction)
+        #expect(row.deductionDraft == nil)
+    }
+
+    @Test func anInflowOffersNoDeduction() async throws {
+        let server = Server()
+        server.list = "[\(ReviewFixtures.transaction("t1").replacingOccurrences(of: "-4250", with: "4250"))]"
+        let model = TransactionReviewViewModel(data: makeData(server))
+        await model.load()
+        #expect(model.state.value?.rows.first?.deductionDraft == nil)
     }
 
     @Test func leadsWithTheFocusedTransactionEvenOnceReviewed() async throws {

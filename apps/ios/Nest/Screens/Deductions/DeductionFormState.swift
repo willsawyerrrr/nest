@@ -28,6 +28,8 @@ final class DeductionFormState {
     var workUse: String
     var pickedGroupID: String?
     var figures: DeductionFigures = .zero
+    /// The ledger transaction the form was opened from; saved with a new deduction.
+    let transactionID: String?
 
     private var claimed: Set<Field> = []
 
@@ -35,6 +37,7 @@ final class DeductionFormState {
         memberID: String, financialYear: Int, initial: Deduction? = nil,
         openedFrom: DeductionGroup? = nil, groups: [DeductionGroup] = [],
         category: DeductionCategory? = nil, extraction: DeductionExtraction? = nil,
+        transaction: TransactionDeductionDraft? = nil,
         today: String = DeductionFormState.todayISO()
     ) {
         self.memberID = memberID
@@ -42,10 +45,14 @@ final class DeductionFormState {
         self.initial = initial
         self.openedFrom = openedFrom
         self.groups = groups
-        description = initial?.description ?? extraction?.description ?? ""
-        let cents = initial?.fullAmountCents ?? initial?.amountCents ?? extraction?.amountCents
+        transactionID = transaction?.transactionID
+        description =
+            initial?.description ?? transaction?.description ?? extraction?.description ?? ""
+        let cents =
+            initial?.fullAmountCents ?? initial?.amountCents ?? transaction?.amountCents
+            ?? extraction?.amountCents
         amount = cents.map(Self.dollars) ?? ""
-        date = initial?.deductionDate ?? extraction?.deductionDate ?? today
+        date = initial?.deductionDate ?? transaction?.date ?? extraction?.deductionDate ?? today
         self.category =
             initial?.category ?? category ?? (openedFrom?.kind == "donations" ? .donation : .workExpense)
         distance = initial?.distanceKm.map(DeductionsPresentation.number) ?? ""
@@ -53,6 +60,8 @@ final class DeductionFormState {
         workUse = DeductionsPresentation.number(initial?.workUsePercent ?? 100)
         let start = openedFrom?.id ?? initial?.groupId
         pickedGroupID = groups.contains { $0.kind == "standard" && $0.id == start } ? start : nil
+        // A receipt read never overwrites what the transaction supplied.
+        if transaction != nil { claimed = [.description, .amount, .date] }
     }
 
     static func todayISO(_ date: Date = Date()) -> String {
@@ -168,6 +177,6 @@ final class DeductionFormState {
             workFromHomeHours: isHours ? derivedNumber : nil,
             groupID: isDonation ? nil : (openedFrom?.id ?? pickedGroupID), category: category,
             fullAmountCents: isDerived ? computedAmountCents : fullAmountCents,
-            workUsePercent: workUsePercent)
+            workUsePercent: workUsePercent, transactionID: initial == nil ? transactionID : nil)
     }
 }

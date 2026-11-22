@@ -39,7 +39,7 @@ export function registerDeductionTools(
     'list_deductions',
     {
       description:
-        'List tax deductions for a financial year (default: the current one, labelled by its ending year) with basis, amount, full cost, work use, group, and whether a receipt is stored. Optionally filter by member name or category.',
+        'List tax deductions for a financial year (default: the current one, labelled by its ending year) with basis, amount, full cost, work use, group, source transaction_id, and whether a receipt is stored. Optionally filter by member name or category.',
       inputSchema: listDeductionsInput.shape,
       annotations: { readOnlyHint: true },
     },
@@ -50,7 +50,7 @@ export function registerDeductionTools(
     'add_deduction',
     {
       description:
-        "Add a deduction by hand. basis amount (default): amount_cents is the full cost and work_use_percent (work expenses only, default 100) the share claimed. basis distance: distance_km, priced at the financial year's ATO cents-per-km rate. basis hours: work_from_home_hours, priced at the ATO fixed rate. Distance and hours are work expenses only. category is work_expense, donation, or tax_agent_fees; a donation is filed automatically in the donations group. group_id files a non-donation in a standard group of the same member and year. Category and basis cannot be changed later.",
+        "Add a deduction by hand. basis amount (default): amount_cents is the full cost and work_use_percent (work expenses only, default 100) the share claimed. basis distance: distance_km, priced at the financial year's ATO cents-per-km rate. basis hours: work_from_home_hours, priced at the ATO fixed rate. Distance and hours are work expenses only. category is work_expense, donation, or tax_agent_fees; a donation is filed automatically in the donations group. group_id files a non-donation in a standard group of the same member and year. transaction_id (from list_transactions, an outflow with no deduction yet) links the deduction to its source transaction; the stated figures still apply. Category and basis cannot be changed later.",
       inputSchema: addDeductionInput.shape,
     },
     (input) => respond(() => addDeduction(ctx, input)),

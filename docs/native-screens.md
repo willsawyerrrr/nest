@@ -288,6 +288,18 @@ engine reports (`financialYearOptions`), opening on the current one.
   (fixed rate). The figures come from the engine's `deductionFigures`; a donation or tax
   agent fee is always claimed in full. Editing keeps the basis and reopens on the full
   cost.
+- **From a transaction.** `DeductionsScreen(draft:)` takes a `TransactionDeductionDraft`
+  (Transaction review's "Create deduction") and opens the signed-in member's add form
+  prefilled with the transaction's description (`Card purchase` when blank), absolute
+  amount and local date, in that date's financial year
+  (`DeductionsPresentation.financialYear(ofISODate:)`). The member picks the category,
+  basis and work use as usual and can still attach a receipt; a receipt read never
+  overwrites the transaction's figures. The save sends `transaction_id` in the
+  `create_deduction_with_receipt` payload (`DeductionWrite.transactionID`, create only).
+  A deduction with a `transaction_id` shows a `From <description> · <date>` link beneath
+  its row, opening that transaction in review; the transactions are read by id after the
+  deductions load (`DeductionsContent.sourceTransactions`) and a transaction the member
+  cannot see is left unnamed.
 - **Groups.** A group collapses to its name, payment count and total (summed from its
   payments). A payment's grip drags it onto a group, between groups, or onto the
   ungrouped list; valid targets are outlined while dragging (`DeductionDrop`, the rules
@@ -986,7 +998,12 @@ Tapping a row expands the editor: a category menu (Up's child categories under
 their parents), the Nest note prefilled from `notes`, and Save (enabled once
 the category or note changes), Looks right (disabled while the category is
 changed) and It's a gift, which files the transaction under `gifts-and-charity`
-and shows a notice linking to Gifts.
+and shows a notice linking to Gifts. An outflow (negative amount) with no deduction
+also offers Create deduction, which opens the Deductions form prefilled and linked to it
+(see [Deductions](#deductions)); a transaction that already has a deduction shows a
+Deduction pill instead, so a second cannot be created. The deductions that name a
+transaction are read from `deduction` (`transaction_id` not null, bypassing the row
+cache).
 
 It reads `transactions` (`source = up`, categorisable, `reviewed_at` null,
 bypassing the row cache as on Gifts), `up_category` (the `UpCategory` model) and

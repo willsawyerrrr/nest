@@ -59,6 +59,7 @@ export interface DeductionRow {
   distance_km: number | null
   work_from_home_hours: number | null
   group_id: string | null
+  transaction_id: string | null
 }
 
 async function findDeduction(ctx: NestContext, id: string): Promise<DeductionRow> {
@@ -122,6 +123,7 @@ export async function listDeductions(ctx: NestContext, input: z.infer<typeof lis
       work_from_home_hours: row.work_from_home_hours,
       group_id: row.group_id,
       group: groups.find((g) => g.id === row.group_id)?.name ?? null,
+      transaction_id: row.transaction_id,
       has_receipt: receipted.has(row.id),
     }))
 }
@@ -141,6 +143,7 @@ export const addDeductionInput = z.object({
   basis: z.enum(DEDUCTION_BASES).default('amount'),
   member: z.string().trim().min(1).optional(),
   group_id: z.uuid().optional(),
+  transaction_id: z.uuid().optional(),
 })
 
 interface Stated {
@@ -218,13 +221,38 @@ function priced(
   }
 }
 
+/** Refuses a transaction that cannot back a deduction: unseen, not an outflow, or already backing one. */
+async function assertLinkable(ctx: NestContext, transactionId: string): Promise<void> {
+  const { data: transaction, error } = await ctx.supabase
+    .from('transactions')
+    .select('id,amount_cents')
+    .eq('id', transactionId)
+    .maybeSingle()
+  if (error) throw fixedError('query_failed')
+  if (!transaction) throw new ToolError('not_found', 'No transaction matches that id.')
+  if ((transaction as { amount_cents: number }).amount_cents >= 0) {
+    throw new ToolError('invalid_details', 'Only an outflow transaction can become a deduction.')
+  }
+  const { data: existing, error: existingError } = await ctx.supabase
+    .from('deduction')
+    .select('id')
+    .eq('transaction_id', transactionId)
+    .maybeSingle()
+  if (existingError) throw fixedError('query_failed')
+  if (existing) {
+    throw new ToolError('invalid_details', 'That transaction already has a deduction.')
+  }
+}
+
 /**
  * Adds a deduction by hand. The amount basis takes the full cost in
  * `amount_cents` and a `work_use_percent` (work expenses only); the distance and
  * hours bases take kilometres or hours and snapshot the financial year's
  * published rate into `amount_cents`. A donation is filed in the member's
  * automatic donations group; any other category may be filed in a standard
- * group of the same member and year.
+ * group of the same member and year. Given a `transaction_id` of an outflow
+ * with no deduction yet, it links the deduction to that transaction; the
+ * figures are still the ones stated.
  */
 export async function addDeduction(ctx: NestContext, input: z.infer<typeof addDeductionInput>) {
   const member = await resolveMember(ctx, input.member)
@@ -234,6 +262,7 @@ export async function addDeduction(ctx: NestContext, input: z.infer<typeof addDe
     if (input.category === 'donation') throw automaticGroupError()
     assertFilable(await findGroup(ctx, input.group_id), member.id, financialYear)
   }
+  if (input.transaction_id !== undefined) await assertLinkable(ctx, input.transaction_id)
   const id = ctx.randomUUID()
   const { error } = await ctx.supabase.rpc('create_deduction_with_receipt', {
     p_deduction: {
@@ -246,6 +275,7 @@ export async function addDeduction(ctx: NestContext, input: z.infer<typeof addDe
       category: input.category,
       basis: input.basis,
       group_id: input.group_id ?? null,
+      transaction_id: input.transaction_id ?? null,
       ...stored,
     },
   })
@@ -259,6 +289,7 @@ export async function addDeduction(ctx: NestContext, input: z.infer<typeof addDe
     deduction_date: input.deduction_date,
     financial_year: financialYear,
     group_id: input.group_id ?? null,
+    transaction_id: input.transaction_id ?? null,
     ...stored,
     warning,
   }

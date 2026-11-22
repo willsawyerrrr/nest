@@ -154,8 +154,8 @@ private struct ReviewRowView: View {
             if isOpen {
                 ReviewForm(
                     transaction: row.transaction, categorisable: row.categorisable,
-                    isGift: row.isGift, groups: groups, onReview: onReview,
-                    onGiftFiled: onGiftFiled
+                    isGift: row.isGift, deductionDraft: row.deductionDraft, groups: groups,
+                    onReview: onReview, onGiftFiled: onGiftFiled
                 )
                 .padding(.top, NestSpacing.xs)
             }
@@ -173,6 +173,7 @@ private struct ReviewRowView: View {
                         .foregroundStyle(NestColor.text).lineLimit(1)
                     if row.pending { NestPill(text: "Pending", tone: .warning) }
                     if row.reviewed { NestPill(text: "Reviewed", tone: .positive) }
+                    if row.hasDeduction { NestPill(text: "Deduction", tone: .positive) }
                 }
                 caption(row.meta, dimmed: true)
                 caption(row.category, dimmed: false)
@@ -197,6 +198,8 @@ private struct ReviewForm: View {
     let transaction: LedgerTransaction
     let categorisable: Bool
     let isGift: Bool
+    /// Set for an outflow with no deduction yet, offering "Create deduction".
+    let deductionDraft: TransactionDeductionDraft?
     let groups: [UpCategoryGroup]
     let onReview: (String, ReviewCategory) async -> ReviewOutcome
     let onGiftFiled: () -> Void
@@ -210,13 +213,14 @@ private struct ReviewForm: View {
 
     init(
         transaction: LedgerTransaction, categorisable: Bool, isGift: Bool,
-        groups: [UpCategoryGroup],
+        deductionDraft: TransactionDeductionDraft?, groups: [UpCategoryGroup],
         onReview: @escaping (String, ReviewCategory) async -> ReviewOutcome,
         onGiftFiled: @escaping () -> Void
     ) {
         self.transaction = transaction
         self.categorisable = categorisable
         self.isGift = isGift
+        self.deductionDraft = deductionDraft
         self.groups = groups
         self.onReview = onReview
         self.onGiftFiled = onGiftFiled
@@ -258,6 +262,22 @@ private struct ReviewForm: View {
                     actionButton("It's a gift", systemImage: "gift", action: .gift, style: .outline) {
                         .set(TransactionReviewPresentation.giftCategory)
                     }
+                }
+            }
+            if let deductionDraft {
+                HStack {
+                    NavigationLink {
+                        DeductionsScreen(draft: deductionDraft)
+                            .navigationTitle(Route.deductions.title)
+                            #if os(iOS)
+                                .navigationBarTitleDisplayMode(.inline)
+                            #endif
+                    } label: {
+                        Label("Create deduction", systemImage: "doc.text")
+                            .labelStyle(.titleAndIcon)
+                    }
+                    .buttonStyle(ReviewButtonStyle(kind: .outline))
+                    Spacer(minLength: 0)
                 }
             }
         }

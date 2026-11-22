@@ -128,6 +128,7 @@ function makeDeduction(overrides: Partial<DeductionRow> = {}): DeductionRow {
     full_amount_cents: 1_200_00,
     work_use_percent: 100,
     category: 'work_expense',
+    transaction_id: null,
     created_at: '',
     updated_at: '',
     ...overrides,

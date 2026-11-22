@@ -9,6 +9,8 @@ struct TransactionReviewRows: Codable, Sendable, Equatable {
     var focused: [LedgerTransaction] = []
     var categories: [UpCategory] = []
     var accounts: [AccountDirectoryEntry] = []
+    /// The deductions created from a transaction, naming the transactions that already have one.
+    var deductions: [Deduction] = []
 
     /// The most unreviewed transactions read at once, newest first.
     static let pageSize = 100
@@ -33,6 +35,9 @@ struct TransactionReviewRows: Codable, Sendable, Equatable {
             ) { $0.transactions = $1 },
             .table(UpCategory.self) { $0.categories = $1 },
             .table(AccountDirectoryEntry.self, order: [Order(column: "name")]) { $0.accounts = $1 },
+            .table(Deduction.self, filters: [.notNull("transaction_id")], cached: false) {
+                $0.deductions = $1
+            },
         ]
         if let focusID = validFocusID(focusID) {
             sources.append(

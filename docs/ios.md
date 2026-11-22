@@ -97,7 +97,7 @@ name through the App Store Connect API (the notarisation key,
 to each target's `PROVISIONING_PROFILE_SPECIFIER` (empty for every other build).
 Recreate a profile with `POST /v1/profiles` (`profileType: MAC_APP_DIRECT`, the
 `DEVELOPER_ID_APPLICATION_G2` certificate) if one is ever deleted. The app
-exposes the same four
+exposes the same
 App Intents and App Shortcuts and the same Spotlight index as `Nest`, and its
 embedded share extension is `ShareExtensionMac/`. Google Sign-In uses
 `GIDSignIn.signIn(withPresenting: NSWindow…)` with the same public iOS-type OAuth
@@ -325,6 +325,14 @@ sign in…"; network or decode failure → "Couldn't reach Nest just now."
   containing `\(.applicationName)`; the budget-line and pay-split phrases also carry their `line` / `account` parameter, e.g. "How much do we budget for \(\.$line) in Nest"), so the phrases reach Siri, Spotlight, and
   the Shortcuts app on install with no further setup.
 
+- **`Intents/OpenScreenIntent.swift`** — opens Nest on a native screen. A
+  `ScreenShortcut` (`AppEnum`: Summary, Transactions to review, Gifts, Savings
+  goals, Budget) maps each case to a `Route`; `perform()` (`openAppWhenRun`)
+  hands `NotificationDestination(route:)` to `NotificationRouter`, the router a
+  tapped notification uses, so a cold launch shows the screen once the member is
+  signed in. `NestShortcuts` offers it as "Review my Nest transactions", "Open my
+  Nest gifts" (each with its screen preset) and "Open \(\.$screen) in Nest".
+
 In every service the HTTP call and the spoken-sentence formatting are plain
 injectable functions (the transport and the token provider are parameters), so
 each `perform()` is a thin shell over testable code. Money is formatted
@@ -458,6 +466,19 @@ with Web Push (see [`architecture.md`](architecture.md#push-notifications)).
   the route with a fresh navigation stack, so a pushed detail is popped even
   when the route is already showing; Planning opens Summary while planning
   mode is off.
+- **Actions.** A payload's `aps.category` names a `UNNotificationCategory`
+  that `NotificationActions.categories` registers at launch. `gift_candidate`
+  (sent for `gift_candidate_new`, with the transaction's id as `transactionId`)
+  offers **Link to a gift**, which opens the app on Gifts (a foreground action
+  handled as a tap, since linking needs a recipient and occasion chosen), and
+  **Not a gift**, which needs the device unlocked and runs without opening the
+  app: `GiftCandidateDismisser` reads the transaction (row-level security
+  withholds one the member cannot see, which writes nothing) and inserts the
+  `gift_transaction_dismissal` the Gifts screen writes, then completes. A tap or
+  action the payload cannot route (no `url`, or an empty `transactionId` for the
+  dismiss action) is ignored. `NotificationResponse` maps an action identifier
+  and payload to what the delegate does. Mac Catalyst and `NestMac` register no
+  categories.
   Notifications that arrive in the foreground are shown as banners. The delegate
   uses the completion-handler forms of `didReceive` and `willPresent` and calls
   the completion handler on the main thread: UserNotifications calls them on a
@@ -562,7 +583,7 @@ the anon key.
 - `Nest/` — Swift sources: `NestApp.swift`, `ContentView.swift`, `Navigation/`,
   `DesignSystem/`, `Screens/` (the [native screens](native-screens.md)), `WebView.swift`,
   `SessionBridge.swift`, `Supabase.swift`, `Auth.swift`,
-  `PushNotifications.swift`, `Data/` (the [native data layer](#native-data-layer)),
+  `PushNotifications.swift`, `NotificationActions.swift`, `Data/` (the [native data layer](#native-data-layer)),
   `NestAppDelegate+iOS.swift` /
   `NestAppDelegate+macOS.swift`, and `Intents/`. The iOS/macOS divergence in
   `Auth.swift`, `ContentView.swift`, `NestAppDelegate+*.swift`, and

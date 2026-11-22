@@ -322,8 +322,12 @@ channel:
   `register_apns_device` RPC (keyed on the unique token, with the `sandbox` or
   `production` environment its build was signed for; a token registered by a
   different member is reassigned to the caller). It deletes the row before
-  signing out, and a tap hands the payload's `url` to its web view, which no
-  native screen shows, so the tap opens the app where it was. Like a
+  signing out, and a tap opens the native screen the payload's `url` names. A
+  payload may carry a `native` action (a notification category and the
+  transaction it acts on), which `_shared/apns.ts` sends as `aps.category` and
+  `transactionId` and Web Push omits; `gift_candidate_new` carries the
+  `gift_candidate` category, whose actions link the candidate (opening Gifts) or
+  set it aside as not a gift. Like a
   subscription, a token is readable and deletable only by its member.
 - `push-key` returns the VAPID public key for
   `pushManager.subscribe({ applicationServerKey })`. Serving it beats baking it

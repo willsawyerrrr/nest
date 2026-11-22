@@ -136,7 +136,7 @@ final class GiftsViewModel {
         return await write("Could not set this aside. Please try again.") {
             try await data.insert(
                 GiftTransactionDismissal.self,
-                values: DismissalValues(householdId: household, transactionId: transactionID),
+                values: GiftDismissalValues(householdId: household, transactionId: transactionID),
                 also: ["transactions"])
         }
     }
@@ -298,15 +298,6 @@ final class GiftsViewModel {
         }
         await load()
         return true
-    }
-
-    private struct DismissalValues: Encodable, Sendable {
-        let householdId: String
-        let transactionId: String
-        enum CodingKeys: String, CodingKey {
-            case householdId = "household_id"
-            case transactionId = "transaction_id"
-        }
     }
 
     private struct DiscretionaryValues: Encodable, Sendable {

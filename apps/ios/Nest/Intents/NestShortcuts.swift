@@ -1,7 +1,8 @@
 import AppIntents
 
-/// Registers the query intents as zero-configuration App Shortcuts, so their
-/// phrases reach Siri, Spotlight, and the Shortcuts app on install.
+/// Registers the query and open-screen intents as zero-configuration App
+/// Shortcuts, so their phrases reach Siri, Spotlight, and the Shortcuts app on
+/// install.
 struct NestShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(
@@ -49,6 +50,33 @@ struct NestShortcuts: AppShortcutsProvider {
             ],
             shortTitle: "Pay split",
             systemImageName: "arrow.triangle.branch"
+        )
+        AppShortcut(
+            intent: OpenScreenIntent(screen: .transactionReview),
+            phrases: [
+                "Review my \(.applicationName) transactions",
+                "Review transactions in \(.applicationName)",
+            ],
+            shortTitle: "Review transactions",
+            systemImageName: "checklist"
+        )
+        AppShortcut(
+            intent: OpenScreenIntent(screen: .gifts),
+            phrases: [
+                "Open my \(.applicationName) gifts",
+                "Show my gifts in \(.applicationName)",
+            ],
+            shortTitle: "Gifts",
+            systemImageName: "gift"
+        )
+        AppShortcut(
+            intent: OpenScreenIntent(),
+            phrases: [
+                "Open \(\.$screen) in \(.applicationName)",
+                "Show \(\.$screen) in \(.applicationName)",
+            ],
+            shortTitle: "Open a screen",
+            systemImageName: "rectangle.portrait.and.arrow.right"
         )
     }
 }

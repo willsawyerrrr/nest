@@ -75,3 +75,14 @@ struct GiftsRows: Codable, Sendable, Equatable {
         return Set(budgets.filter { own.contains($0.recipientId) }.map(\.id))
     }
 }
+
+/// The columns of a `gift_transaction_dismissal` insert.
+struct GiftDismissalValues: Encodable, Sendable {
+    let householdId: String
+    let transactionId: String
+
+    enum CodingKeys: String, CodingKey {
+        case householdId = "household_id"
+        case transactionId = "transaction_id"
+    }
+}

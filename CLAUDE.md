@@ -719,8 +719,10 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   extractors with Apple Foundation Models (`supabase/functions/_eval/`,
   `evals/foundation-models/`); see
   [`docs/on-device-extraction.md`](docs/on-device-extraction.md) for the
-  confirmed SDK facts and results. Real documents stay git-ignored under
-  `evals/local/`.
+  confirmed SDK facts and results and
+  [`docs/extraction-eval-design.md`](docs/extraction-eval-design.md) for the
+  evals that choose a model per document type. Real documents stay git-ignored
+  under `evals/local/`.
 - On-device receipts: the native apps read deduction receipts with the system
   model when it is ready (`DeductionReceiptExtractor`, from the PDF text layer or
   Vision OCR), converting the printed text in Swift as `fields.ts` does, and

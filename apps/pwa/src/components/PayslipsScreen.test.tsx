@@ -69,6 +69,7 @@ function renderScreen(overrides: Partial<Parameters<typeof PayslipsScreen>[0]> =
     payslips: [makePayslip()],
     lines: [makePayslipLine()],
     inflows: [inflow],
+    credits: [],
     financialYear: 2027,
     estimate,
     config,
@@ -882,5 +883,83 @@ describe('PayslipsScreen', () => {
 
     expect(await screen.findByLabelText('a.pdf')).toBeInTheDocument()
     expect(screen.getByLabelText('b.pdf')).toBeInTheDocument()
+  })
+
+  describe('net pay received in Up', () => {
+    /** A credit carrying the default slip's $4,000.00 net on the day it was paid. */
+    function salaryCredit(overrides: Record<string, unknown> = {}) {
+      return {
+        id: 't1',
+        posted_at: '2026-07-15T09:00:00+10:00',
+        amount_cents: 4_000_00,
+        member_id: null,
+        description: 'Acme Pty Ltd',
+        transaction_type: 'Direct Credit',
+        ...overrides,
+      }
+    }
+
+    it('ties a slip to the credit carrying its net, and lists the member’s pay received', async () => {
+      const user = userEvent.setup()
+      renderScreen({ credits: [salaryCredit()] })
+
+      expect(screen.getByText('Net pay received in Up')).toBeInTheDocument()
+      expect(screen.getByText(/1 of 1 slips matched/)).toBeInTheDocument()
+      await expandCards(user)
+      expect(within(cardDetail()).getByText(/Landed in Up 15 Jul/)).toBeInTheDocument()
+      expect(within(cardDetail()).getByText(/matches the slip’s net/)).toBeInTheDocument()
+    })
+
+    it('says how far a credit falls short of the slip’s net', async () => {
+      const user = userEvent.setup()
+      renderScreen({ credits: [salaryCredit({ amount_cents: 3_900_00 })] })
+
+      await expandCards(user)
+      expect(within(cardDetail()).getByText(/less than the slip’s net/)).toHaveTextContent(
+        '$100.00 less than the slip’s net',
+      )
+    })
+
+    it('flags a slip no credit carried', async () => {
+      const user = userEvent.setup()
+      renderScreen({ credits: [salaryCredit({ amount_cents: 1_000_00 })] })
+
+      await expandCards(user)
+      expect(within(cardDetail()).getByText('No matching credit in Up')).toBeInTheDocument()
+    })
+
+    it('flags a pay landing off the cycle, and pay with no slip entered', () => {
+      renderScreen({
+        credits: [
+          salaryCredit(),
+          salaryCredit({ id: 't2', posted_at: '2026-08-05T09:00:00+10:00' }),
+        ],
+      })
+
+      expect(screen.getByText('No payslip entered')).toBeInTheDocument()
+      expect(screen.getByText('21 days after the previous pay; paid every 14')).toBeInTheDocument()
+    })
+
+    it('names joint-account salary it cannot tie to a member', () => {
+      renderScreen({
+        members: [will, sam],
+        payslips: [],
+        lines: [],
+        credits: [salaryCredit({ transaction_type: 'Salary', description: 'QVS' })],
+      })
+
+      expect(
+        screen.getByText(/1 salary credit from QVS landed in a joint account/),
+      ).toBeInTheDocument()
+    })
+
+    it('shows nothing about Up without credits', async () => {
+      const user = userEvent.setup()
+      renderScreen()
+
+      expect(screen.queryByText('Net pay received in Up')).not.toBeInTheDocument()
+      await expandCards(user)
+      expect(screen.queryByText('No matching credit in Up')).not.toBeInTheDocument()
+    })
   })
 })

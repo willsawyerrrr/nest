@@ -1,6 +1,12 @@
 import { useMemo } from 'react'
 import { Group, SimpleGrid, Stack, Text } from '@mantine/core'
-import type { PayslipVariance, PayslipYearPosition, UnmeasuredInflowPosition } from '@nest/plan'
+import type {
+  MemberNetPay,
+  NetPayCorroboration,
+  PayslipVariance,
+  PayslipYearPosition,
+  UnmeasuredInflowPosition,
+} from '@nest/plan'
 import type { HouseholdTaxEstimate, TaxYearConfig } from '@nest/tax'
 import type { Inflow } from '../hooks/useInflows'
 import type { Member } from '../hooks/useMembers'
@@ -8,6 +14,7 @@ import type { PayslipLineRow } from '../hooks/usePayslipLines'
 import { usePayslipQueue } from '../hooks/usePayslipQueue'
 import type { PayslipAttachments, PayslipRow, PayslipSubmission } from '../hooks/usePayslips'
 import { formatIsoDate } from '../lib/dates'
+import { netPayCorroboration, type SalaryCreditRow } from '../lib/netPay'
 import {
   payslipReconciliation,
   payslipTotalsFromRows,
@@ -20,6 +27,7 @@ import {
 } from '../lib/payslips'
 import { EditableList } from './EditableList'
 import { MoneyText } from './MoneyText'
+import { MemberNetPayBlock, UnattributedSalaryNote } from './NetPayReceived'
 import { PageSection } from './PageSection'
 import { FigureCell, PayslipCard, VarianceNote } from './PayslipCard'
 import { PayslipForm } from './PayslipForm'
@@ -31,6 +39,8 @@ interface PayslipsScreenProps {
   /** Every payslip line the household has; each slip picks out its own. */
   lines: PayslipLineRow[]
   inflows: Inflow[]
+  /** The household's `income` credits around the year, corroborating each slip's net. */
+  credits: SalaryCreditRow[]
   financialYear: number
   /** The household tax estimate the withholding and super expectations are read from. */
   estimate: HouseholdTaxEstimate
@@ -220,10 +230,11 @@ function MemberPayslips({
   member,
   payslips,
   reconciliation,
+  variances,
+  netPay,
+  corroboration,
   inflows,
   financialYear,
-  estimate,
-  config,
   attachments,
   onCreate,
   onUpdate,
@@ -233,10 +244,12 @@ function MemberPayslips({
   member: Member
   payslips: PayslipRow[]
   reconciliation: PayslipReconciliation
+  variances: ReadonlyMap<string, PayslipVariance>
+  netPay: MemberNetPay | undefined
+  /** Null where the household has no credits to corroborate against. */
+  corroboration: NetPayCorroboration | null
   inflows: Inflow[]
   financialYear: number
-  estimate: HouseholdTaxEstimate
-  config: TaxYearConfig
   attachments: PayslipAttachments
   onCreate: (submission: PayslipSubmission) => Promise<void>
   onUpdate: (id: string, submission: PayslipSubmission) => Promise<void>
@@ -244,10 +257,6 @@ function MemberPayslips({
   signedUrl: (path: string) => Promise<string | null>
 }) {
   const queue = usePayslipQueue(attachments)
-  const memberEstimate = estimate.members.find((each) => each.memberId === member.id)
-  // Measured once for the member: each card reads its own slip's measurement out
-  // of this, and both year-to-date readings sum the very same ones.
-  const variances = payslipVariancesById(payslips, reconciliation, memberEstimate, config)
 
   const viewDocument = async (path: string) => {
     const url = await signedUrl(path)
@@ -274,6 +283,8 @@ function MemberPayslips({
         />
       )}
 
+      {netPay && <MemberNetPayBlock netPay={netPay} />}
+
       <PayslipImport
         queue={queue}
         member={member}
@@ -298,6 +309,7 @@ function MemberPayslips({
             payslip={payslip}
             variance={variances.get(payslip.id)!}
             inflowNames={reconciliation.inflowNames}
+            creditMatch={corroboration?.byPayslip.get(payslip.id)}
             onEdit={onEdit}
             onDelete={onDeleteItem}
             onViewDocument={(path) => void viewDocument(path)}
@@ -334,6 +346,7 @@ export function PayslipsScreen({
   payslips,
   lines,
   inflows,
+  credits,
   financialYear,
   estimate,
   config,
@@ -346,6 +359,38 @@ export function PayslipsScreen({
   // Household-wide and read by every card, so built once for the whole screen
   // rather than per member and per slip.
   const reconciliation = useMemo(() => payslipReconciliation(inflows, lines), [inflows, lines])
+  // Measured once: each card reads its own slip's measurement out of this, both
+  // year-to-date readings sum the very same ones, and the net-pay corroboration
+  // reads the plan's net for each period from it.
+  const variances = useMemo(
+    () =>
+      new Map(
+        members.flatMap((member) => [
+          ...payslipVariancesById(
+            payslips.filter((payslip) => payslip.member_id === member.id),
+            reconciliation,
+            estimate.members.find((each) => each.memberId === member.id),
+            config,
+          ),
+        ]),
+      ),
+    [members, payslips, reconciliation, estimate, config],
+  )
+  // Corroborated household-wide: a payer is tied to whichever member's slip it
+  // carried, and joint-account pay can belong to either.
+  const corroboration = useMemo(
+    () =>
+      credits.length === 0
+        ? null
+        : netPayCorroboration(
+            financialYear,
+            members.map((member) => member.id),
+            payslips,
+            variances,
+            credits,
+          ),
+    [credits, financialYear, members, payslips, variances],
+  )
 
   return (
     <PageSection
@@ -358,10 +403,11 @@ export function PayslipsScreen({
           member={member}
           payslips={payslips.filter((payslip) => payslip.member_id === member.id)}
           reconciliation={reconciliation}
+          variances={variances}
+          netPay={corroboration?.byMember.get(member.id)}
+          corroboration={corroboration}
           inflows={inflows}
           financialYear={financialYear}
-          estimate={estimate}
-          config={config}
           attachments={attachments}
           onCreate={onCreate}
           onUpdate={onUpdate}
@@ -369,6 +415,7 @@ export function PayslipsScreen({
           signedUrl={signedUrl}
         />
       ))}
+      {corroboration && <UnattributedSalaryNote credits={corroboration.unattributed} />}
     </PageSection>
   )
 }

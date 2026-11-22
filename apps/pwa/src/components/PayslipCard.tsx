@@ -13,6 +13,7 @@ import { IconChevronDown, IconChevronRight } from '@tabler/icons-react'
 import type {
   ExpectationBasis,
   PartCycleReason,
+  PayslipCreditMatch,
   PayslipLineGroupVariance,
   PayslipTaxGroupVariance,
   PayslipVariance,
@@ -26,6 +27,7 @@ import { AppCard } from './AppCard'
 import { EditDeleteActions } from './EditDeleteActions'
 import { ListRow } from './ListRow'
 import { MoneyText } from './MoneyText'
+import { PayslipCreditNote } from './NetPayReceived'
 
 /** What a figure with no variance to show says, where nothing more specific applies. */
 const NO_PROJECTION_NOTE = 'No projection to compare'
@@ -438,12 +440,13 @@ interface PayslipDetailProps {
   payslip: PayslipRow
   variance: PayslipVariance
   inflowNames: ReadonlyMap<string, string>
+  creditMatch?: PayslipCreditMatch | undefined
   onViewDocument: (path: string) => void
 }
 
 /**
  * A payslip's expanded body: the gross / withheld / super / net quartet each with
- * its own variance, the per-inflow and per-component breakdowns of its lines, and its
+ * its own variance, the Up credit that carried the net, the per-inflow and per-component breakdowns of its lines, and its
  * note and stored document. The figure grid reflows from two columns on a phone to
  * four from the `xs` breakpoint up — a payslip carries four figures and three
  * variances, more than a single dense row can hold. Expectations that are a share of
@@ -455,7 +458,13 @@ interface PayslipDetailProps {
  * no period expects carries {@link UnmeasuredGrossNote} instead of a gross variance,
  * that pay being measured across the year rather than against this period.
  */
-function PayslipDetail({ payslip, variance, inflowNames, onViewDocument }: PayslipDetailProps) {
+function PayslipDetail({
+  payslip,
+  variance,
+  inflowNames,
+  creditMatch,
+  onViewDocument,
+}: PayslipDetailProps) {
   return (
     <Stack gap={6}>
       <SimpleGrid cols={{ base: 2, xs: 4 }} spacing="xs">
@@ -477,6 +486,8 @@ function PayslipDetail({ payslip, variance, inflowNames, onViewDocument }: Paysl
         />
         <FigureCell label="Net" cents={payslip.net_cents} />
       </SimpleGrid>
+
+      {creditMatch && <PayslipCreditNote match={creditMatch} />}
 
       {variance.lineGroups.length > 0 && (
         <LineGroups
@@ -518,6 +529,8 @@ interface PayslipCardProps {
   variance: PayslipVariance
   /** Every inflow's name keyed by id, for naming each earnings-line group. */
   inflowNames: ReadonlyMap<string, string>
+  /** The Up credit that carried the slip; absent where the household has no credits to read. */
+  creditMatch?: PayslipCreditMatch | undefined
   onEdit: () => void
   onDelete: () => void
   onViewDocument: (path: string) => void
@@ -540,6 +553,7 @@ export function PayslipCard({
   payslip,
   variance,
   inflowNames,
+  creditMatch,
   onEdit,
   onDelete,
   onViewDocument,
@@ -563,6 +577,7 @@ export function PayslipCard({
         payslip={payslip}
         variance={variance}
         inflowNames={inflowNames}
+        creditMatch={creditMatch}
         onViewDocument={onViewDocument}
       />
     </Collapse>

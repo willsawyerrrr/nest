@@ -1,0 +1,376 @@
+/**
+ * Salary-credit corroboration: tying each member's pay, as it lands in Up, to the
+ * payslips that say what it should be.
+ *
+ * Up sees only net pay — PAYG withheld and super never touch the account — so a
+ * credit corroborates a slip's net and the pay's cadence, never its withholding.
+ * Actual withholding is read from payslips alone.
+ *
+ * A credit is tagged as a member's salary in three ways, in order:
+ *
+ * 1. **Matched to a payslip.** An `income` credit on the member's own account or a
+ *    joint one, landing in the slip's window and carrying an amount within
+ *    {@link AMOUNT_TOLERANCE} of the slip's net. Pairs are assigned closest amount
+ *    first, then closest day, each credit and slip used once.
+ * 2. **From the member's payer.** A credit whose payer (its description) also paid
+ *    one of the member's matched credits — the pays the member entered no slip for.
+ *    A payer both members' credits match is nobody's.
+ * 3. **Up's own `Salary` type.** A credit Up types as salary, on the member's own
+ *    account, or on a joint one in a one-member household. A joint salary credit
+ *    in a household of two, matching no payer, is left unattributed.
+ */
+
+import { MS_PER_DAY } from './constants.ts'
+import type { Money } from './index.ts'
+import { financialYearPeriod, isoDateMs } from './payPeriod.ts'
+
+/** Days before a slip's payment date a credit may land: a pay processed early. */
+export const PAID_ON_DAYS_BEFORE = 1
+
+/** Days after a slip's payment date a credit may land: a weekend or public holiday. */
+export const PAID_ON_DAYS_AFTER = 3
+
+/** Days after the period's last day a credit may land, for a slip stating no payment date. */
+export const PERIOD_END_DAYS_AFTER = 7
+
+/** How far a credit's amount may stray from the slip's net, as a fraction of it, and still match. */
+export const AMOUNT_TOLERANCE = 0.1
+
+/** A credit within this of the slip's net matches it outright: rounding, not drift. */
+export const ROUNDING_TOLERANCE_CENTS: Money = 1_00
+
+/** Days a pay may land either side of its expected cadence before it reads as drift. */
+export const CADENCE_TOLERANCE_DAYS = 3
+
+/** How far a pay may differ from the previous one, as a fraction of it, before it reads as drift. */
+export const AMOUNT_DRIFT_TOLERANCE = 0.1
+
+/** Up's transaction type for a credit it recognises as salary. */
+export const UP_SALARY_TYPE = 'Salary'
+
+/** An `income` credit as the corroboration reads it. */
+export interface SalaryCreditCandidate {
+  readonly id: string
+  /** The local calendar date the credit was posted (`YYYY-MM-DD`). */
+  readonly postedOn: string
+  /** The credited amount; positive. */
+  readonly amountCents: Money
+  /** The account owner the credit is attributed to; null on a joint account. */
+  readonly memberId: string | null
+  /** Who paid it — the transaction's description. */
+  readonly payer: string
+  /** Up's transaction type, e.g. `Salary` or `Direct Credit`. */
+  readonly transactionType: string | null
+}
+
+/** A payslip as the corroboration reads it. */
+export interface NetPaySlip {
+  readonly id: string
+  readonly memberId: string
+  readonly paidOn: string | null
+  readonly periodStart: string
+  readonly periodEnd: string
+  readonly netCents: Money
+  /** The plan's net for the period, or null where it has no gross to model. */
+  readonly modelledNetCents: Money | null
+}
+
+/** How a slip's net stands against the credit that carried it. */
+export type CreditMatchStatus = 'matched' | 'differs' | 'missing'
+
+/** The credit a slip was matched to, measured against the slip's and the plan's net. */
+export interface PayslipCreditMatch {
+  readonly status: CreditMatchStatus
+  readonly creditId: string | null
+  readonly postedOn: string | null
+  readonly amountCents: Money | null
+  /** The credit less the slip's net; null with no credit. */
+  readonly netDifferenceCents: Money | null
+  /** The credit less the plan's modelled net; null with no credit or no model. */
+  readonly modelledDifferenceCents: Money | null
+}
+
+/** One of a member's salary credits, with how it stands against the pay before it. */
+export interface MemberSalaryCredit {
+  readonly id: string
+  readonly postedOn: string
+  readonly amountCents: Money
+  readonly payer: string
+  /** The slip it carries, or null for a pay with no slip entered. */
+  readonly payslipId: string | null
+  /** Days since the previous pay; null for the first. */
+  readonly daysSincePrevious: number | null
+  /** Whether that gap strays more than {@link CADENCE_TOLERANCE_DAYS} from the cadence. */
+  readonly cadenceDrift: boolean
+  /** This pay less the previous one; null for the first. */
+  readonly previousDifferenceCents: Money | null
+  /** Whether that difference exceeds {@link AMOUNT_DRIFT_TOLERANCE} of the previous pay. */
+  readonly amountDrift: boolean
+}
+
+/** A member's net pay received over the financial year. */
+export interface MemberNetPay {
+  readonly memberId: string
+  /** Every salary credit in the year, most recent first. */
+  readonly credits: readonly MemberSalaryCredit[]
+  readonly receivedCents: Money
+  readonly payslipCount: number
+  /** Slips a credit was matched to, whether or not the amounts agree. */
+  readonly matchedCount: number
+  /** The pay cycle in days, or null where neither the slips nor the credits establish one. */
+  readonly cadenceDays: number | null
+}
+
+/** The corroboration across the household. */
+export interface NetPayCorroboration {
+  readonly byPayslip: ReadonlyMap<string, PayslipCreditMatch>
+  readonly byMember: ReadonlyMap<string, MemberNetPay>
+  /** Up salary credits in the year attributable to no member, most recent first. */
+  readonly unattributed: readonly SalaryCreditCandidate[]
+}
+
+function addDays(iso: string, days: number): number {
+  return isoDateMs(iso) + days * MS_PER_DAY
+}
+
+function daysBetween(fromIso: string, toIso: string): number {
+  return Math.round((isoDateMs(toIso) - isoDateMs(fromIso)) / MS_PER_DAY)
+}
+
+/** The inclusive window a slip's credit may land in, as UTC-midnight instants. */
+function matchWindow(slip: NetPaySlip): { fromMs: number; toMs: number; anchor: string } {
+  if (slip.paidOn) {
+    return {
+      fromMs: addDays(slip.paidOn, -PAID_ON_DAYS_BEFORE),
+      toMs: addDays(slip.paidOn, PAID_ON_DAYS_AFTER),
+      anchor: slip.paidOn,
+    }
+  }
+  return {
+    fromMs: isoDateMs(slip.periodEnd),
+    toMs: addDays(slip.periodEnd, PERIOD_END_DAYS_AFTER),
+    anchor: slip.periodEnd,
+  }
+}
+
+function normalisePayer(payer: string): string {
+  return payer.trim().toLowerCase()
+}
+
+function median(values: readonly number[]): number {
+  const sorted = [...values].sort((a, b) => a - b)
+  const mid = Math.floor(sorted.length / 2)
+  return sorted.length % 2 === 1 ? sorted[mid]! : Math.round((sorted[mid - 1]! + sorted[mid]!) / 2)
+}
+
+/** The most common value, the smallest on a tie; null for none. */
+function mode(values: readonly number[]): number | null {
+  const counts = new Map<number, number>()
+  for (const value of values) {
+    counts.set(value, (counts.get(value) ?? 0) + 1)
+  }
+  let best: number | null = null
+  for (const [value, count] of counts) {
+    const bestCount = best === null ? 0 : counts.get(best)!
+    if (count > bestCount || (count === bestCount && value < best!)) {
+      best = value
+    }
+  }
+  return best
+}
+
+/** Pairs each slip with the credit closest to its net, closest amount first, then closest day. */
+function matchSlips(
+  slips: readonly NetPaySlip[],
+  credits: readonly SalaryCreditCandidate[],
+): Map<string, SalaryCreditCandidate> {
+  const pairs: { slip: NetPaySlip; credit: SalaryCreditCandidate; diff: number; days: number }[] =
+    []
+  for (const slip of slips) {
+    const { fromMs, toMs, anchor } = matchWindow(slip)
+    const tolerance = Math.max(ROUNDING_TOLERANCE_CENTS, Math.abs(slip.netCents) * AMOUNT_TOLERANCE)
+    for (const credit of credits) {
+      const postedMs = isoDateMs(credit.postedOn)
+      if (credit.memberId !== null && credit.memberId !== slip.memberId) continue
+      if (postedMs < fromMs || postedMs > toMs) continue
+      const diff = Math.abs(credit.amountCents - slip.netCents)
+      if (diff > tolerance) continue
+      pairs.push({ slip, credit, diff, days: Math.abs(daysBetween(anchor, credit.postedOn)) })
+    }
+  }
+  pairs.sort((a, b) => a.diff - b.diff || a.days - b.days)
+  const bySlip = new Map<string, SalaryCreditCandidate>()
+  const used = new Set<string>()
+  for (const { slip, credit } of pairs) {
+    if (bySlip.has(slip.id) || used.has(credit.id)) continue
+    bySlip.set(slip.id, credit)
+    used.add(credit.id)
+  }
+  return bySlip
+}
+
+function creditMatch(
+  slip: NetPaySlip,
+  credit: SalaryCreditCandidate | undefined,
+): PayslipCreditMatch {
+  if (!credit) {
+    return {
+      status: 'missing',
+      creditId: null,
+      postedOn: null,
+      amountCents: null,
+      netDifferenceCents: null,
+      modelledDifferenceCents: null,
+    }
+  }
+  const netDifferenceCents = credit.amountCents - slip.netCents
+  return {
+    status: Math.abs(netDifferenceCents) <= ROUNDING_TOLERANCE_CENTS ? 'matched' : 'differs',
+    creditId: credit.id,
+    postedOn: credit.postedOn,
+    amountCents: credit.amountCents,
+    netDifferenceCents,
+    modelledDifferenceCents:
+      slip.modelledNetCents === null ? null : credit.amountCents - slip.modelledNetCents,
+  }
+}
+
+/** A member's pay cycle: the slips' most common period length, else the credits' median gap. */
+function cadenceFor(slips: readonly NetPaySlip[], postedOn: readonly string[]): number | null {
+  const fromSlips = mode(slips.map((slip) => daysBetween(slip.periodStart, slip.periodEnd) + 1))
+  if (fromSlips !== null) return fromSlips
+  if (postedOn.length < 3) return null
+  const sorted = [...postedOn].sort()
+  return median(sorted.slice(1).map((each, index) => daysBetween(sorted[index]!, each)))
+}
+
+function memberNetPay(
+  memberId: string,
+  slips: readonly NetPaySlip[],
+  credits: readonly { credit: SalaryCreditCandidate; payslipId: string | null }[],
+  matchedCount: number,
+): MemberNetPay {
+  const ascending = [...credits].sort(
+    (a, b) =>
+      a.credit.postedOn.localeCompare(b.credit.postedOn) || a.credit.id.localeCompare(b.credit.id),
+  )
+  const cadenceDays = cadenceFor(
+    slips,
+    ascending.map(({ credit }) => credit.postedOn),
+  )
+  const measured = ascending.map(({ credit, payslipId }, index): MemberSalaryCredit => {
+    const previous = index === 0 ? undefined : ascending[index - 1]!.credit
+    const daysSincePrevious = previous ? daysBetween(previous.postedOn, credit.postedOn) : null
+    const previousDifferenceCents = previous ? credit.amountCents - previous.amountCents : null
+    return {
+      id: credit.id,
+      postedOn: credit.postedOn,
+      amountCents: credit.amountCents,
+      payer: credit.payer,
+      payslipId,
+      daysSincePrevious,
+      cadenceDrift:
+        daysSincePrevious !== null &&
+        cadenceDays !== null &&
+        Math.abs(daysSincePrevious - cadenceDays) > CADENCE_TOLERANCE_DAYS,
+      previousDifferenceCents,
+      amountDrift:
+        previous !== undefined &&
+        Math.abs(previousDifferenceCents!) > previous.amountCents * AMOUNT_DRIFT_TOLERANCE,
+    }
+  })
+  return {
+    memberId,
+    credits: measured.reverse(),
+    receivedCents: measured.reduce((sum, credit) => sum + credit.amountCents, 0),
+    payslipCount: slips.length,
+    matchedCount,
+    cadenceDays,
+  }
+}
+
+/**
+ * Corroborates each member's payslips against the household's `income` credits
+ * over a financial year: which credit carried each slip and how it stands against
+ * the slip's and the plan's net, each member's salary credits with their cadence
+ * and amount drift, and the Up salary credits no member can be tied to.
+ *
+ * `credits` may reach a few days past the year's bounds, so a slip paid at either
+ * edge still finds its credit; only credits posted within the year are listed.
+ */
+export function corroborateNetPay(
+  financialYear: number,
+  memberIds: readonly string[],
+  slips: readonly NetPaySlip[],
+  credits: readonly SalaryCreditCandidate[],
+): NetPayCorroboration {
+  const { periodStart, periodEnd } = financialYearPeriod(financialYear)
+  const inYear = (credit: SalaryCreditCandidate) =>
+    credit.postedOn >= periodStart && credit.postedOn <= periodEnd
+
+  const bySlipCredit = matchSlips(slips, credits)
+  const byPayslip = new Map(
+    slips.map((slip) => [slip.id, creditMatch(slip, bySlipCredit.get(slip.id))]),
+  )
+  const matchedCreditIds = new Set([...bySlipCredit.values()].map((credit) => credit.id))
+
+  // Each payer a member's matched credits came from; a payer two members share is nobody's.
+  const payerOwner = new Map<string, string | null>()
+  for (const slip of slips) {
+    const credit = bySlipCredit.get(slip.id)
+    if (!credit) continue
+    const payer = normalisePayer(credit.payer)
+    const owner = payerOwner.get(payer)
+    payerOwner.set(payer, owner === undefined || owner === slip.memberId ? slip.memberId : null)
+  }
+
+  const assigned = new Map<string, { credit: SalaryCreditCandidate; payslipId: string | null }[]>(
+    memberIds.map((id) => [id, []]),
+  )
+  for (const slip of slips) {
+    const credit = bySlipCredit.get(slip.id)
+    if (credit && inYear(credit)) assigned.get(slip.memberId)?.push({ credit, payslipId: slip.id })
+  }
+
+  const unattributed: SalaryCreditCandidate[] = []
+  for (const credit of credits) {
+    if (matchedCreditIds.has(credit.id) || !inYear(credit)) continue
+    const payerMember = payerOwner.get(normalisePayer(credit.payer))
+    if (payerMember && (credit.memberId === null || credit.memberId === payerMember)) {
+      assigned.get(payerMember)?.push({ credit, payslipId: null })
+      continue
+    }
+    if (credit.transactionType !== UP_SALARY_TYPE) continue
+    const owner = credit.memberId ?? (memberIds.length === 1 ? memberIds[0]! : null)
+    const list = owner === null ? undefined : assigned.get(owner)
+    if (list) {
+      list.push({ credit, payslipId: null })
+    } else {
+      unattributed.push(credit)
+    }
+  }
+
+  const byMember = new Map(
+    memberIds.map((memberId) => {
+      const memberSlips = slips.filter((slip) => slip.memberId === memberId)
+      const matchedCount = memberSlips.filter((slip) => bySlipCredit.has(slip.id)).length
+      return [memberId, memberNetPay(memberId, memberSlips, assigned.get(memberId)!, matchedCount)]
+    }),
+  )
+
+  unattributed.sort((a, b) => b.postedOn.localeCompare(a.postedOn) || a.id.localeCompare(b.id))
+  return { byPayslip, byMember, unattributed }
+}
+
+/**
+ * The plan's net pay for a slip's period: its expected gross less its expected
+ * withholding, or null where the slip has no gross expectation to model from.
+ */
+export function modelledNetCents(variance: {
+  readonly expectedGrossCents: Money | null
+  readonly expectedTaxWithheldCents: Money
+}): Money | null {
+  return variance.expectedGrossCents === null
+    ? null
+    : variance.expectedGrossCents - variance.expectedTaxWithheldCents
+}

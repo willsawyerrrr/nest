@@ -643,7 +643,13 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   survive. Payslips drive per-period
   variance against the projection (gross, withholding, super) and the FY's summed
   actual withheld feeds the tax engine's `paygWithheldCents`, turning the estimate's
-  balance into a concrete refund or bill. The tab's three year-to-date figures —
+  balance into a concrete refund or bill. Up salary credits corroborate each
+  slip's NET pay, never its withholding (Up sees only net): the card names the
+  credit that carried it and its difference from the slip's and the plan's net,
+  and each member's credits for the year are listed with pay-cadence and amount
+  drift, derived on read by `corroborateNetPay` (see
+  [`docs/up-ledger-sync.md`](docs/up-ledger-sync.md#4-actual-payg-tax-paid-vs-estimate)).
+  The tab's three year-to-date figures —
   gross, withheld, super — each carry the SAME reading for the year, in a card's own
   wording and colours: the expected side is the sum of the expectations already
   measured for the slips entered, never an annual figure times the share of the year
@@ -1020,8 +1026,9 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   ("Create deduction", opening the Deductions form prefilled and linked through
   `deduction.transaction_id`, one deduction per transaction), with "Open in Up"
   on each for what only Up can change, such as a cover; see
-  [`docs/up-ledger-sync.md`](docs/up-ledger-sync.md#reviewing-transactions-transactionsreview). Spend
-  reconciliation and actual tax paid are deferred.
+  [`docs/up-ledger-sync.md`](docs/up-ledger-sync.md#reviewing-transactions-transactionsreview).
+  Salary credits corroborate payslips' net pay (see Payslips). Spend
+  reconciliation is deferred.
   Sources (Up Bank API + Redbark + manual entry) are
   source-agnostic. Edge functions (`up-connect` / `up-disconnect` / `up-sync` /
   `up-categorise` / `up-webhook` / `changelog`) live under `supabase/functions/` and auto-deploy to

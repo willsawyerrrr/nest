@@ -6,6 +6,7 @@ import { useInflows } from '../hooks/useInflows'
 import { useMembers } from '../hooks/useMembers'
 import { usePayslipLines } from '../hooks/usePayslipLines'
 import { usePayslips } from '../hooks/usePayslips'
+import { useSalaryCredits } from '../hooks/useSalaryCredits'
 import { useSuperContributions } from '../hooks/useSuperContributions'
 import { useTaxProfiles } from '../hooks/useTaxProfiles'
 import { currentTaxConfig, estimateHouseholdTaxFromRows } from '../lib/tax'
@@ -19,6 +20,7 @@ export function PayslipsSection() {
   const contributions = useSuperContributions()
   const helpDebts = useHelpDebts()
   const deductions = useDeductions()
+  const salaryCredits = useSalaryCredits(payslips.financialYear)
 
   if (
     membersLoading ||
@@ -29,6 +31,7 @@ export function PayslipsSection() {
     contributions.loading ||
     helpDebts.loading ||
     deductions.loading ||
+    salaryCredits.loading ||
     !members
   ) {
     return <LoadingScreen />
@@ -54,6 +57,7 @@ export function PayslipsSection() {
       payslips={payslips.payslips ?? []}
       lines={payslipLines.lines ?? []}
       inflows={inflows.inflows ?? []}
+      credits={salaryCredits.credits ?? []}
       financialYear={payslips.financialYear}
       estimate={estimate}
       config={config}

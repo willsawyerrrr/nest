@@ -1020,7 +1020,12 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   ("Create deduction", opening the Deductions form prefilled and linked through
   `deduction.transaction_id`, one deduction per transaction), with "Open in Up"
   on each for what only Up can change, such as a cover; see
-  [`docs/up-ledger-sync.md`](docs/up-ledger-sync.md#reviewing-transactions-transactionsreview). Spend
+  [`docs/up-ledger-sync.md`](docs/up-ledger-sync.md#reviewing-transactions-transactionsreview).
+  The Accounts tab (`/accounts`, Grow group) lists every account the member can
+  see, grouped by type with each group's total, each with its owner (a member
+  or Joint), source, balance and deleted-at-source and net-worth-exclusion
+  badges; it is read-only (see
+  [`docs/up-ledger-sync.md`](docs/up-ledger-sync.md#2-ledger-ui-accounts--transactions)). Spend
   reconciliation and actual tax paid are deferred.
   Sources (Up Bank API + Redbark + manual entry) are
   source-agnostic. Edge functions (`up-connect` / `up-disconnect` / `up-sync` /

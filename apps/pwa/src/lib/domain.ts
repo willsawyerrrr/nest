@@ -28,6 +28,12 @@ export type VestingFrequency = Enums<'equity_vesting_frequency'>
 /** Whether a trade is a buy or a sell, from the `trade_side` enum. */
 export type TradeSide = Enums<'trade_side'>
 
+/** What kind of account an account is, from the `account_type` enum. */
+export type AccountType = Enums<'account_type'>
+
+/** Where an account's data comes from, from the `ledger_source` enum. */
+export type LedgerSource = Enums<'ledger_source'>
+
 /** `T` with every property made non-nullable except those named in `K`. */
 type NonNullableExcept<T, K extends PropertyKey> = {
   [P in keyof T]: P extends K ? T[P] : NonNullable<T[P]>

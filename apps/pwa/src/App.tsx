@@ -69,6 +69,9 @@ const InflowsSection = lazy(() =>
 const MembersSection = lazy(() =>
   import('./routes/MembersSection').then((m) => ({ default: m.MembersSection })),
 )
+const AccountsSection = lazy(() =>
+  import('./routes/AccountsSection').then((m) => ({ default: m.AccountsSection })),
+)
 const NetWorthSection = lazy(() =>
   import('./routes/NetWorthSection').then((m) => ({ default: m.NetWorthSection })),
 )
@@ -261,6 +264,7 @@ function HouseholdShell({
             <Route path="/summary" element={<SummarySection />} />
             <Route path="/planning" element={<PlanningSection />} />
             <Route path="/net-worth" element={<NetWorthSection />} />
+            <Route path="/accounts" element={<AccountsSection />} />
             <Route path="/inflows" element={<InflowsSection />} />
             <Route path="/budget" element={<BudgetSection />} />
             <Route path="/allowance" element={<AllowanceSection />} />

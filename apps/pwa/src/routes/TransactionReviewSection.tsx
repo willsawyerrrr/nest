@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { LoadingScreen } from '../components/LoadingScreen'
 import { TransactionReviewScreen } from '../components/TransactionReviewScreen'
 import { useAccountDirectory } from '../hooks/useAccountDirectory'
+import { useDeductedTransactionIds } from '../hooks/useDeductionTransactions'
 import { useTransactionReview } from '../hooks/useTransactionReview'
 import { accountLabel } from '../lib/accountName'
 
@@ -11,6 +12,7 @@ export function TransactionReviewSection() {
   const [params] = useSearchParams()
   const review = useTransactionReview(params.get('id'))
   const { accounts, loading: accountsLoading } = useAccountDirectory()
+  const deducted = useDeductedTransactionIds()
 
   const accountNames = useMemo(
     () =>
@@ -20,7 +22,7 @@ export function TransactionReviewSection() {
     [accounts],
   )
 
-  if (review.loading || accountsLoading) {
+  if (review.loading || accountsLoading || deducted.loading) {
     return <LoadingScreen />
   }
 
@@ -30,6 +32,7 @@ export function TransactionReviewSection() {
       focused={review.focused}
       categories={review.categories ?? []}
       accountNames={accountNames}
+      {...(deducted.ids && { deductedIds: deducted.ids })}
       onReview={review.review}
     />
   )

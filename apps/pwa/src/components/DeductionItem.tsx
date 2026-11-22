@@ -5,6 +5,8 @@ import { IconGripVertical } from '@tabler/icons-react'
 import type { DeductionReceiptRow } from '../hooks/useDeductionReceipts'
 import type { DeductionRow } from '../hooks/useDeductions'
 import { useIsWide } from '../hooks/useIsWide'
+import { isoDate } from '../lib/dates'
+import { transactionDescription, type SourceTransaction } from '../lib/transactionDeduction'
 import { AppCard } from './AppCard'
 import { EditDeleteActions } from './EditDeleteActions'
 import { ListRow } from './ListRow'
@@ -44,6 +46,8 @@ function deductionDateLabel(deduction: DeductionRow): string {
 export interface DeductionItemProps {
   deduction: DeductionRow
   receipt: DeductionReceiptRow | undefined
+  /** The transaction the deduction was created from, when it has one and it is visible. */
+  source?: SourceTransaction | undefined
   /** A drag handle rendered beside the row's controls. */
   dragHandle?: ReactNode
   onEdit: () => void
@@ -77,6 +81,18 @@ function DragHandle({
     >
       <IconGripVertical size={16} />
     </button>
+  )
+}
+
+/** The transaction a deduction was created from, as a dimmed line beneath it. */
+function SourceLine({ source }: { source: SourceTransaction | undefined }) {
+  if (!source) {
+    return null
+  }
+  return (
+    <Text size="xs" c="dimmed">
+      From {transactionDescription(source)} · {formatIsoDate(isoDate(new Date(source.posted_at)))}
+    </Text>
   )
 }
 
@@ -131,16 +147,20 @@ function DeductionRow({
   onEdit,
   onDelete,
   receipt,
+  source,
   signedUrl,
 }: DeductionItemProps) {
   return (
     <ListRow>
-      <Group gap={6} wrap="nowrap" align="baseline" style={{ flex: 1, minWidth: 0 }}>
-        <DeductionTitle deduction={deduction} receipt={receipt} signedUrl={signedUrl} />
-        <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
-          {deductionDateLabel(deduction)}
-        </Text>
-      </Group>
+      <Stack gap={0} style={{ flex: 1, minWidth: 0 }}>
+        <Group gap={6} wrap="nowrap" align="baseline">
+          <DeductionTitle deduction={deduction} receipt={receipt} signedUrl={signedUrl} />
+          <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
+            {deductionDateLabel(deduction)}
+          </Text>
+        </Group>
+        <SourceLine source={source} />
+      </Stack>
       <MoneyText
         cents={deduction.amount_cents}
         fw={700}
@@ -163,6 +183,7 @@ function DeductionCard({
   onEdit,
   onDelete,
   receipt,
+  source,
   signedUrl,
 }: DeductionItemProps) {
   return (
@@ -173,6 +194,7 @@ function DeductionCard({
           <Text size="xs" c="dimmed">
             {deductionDateLabel(deduction)}
           </Text>
+          <SourceLine source={source} />
         </Stack>
         <Group gap="xxs" wrap="nowrap" style={{ flexShrink: 0 }}>
           <MoneyText cents={deduction.amount_cents} fw={700} size="sm" />

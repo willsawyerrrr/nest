@@ -31,6 +31,7 @@ const deduction = {
   distance_km: null,
   work_from_home_hours: null,
   group_id: null,
+  transaction_id: null,
 }
 
 const group = {
@@ -114,6 +115,7 @@ describe('addDeduction', () => {
             category: 'work_expense',
             basis: 'amount',
             group_id: null,
+            transaction_id: null,
             amount_cents: 600_00,
             full_amount_cents: 1_000_00,
             work_use_percent: 60,
@@ -124,6 +126,46 @@ describe('addDeduction', () => {
       },
     ])
     expect(result).toMatchObject({ id: 'uuid-1', amount_cents: 600_00, warning: null })
+  })
+
+  describe('from a transaction', () => {
+    const TX = '5b9c0d1e-2f3a-4b4c-8d5e-6f7a8b9c0d1e'
+    const outflow = { id: TX, amount_cents: -120_00 }
+
+    it('links the deduction to the transaction', async () => {
+      const { ctx, state } = fakeContext({ tables: { members, transactions: [outflow] } })
+      const result = await addDeduction(ctx, { ...base, amount_cents: 120_00, transaction_id: TX })
+      expect(state.rpcCalls[0]!.args).toMatchObject({ p_deduction: { transaction_id: TX } })
+      expect(result).toMatchObject({ transaction_id: TX })
+    })
+
+    it('refuses a transaction it cannot see', async () => {
+      const { ctx, state } = fakeContext({ tables: { members } })
+      await expect(
+        addDeduction(ctx, { ...base, amount_cents: 120_00, transaction_id: TX }),
+      ).rejects.toMatchObject({ code: 'not_found' })
+      expect(state.rpcCalls).toEqual([])
+    })
+
+    it('refuses an inflow', async () => {
+      const { ctx, state } = fakeContext({
+        tables: { members, transactions: [{ id: TX, amount_cents: 50_00 }] },
+      })
+      await expect(
+        addDeduction(ctx, { ...base, amount_cents: 50_00, transaction_id: TX }),
+      ).rejects.toMatchObject({ code: 'invalid_details' })
+      expect(state.rpcCalls).toEqual([])
+    })
+
+    it('refuses a transaction that already has a deduction', async () => {
+      const { ctx, state } = fakeContext({
+        tables: { members, transactions: [outflow], deduction: [{ id: ID, transaction_id: TX }] },
+      })
+      await expect(
+        addDeduction(ctx, { ...base, amount_cents: 120_00, transaction_id: TX }),
+      ).rejects.toMatchObject({ code: 'invalid_details' })
+      expect(state.rpcCalls).toEqual([])
+    })
   })
 
   it('snapshots the cents-per-km rate and warns past the cap', async () => {

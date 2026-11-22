@@ -433,6 +433,16 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   inline "Receipt" view link beside the description), each such upload writing its
   `deduction_receipt` row immediately since the deduction already exists (a
   replacement repoints the row and deletes the old object, best effort).
+  A deduction can be created from a ledger outflow: `deduction.transaction_id`
+  (nullable, composite FK `(transaction_id, household_id)` → `transactions`
+  `on delete set null`, partial unique so a transaction backs at most one
+  deduction) is set by `create_deduction_with_receipt` when the add form opens
+  from `/deductions?transaction=<id>`, prefilled with the transaction's
+  description, absolute amount, local date, and that date's financial year, with
+  the category, basis, and work use chosen as usual and a receipt still
+  attachable. The deduction shows its source transaction beneath its row;
+  deleting the transaction clears the link and keeps the deduction, and deleting
+  the deduction frees the transaction.
   A **group** names a set of one member's deductions for the financial year —
   a subscription paid monthly, a trip's several purchases, anything claimed in
   more than one payment — and each payment is already a deduction in its own
@@ -1001,8 +1011,10 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   screen (`/transactions/review`, no nav entry, `?id=` focusing one
   transaction) lists a member's unreviewed categorisable Up transactions to
   confirm ("Looks right"), recategorise and annotate ("Save"), or file as a gift
-  ("It's a gift", pointing on to Gifts), with "Open in Up" on each for what only
-  Up can change, such as a cover; see
+  ("It's a gift", pointing on to Gifts), or turn an outflow into a tax deduction
+  ("Create deduction", opening the Deductions form prefilled and linked through
+  `deduction.transaction_id`, one deduction per transaction), with "Open in Up"
+  on each for what only Up can change, such as a cover; see
   [`docs/up-ledger-sync.md`](docs/up-ledger-sync.md#reviewing-transactions-transactionsreview). Spend
   reconciliation and actual tax paid are deferred.
   Sources (Up Bank API + Redbark + manual entry) are

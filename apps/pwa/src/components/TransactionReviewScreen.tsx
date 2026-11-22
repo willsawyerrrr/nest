@@ -15,11 +15,18 @@ import {
   Textarea,
   UnstyledButton,
 } from '@mantine/core'
-import { IconChevronDown, IconChevronRight, IconExternalLink, IconGift } from '@tabler/icons-react'
+import {
+  IconChevronDown,
+  IconChevronRight,
+  IconExternalLink,
+  IconGift,
+  IconReceiptTax,
+} from '@tabler/icons-react'
 import { useIsWide } from '../hooks/useIsWide'
 import type { ReviewInput } from '../hooks/useTransactionReview'
 import { formatIsoDate, isoDate } from '../lib/dates'
 import { GIFT_TRANSACTION_CATEGORY } from '../lib/giftCandidates'
+import { createDeductionPath, isOutflow } from '../lib/transactionDeduction'
 import {
   categoryGroups,
   categoryLabel,
@@ -46,6 +53,8 @@ interface TransactionReviewScreenProps {
   categories: UpCategory[]
   /** Account names by id. */
   accountNames: Readonly<Record<string, string>>
+  /** The ids of the transactions that already have a deduction. */
+  deductedIds?: ReadonlySet<string>
   onReview: (transactionId: string, input: ReviewInput) => Promise<void>
 }
 
@@ -99,11 +108,13 @@ function UpWords({ transaction }: { transaction: ReviewTransaction }) {
 function ReviewForm({
   transaction,
   groups,
+  deducted,
   onReview,
   onGiftFiled,
 }: {
   transaction: ReviewTransaction
   groups: CategoryGroup[]
+  deducted: boolean
   onReview: TransactionReviewScreenProps['onReview']
   onGiftFiled: () => void
 }) {
@@ -181,6 +192,17 @@ function ReviewForm({
             It&apos;s a gift
           </Button>
         )}
+        {isOutflow(transaction) && !deducted && (
+          <Button
+            size="xs"
+            variant="default"
+            leftSection={<IconReceiptTax size={14} />}
+            component={Link}
+            to={createDeductionPath(transaction.id)}
+          >
+            Create deduction
+          </Button>
+        )}
       </Group>
     </Stack>
   )
@@ -199,6 +221,7 @@ function ReviewRow({
   groups,
   accountName,
   focused,
+  deducted,
   onReview,
   onGiftFiled,
 }: {
@@ -207,6 +230,7 @@ function ReviewRow({
   groups: CategoryGroup[]
   accountName: string | null
   focused: boolean
+  deducted: boolean
   onReview: TransactionReviewScreenProps['onReview']
   onGiftFiled: () => void
 }) {
@@ -253,6 +277,11 @@ function ReviewRow({
                   Reviewed
                 </Badge>
               )}
+              {deducted && (
+                <Badge size="xs" color="info" style={{ flexShrink: 0 }}>
+                  Deduction
+                </Badge>
+              )}
             </Group>
             <Text size="xs" c="dimmed" truncate>
               {meta}
@@ -295,6 +324,7 @@ function ReviewRow({
         <ReviewForm
           transaction={transaction}
           groups={groups}
+          deducted={deducted}
           onReview={onReview}
           onGiftFiled={onGiftFiled}
         />
@@ -323,7 +353,9 @@ function ReviewRow({
  * The transaction review screen: the member's unreviewed Up transactions,
  * newest first, each confirmed as it stands ("Looks right"), recategorised and
  * annotated ("Save"), or filed as a gift ("It's a gift"), which points on to the
- * Gifts inbox where it waits to be linked. `focused` — the transaction a
+ * Gifts inbox where it waits to be linked. An outflow without a deduction can
+ * also become one ("Create deduction"), which opens the Deductions form
+ * prefilled from it; one that has a deduction is marked instead. `focused` — the transaction a
  * notification names — leads the list, expanded, even once reviewed.
  */
 export function TransactionReviewScreen({
@@ -331,6 +363,7 @@ export function TransactionReviewScreen({
   focused,
   categories,
   accountNames,
+  deductedIds,
   onReview,
 }: TransactionReviewScreenProps) {
   const [giftFiled, setGiftFiled] = useState(false)
@@ -354,6 +387,7 @@ export function TransactionReviewScreen({
             groups={groups}
             accountName={accountNames[transaction.account_id] ?? null}
             focused={transaction.id === focused?.id}
+            deducted={deductedIds?.has(transaction.id) ?? false}
             onReview={onReview}
             onGiftFiled={() => setGiftFiled(true)}
           />

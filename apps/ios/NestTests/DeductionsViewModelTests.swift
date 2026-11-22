@@ -147,6 +147,76 @@ private enum Fixtures {
         #expect(deduction["financial_year"] as? Int == 2027)
     }
 
+    @Test func creatingFromATransactionSendsItsIdInTheRPC() async throws {
+        let server = Server()
+        let model = model(makeData(server, directory: directory()))
+        await model.load()
+        let write = DeductionWrite(
+            memberID: "m1", description: "Bunnings", amountCents: 4_250, deductionDate: "2026-11-20",
+            basis: .amount, distanceKm: nil, workFromHomeHours: nil, groupID: nil,
+            category: .workExpense, fullAmountCents: 4_250, workUsePercent: 100,
+            transactionID: "t1")
+        try await model.create(DeductionSubmission(id: "new", write: write, receiptPath: nil))
+        let call = try #require(
+            server.requests.first { $0.url!.path.hasSuffix("rpc/create_deduction_with_receipt") })
+        let body = try #require(JSONSerialization.jsonObject(with: call.httpBody!) as? [String: Any])
+        let deduction = try #require(body["p_deduction"] as? [String: Any])
+        #expect(deduction["transaction_id"] as? String == "t1")
+    }
+
+    @Test func updatesNeverSendATransactionId() throws {
+        let deduction = try JSONDecoder().decode(
+            Deduction.self,
+            from: Data(
+                Fixtures.deduction.dropFirst().dropLast().replacingOccurrences(
+                    of: "\"group_id\":null", with: "\"group_id\":null,\"transaction_id\":\"t1\"")
+                    .utf8))
+        #expect(deduction.transactionId == "t1")
+        let body = try JSONSerialization.jsonObject(
+            with: JSONEncoder().encode(DeductionWrite(moving: deduction, to: nil))) as? [String: Any]
+        #expect(body?["transaction_id"] == nil)
+    }
+
+    @Test func aDraftOpensItsFinancialYearAndKeepsTheOptions() async throws {
+        let server = Server()
+        let model = DeductionsViewModel(
+            draft: TransactionDeductionDraft(
+                transactionID: "t1", description: "Bunnings", amountCents: 4_250,
+                date: "2026-03-01"),
+            data: makeData(server, directory: directory()),
+            now: { Date(timeIntervalSince1970: 1_800_000_000) },
+            options: { _ in FinancialYearOptions(current: 2027, available: [2027, 2026]) })
+        await model.load()
+        let content = try #require(model.state.value)
+        #expect(content.financialYear == 2026)
+        #expect(content.availableYears == [2027, 2026])
+        #expect(
+            server.requests.contains {
+                $0.url!.path.hasSuffix("deduction") && $0.url!.query?.contains("financial_year=eq.2026") == true
+            })
+    }
+
+    @Test func namesTheTransactionsDeductionsWereCreatedFrom() async throws {
+        let server = Server()
+        server.bodies["deduction"] = Fixtures.deduction.replacingOccurrences(
+            of: "\"group_id\":null", with: "\"group_id\":null,\"transaction_id\":\"t1\"")
+        server.bodies["transactions"] = "[\(ReviewFixtures.transaction("t1", description: "Bunnings"))]"
+        let model = model(makeData(server, directory: directory()))
+        await model.load()
+        let content = try #require(model.state.value)
+        #expect(content.sourceTransactions["t1"]?.description == "Bunnings")
+        let read = try #require(server.requests.first { $0.url!.path.hasSuffix("transactions") })
+        #expect(read.url!.query?.contains("id=in.(t1)") == true)
+    }
+
+    @Test func readsNoTransactionsWhenNoDeductionHasOne() async throws {
+        let server = Server()
+        let model = model(makeData(server, directory: directory()))
+        await model.load()
+        #expect(model.state.value?.sourceTransactions.isEmpty == true)
+        #expect(!server.requests.contains { $0.url!.path.hasSuffix("transactions") })
+    }
+
     @Test func sharedFilesQueueAsWorkExpensesForTheSignedInMember() async throws {
         let server = Server()
         let model = model(makeData(server, directory: directory()))
@@ -192,8 +262,72 @@ private enum Fixtures {
     }
 }
 
+@Suite struct TransactionDeductionDraftTests {
+    private var utc: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        return calendar
+    }
+
+    private func transaction(_ description: String, postedAt: String = "2026-11-20T02:30:00+00:00")
+        throws -> LedgerTransaction
+    {
+        let json = ReviewFixtures.transaction("t1", description: description)
+            .replacingOccurrences(of: "2026-11-20T02:30:00+00:00", with: postedAt)
+        return try JSONDecoder().decode(LedgerTransaction.self, from: Data(json.utf8))
+    }
+
+    @Test func takesTheOutflowsWordsPositiveAmountAndLocalDate() throws {
+        let draft = TransactionDeductionDraft(transaction: try transaction("Bunnings"), calendar: utc)
+        #expect(draft.transactionID == "t1")
+        #expect(draft.description == "Bunnings")
+        #expect(draft.amountCents == 4_250)
+        #expect(draft.date == "2026-11-20")
+        #expect(draft.financialYear == 2027)
+    }
+
+    @Test func anUnnamedTransactionIsACardPurchase() throws {
+        #expect(
+            TransactionDeductionDraft(transaction: try transaction(""), calendar: utc).description
+                == "Card purchase")
+    }
+
+    @Test func theFinancialYearTurnsOverOnTheFirstOfJuly() {
+        #expect(DeductionsPresentation.financialYear(ofISODate: "2027-06-30") == 2027)
+        #expect(DeductionsPresentation.financialYear(ofISODate: "2027-07-01") == 2028)
+    }
+
+    @Test func labelsTheSourceTransaction() throws {
+        #expect(
+            DeductionsPresentation.sourceLabel(try transaction("Bunnings"), calendar: utc)
+                == "From Bunnings · 20 Nov 2026")
+    }
+}
+
 @MainActor
 @Suite struct DeductionFormStateTests {
+    @Test func aTransactionFillsTheFormAndAReadNeverOverwritesIt() throws {
+        let draft = TransactionDeductionDraft(
+            transactionID: "t1", description: "Bunnings", amountCents: 4_250, date: "2026-11-20")
+        let state = DeductionFormState(
+            memberID: "m1", financialYear: 2027, transaction: draft, today: "2026-12-01")
+        #expect(state.description == "Bunnings")
+        #expect(state.amount == "42.5")
+        #expect(state.date == "2026-11-20")
+        #expect(state.category == .workExpense)
+        #expect(
+            !state.prefill(
+                DeductionExtraction(description: "Read", deductionDate: "2026-07-04", amountCents: 1)))
+        #expect(state.description == "Bunnings")
+        #expect(state.write().transactionID == "t1")
+    }
+
+    @Test func aFormWithNoTransactionWritesNone() {
+        #expect(
+            DeductionFormState(memberID: "m1", financialYear: 2027, today: "2026-08-01")
+                .write().transactionID == nil)
+    }
+
     private func form(initial: Deduction? = nil, extraction: DeductionExtraction? = nil)
         -> DeductionFormState
     {

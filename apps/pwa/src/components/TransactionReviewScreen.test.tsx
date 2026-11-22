@@ -142,6 +142,28 @@ describe('TransactionReviewScreen', () => {
     )
   })
 
+  it('offers to create a deduction from an outflow', async () => {
+    renderScreen()
+    await expand()
+    expect(screen.getByRole('link', { name: 'Create deduction' })).toHaveAttribute(
+      'href',
+      '/deductions?transaction=t1',
+    )
+  })
+
+  it('offers no deduction from an inflow', async () => {
+    renderScreen({ transactions: [makeTransaction({ amount_cents: 42_50 })] })
+    await expand()
+    expect(screen.queryByRole('link', { name: 'Create deduction' })).not.toBeInTheDocument()
+  })
+
+  it('marks a transaction that has a deduction and blocks a second', async () => {
+    renderScreen({ deductedIds: new Set(['t1']) })
+    expect(screen.getByText('Deduction')).toBeInTheDocument()
+    await expand()
+    expect(screen.queryByRole('link', { name: 'Create deduction' })).not.toBeInTheDocument()
+  })
+
   it('offers no gift action on a transaction already filed as one', async () => {
     renderScreen({ transactions: [makeTransaction({ external_category: 'gifts-and-charity' })] })
     await expand()

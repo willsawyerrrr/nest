@@ -16,6 +16,8 @@ export type BuilderMethod =
   | 'single'
   | 'maybeSingle'
   | 'is'
+  | 'in'
+  | 'not'
   | 'limit'
 
 /**

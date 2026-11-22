@@ -27,8 +27,8 @@ struct DeductionsRows: Codable, Sendable, Equatable {
 }
 
 /// The deduction columns a form writes. Nullable columns encode as an explicit
-/// `null`, as the PWA's writes do; `id`, `household_id` and `financial_year` are
-/// sent only when creating.
+/// `null`, as the PWA's writes do; `id`, `household_id`, `financial_year` and
+/// `transaction_id` are sent only when creating.
 struct DeductionWrite: Encodable, Equatable, Sendable {
     var id: String?
     var householdID: String?
@@ -44,6 +44,8 @@ struct DeductionWrite: Encodable, Equatable, Sendable {
     var category: DeductionCategory
     var fullAmountCents: Int
     var workUsePercent: Double
+    /// The ledger transaction a new deduction is created from.
+    var transactionID: String?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -60,6 +62,7 @@ struct DeductionWrite: Encodable, Equatable, Sendable {
         case category
         case fullAmountCents = "full_amount_cents"
         case workUsePercent = "work_use_percent"
+        case transactionID = "transaction_id"
     }
 
     func encode(to encoder: Encoder) throws {
@@ -78,6 +81,7 @@ struct DeductionWrite: Encodable, Equatable, Sendable {
         try container.encode(category, forKey: .category)
         try container.encode(fullAmountCents, forKey: .fullAmountCents)
         try container.encode(workUsePercent, forKey: .workUsePercent)
+        try container.encodeIfPresent(transactionID, forKey: .transactionID)
     }
 
     /// The whole row written back with only its group changed, as a drag does.
@@ -96,7 +100,7 @@ struct DeductionWrite: Encodable, Equatable, Sendable {
         memberID: String, description: String, amountCents: Int, deductionDate: String,
         basis: DeductionBasis, distanceKm: Double?, workFromHomeHours: Double?,
         groupID: String?, category: DeductionCategory, fullAmountCents: Int,
-        workUsePercent: Double
+        workUsePercent: Double, transactionID: String? = nil
     ) {
         self.id = id
         self.householdID = householdID
@@ -112,6 +116,7 @@ struct DeductionWrite: Encodable, Equatable, Sendable {
         self.category = category
         self.fullAmountCents = fullAmountCents
         self.workUsePercent = workUsePercent
+        self.transactionID = transactionID
     }
 }
 

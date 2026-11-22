@@ -9,6 +9,9 @@ struct DeductionsContent: Equatable, Sendable {
     /// The `members` row whose `user_id` is the session user.
     let currentMemberID: String?
     let householdID: String?
+    /// The ledger transactions the shown deductions were created from, by id; a
+    /// transaction the member cannot see is absent.
+    var sourceTransactions: [String: LedgerTransaction] = [:]
 }
 
 /// Mints queue ids and remembers the category each file was added as, so a read is
@@ -73,12 +76,18 @@ final class DeductionsViewModel {
     private let options: @Sendable (FinancialYearOptionsInput) async throws -> FinancialYearOptions
     @ObservationIgnored private var queues: [String: UploadQueue<DeductionDraft>] = [:]
     private var available: [Int] = []
+    /// The transaction the add form opens prefilled from, for the signed-in member.
+    let draft: TransactionDeductionDraft?
+    private var sources: (ids: Set<String>, rows: [String: LedgerTransaction]) = ([], [:])
 
     init(
+        draft: TransactionDeductionDraft? = nil,
         data: NestData = .live, now: @escaping @Sendable () -> Date = { Date() },
         options: @escaping @Sendable (FinancialYearOptionsInput) async throws -> FinancialYearOptions =
             ScreenEngine.financialYearOptions
     ) {
+        self.draft = draft
+        financialYear = draft?.financialYear
         self.data = data
         self.now = now
         self.options = options
@@ -89,11 +98,11 @@ final class DeductionsViewModel {
     /// from `.task(id: financialYear)`; `selectFinancialYear` changes the id.
     func load() async {
         do {
-            if financialYear == nil {
+            if available.isEmpty {
                 let resolved = try await options(
                     FinancialYearOptionsInput(now: SummaryRows.iso(now())))
                 available = resolved.available
-                financialYear = resolved.current
+                if financialYear == nil { financialYear = resolved.current }
             }
         } catch {
             state = .failed(NestError(.unknown))
@@ -108,11 +117,12 @@ final class DeductionsViewModel {
             for try await snapshot in stream {
                 let household = snapshot.rows.members.first?.householdId
                 context.set(household: household, financialYear: year)
+                let sourceRows = await sourceTransactions(for: snapshot.rows.deductions)
                 state = .loaded(
                     DeductionsContent(
                         rows: snapshot.rows, financialYear: year, availableYears: available,
                         currentMemberID: snapshot.rows.members.first { $0.userId == userID }?.id,
-                        householdID: household),
+                        householdID: household, sourceTransactions: sourceRows),
                     isRefreshing: snapshot.isCached, refreshError: nil)
             }
         } catch is CancellationError {
@@ -125,6 +135,21 @@ final class DeductionsViewModel {
                 state = .failed(failure)
             }
         }
+    }
+
+    /// The transactions `deductions` were created from, read again only when the set
+    /// of them changes. A failed read leaves them unnamed rather than failing the screen.
+    private func sourceTransactions(for deductions: [Deduction]) async -> [String: LedgerTransaction] {
+        let ids = Set(deductions.compactMap(\.transactionId))
+        if ids == sources.ids { return sources.rows }
+        var found: [LedgerTransaction] = []
+        if !ids.isEmpty {
+            let stream = data.rows(
+                LedgerTransaction.self, filters: [.in("id", ids.sorted())], cached: false)
+            do { for try await snapshot in stream { found = snapshot.rows } } catch { return [:] }
+        }
+        sources = (ids, Dictionary(found.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }))
+        return sources.rows
     }
 
     /// Discards the shown state and loads again.

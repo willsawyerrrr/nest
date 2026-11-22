@@ -33,6 +33,7 @@ function makeDeduction(overrides: Partial<DeductionRow> = {}): DeductionRow {
     full_amount_cents: 1_200_00,
     work_use_percent: 100,
     category: 'work_expense',
+    transaction_id: null,
     created_at: '',
     updated_at: '',
     ...overrides,
@@ -599,6 +600,81 @@ describe('DeductionForm receipt extraction', () => {
     await user.click(screen.getByRole('button', { name: /add deduction/i }))
     await waitFor(() => expect(onSubmit).toHaveBeenCalled())
     expect(submitted(onSubmit).input.description).toBe('My own label')
+  })
+
+  describe('from a transaction', () => {
+    const transaction = {
+      transactionId: 'tx1',
+      description: 'Bunnings',
+      amountCents: 120_50,
+      deductionDate: '2026-08-14',
+      financialYear: 2027,
+    }
+
+    it('opens on the fields prefilled from the transaction and saves the link', async () => {
+      const user = userEvent.setup({ delay: null })
+      const onSubmit = vi.fn()
+      render(
+        <DeductionForm
+          member={member}
+          attachments={attachments}
+          financialYear={2027}
+          transaction={transaction}
+          onSubmit={onSubmit}
+        />,
+      )
+
+      expect(screen.getByLabelText(/description/i)).toHaveValue('Bunnings')
+      expect(screen.getByLabelText(/amount/i)).toHaveValue('$120.50')
+      expect(screen.getByText(/From the transaction/)).toBeInTheDocument()
+
+      await user.click(screen.getByRole('radio', { name: 'Donation' }))
+      await user.click(screen.getByRole('button', { name: /add deduction/i }))
+      await waitFor(() => expect(onSubmit).toHaveBeenCalled())
+      expect(submitted(onSubmit).input).toMatchObject({
+        description: 'Bunnings',
+        amount_cents: 120_50,
+        deduction_date: '2026-08-14',
+        category: 'donation',
+        transaction_id: 'tx1',
+      })
+    })
+
+    it('keeps the transaction’s figures when a receipt is read', async () => {
+      const user = userEvent.setup({ delay: null })
+      render(
+        <DeductionForm
+          member={member}
+          attachments={attachments}
+          financialYear={2027}
+          transaction={transaction}
+          onSubmit={vi.fn()}
+        />,
+      )
+      await attach(user)
+
+      expect(screen.getByLabelText(/description/i)).toHaveValue('Bunnings')
+      expect(screen.getByLabelText(/amount/i)).toHaveValue('$120.50')
+    })
+  })
+
+  it('sends no transaction link for a hand-entered deduction', async () => {
+    const user = userEvent.setup({ delay: null })
+    const onSubmit = vi.fn()
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        onSubmit={onSubmit}
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: /enter details manually/i }))
+    await user.type(screen.getByLabelText(/description/i), 'Tools')
+    await user.type(screen.getByLabelText(/amount/i), '10')
+    await user.click(screen.getByRole('button', { name: /add deduction/i }))
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled())
+    expect(submitted(onSubmit).input).not.toHaveProperty('transaction_id')
   })
 
   it('replaces the picked receipt, discarding the first object and reading the second', async () => {

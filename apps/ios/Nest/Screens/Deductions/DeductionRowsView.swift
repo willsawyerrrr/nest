@@ -74,6 +74,8 @@ struct DeductionDropTarget<Content: View>: View {
 struct DeductionItemView: View {
     let deduction: Deduction
     let hasReceipt: Bool
+    /// The transaction the deduction was created from, shown as a link to it in review.
+    var source: LedgerTransaction?
     var drag: DeductionDrag?
     let onViewReceipt: () -> Void
     let onEdit: () -> Void
@@ -98,6 +100,19 @@ struct DeductionItemView: View {
             text += link
         }
         return text
+    }
+
+    /// `From Bunnings · 3 Nov 2026`, opening the transaction in review.
+    @ViewBuilder private var sourceLink: some View {
+        if let source {
+            NavigationLink {
+                RouteScreen(route: .transactionReview, id: source.id)
+            } label: {
+                Text(DeductionsPresentation.sourceLabel(source))
+                    .font(.system(size: 12)).foregroundStyle(NestColor.brand).lineLimit(1)
+            }
+            .buttonStyle(.plain)
+        }
     }
 
     private var money: some View {
@@ -132,12 +147,16 @@ struct DeductionItemView: View {
         if wide {
             VStack(spacing: 0) {
                 HStack(alignment: .firstTextBaseline, spacing: NestSpacing.md) {
-                    HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        titleText
-                        Text(DeductionsPresentation.dateLabel(deduction))
-                            .font(.system(size: 12)).foregroundStyle(NestColor.dimmedText)
-                            .fixedSize()
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                            titleText
+                            Text(DeductionsPresentation.dateLabel(deduction))
+                                .font(.system(size: 12)).foregroundStyle(NestColor.dimmedText)
+                                .fixedSize()
+                        }
+                        sourceLink
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     money.frame(width: 112, alignment: .trailing)
                     controls
                 }
@@ -150,6 +169,7 @@ struct DeductionItemView: View {
                     titleText
                     Text(DeductionsPresentation.dateLabel(deduction))
                         .font(.system(size: 12)).foregroundStyle(NestColor.dimmedText)
+                    sourceLink
                 }
                 HStack(spacing: 4) {
                     money

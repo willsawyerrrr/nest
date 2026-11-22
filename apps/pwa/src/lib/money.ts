@@ -171,3 +171,14 @@ export function workUseAmountCents(fullAmountCents: number, workUsePercent: numb
 export function formatCentsRate(cents: number, unit: string): string {
   return `${Number(cents.toFixed(2))}c/${unit}`
 }
+
+/**
+ * A distance or hours figure as a `NumberInput` value, or `''` when unset.
+ * `distance_km` and `work_from_home_hours` are `numeric(8,2)`, so may arrive as strings.
+ */
+export function toNumericValue(km: number | string | null | undefined): number | string {
+  if (km == null || km === '') {
+    return ''
+  }
+  return typeof km === 'number' ? km : Number.parseFloat(km)
+}

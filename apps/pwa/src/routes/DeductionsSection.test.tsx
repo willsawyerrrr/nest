@@ -1,5 +1,6 @@
+import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen } from '../test/render'
+import { render, screen, waitFor } from '../test/render'
 import { DeductionsSection } from './DeductionsSection'
 
 const hooks = vi.hoisted(() => ({
@@ -8,6 +9,8 @@ const hooks = vi.hoisted(() => ({
   useDeductions: vi.fn(),
   useDeductionGroups: vi.fn(),
   useDeductionReceipts: vi.fn(),
+  useDeductedTransactionIds: vi.fn(),
+  useSourceTransactions: vi.fn(),
   screenProps: null as Record<string, unknown> | null,
 }))
 
@@ -21,6 +24,10 @@ vi.mock('../hooks/useDeductionGroups', () => ({ useDeductionGroups: hooks.useDed
 vi.mock('../hooks/useDeductionReceipts', () => ({
   useDeductionReceipts: hooks.useDeductionReceipts,
 }))
+vi.mock('../hooks/useDeductionTransactions', () => ({
+  useDeductedTransactionIds: hooks.useDeductedTransactionIds,
+  useSourceTransactions: hooks.useSourceTransactions,
+}))
 vi.mock('../components/DeductionsScreen', () => ({
   DeductionsScreen: (props: Record<string, unknown>) => {
     hooks.screenProps = props
@@ -28,9 +35,30 @@ vi.mock('../components/DeductionsScreen', () => ({
   },
 }))
 
+const TX = '5b9c0d1e-2f3a-4b4c-8d5e-6f7a8b9c0d1e'
+
+function renderAt(path = '/deductions') {
+  return render(
+    <MemoryRouter initialEntries={[path]}>
+      <DeductionsSection />
+    </MemoryRouter>,
+  )
+}
+
+/** Every read loaded and empty, so a test overrides only what it is about. */
+function loadEverything() {
+  hooks.useMembers.mockReturnValue({ members: [{ id: 'm1', name: 'Alex' }], loading: false })
+  hooks.useDeductions.mockReturnValue({ loading: false, deductions: [], create: vi.fn() })
+  hooks.useDeductionGroups.mockReturnValue({ loading: false, groups: [] })
+  hooks.useDeductionReceipts.mockReturnValue({ loading: false, receipts: [] })
+}
+
 describe('DeductionsSection', () => {
   beforeEach(() => {
+    hooks.screenProps = null
     hooks.useCurrentMember.mockReturnValue({ member: { id: 'm1' }, loading: false })
+    hooks.useDeductedTransactionIds.mockReturnValue({ ids: new Set<string>(), loading: false })
+    hooks.useSourceTransactions.mockReturnValue({ transactions: {}, loading: false })
   })
 
   it('shows the loading screen until data loads', () => {
@@ -38,7 +66,7 @@ describe('DeductionsSection', () => {
     hooks.useDeductions.mockReturnValue({ loading: false })
     hooks.useDeductionGroups.mockReturnValue({ loading: false })
     hooks.useDeductionReceipts.mockReturnValue({ loading: false })
-    render(<DeductionsSection />)
+    renderAt()
     expect(screen.getByTestId('loading')).toBeInTheDocument()
   })
 
@@ -75,7 +103,7 @@ describe('DeductionsSection', () => {
       remove: removeReceipt,
       signedUrl,
     })
-    render(<DeductionsSection />)
+    renderAt()
     expect(screen.getByTestId('deductions-screen')).toBeInTheDocument()
     expect(hooks.screenProps?.members).toEqual([{ id: 'm1', name: 'Alex' }])
     expect(hooks.screenProps?.financialYear).toBe(2027)
@@ -98,7 +126,75 @@ describe('DeductionsSection', () => {
     hooks.useDeductions.mockReturnValue({ loading: false, deductions: [] })
     hooks.useDeductionGroups.mockReturnValue({ loading: false, groups: [] })
     hooks.useDeductionReceipts.mockReturnValue({ loading: false, receipts: [] })
-    render(<DeductionsSection />)
+    renderAt()
     expect(hooks.screenProps?.currentMemberId).toBeNull()
+  })
+
+  describe('from a transaction', () => {
+    const outflow = {
+      id: TX,
+      description: 'Bunnings',
+      amount_cents: -120_00,
+      posted_at: '2026-03-10T02:00:00+00:00',
+    }
+
+    it('opens the form prefilled and moves to the financial year of its date', async () => {
+      loadEverything()
+      hooks.useSourceTransactions.mockImplementation((ids: string[]) => ({
+        transactions: ids.includes(TX) ? { [TX]: outflow } : {},
+        loading: false,
+      }))
+      renderAt(`/deductions?transaction=${TX}`)
+
+      await waitFor(() => expect(hooks.screenProps?.financialYear).toBe(2026))
+      expect(hooks.screenProps?.fromTransaction).toEqual({
+        transactionId: TX,
+        description: 'Bunnings',
+        amountCents: 120_00,
+        deductionDate: '2026-03-10',
+        financialYear: 2026,
+      })
+    })
+
+    it('opens nothing for a transaction that already has a deduction', () => {
+      loadEverything()
+      hooks.useDeductedTransactionIds.mockReturnValue({ ids: new Set([TX]), loading: false })
+      hooks.useSourceTransactions.mockReturnValue({
+        transactions: { [TX]: outflow },
+        loading: false,
+      })
+      renderAt(`/deductions?transaction=${TX}`)
+      expect(hooks.screenProps?.fromTransaction).toBeNull()
+    })
+
+    it('opens nothing for an inflow', () => {
+      loadEverything()
+      hooks.useSourceTransactions.mockReturnValue({
+        transactions: { [TX]: { ...outflow, amount_cents: 120_00 } },
+        loading: false,
+      })
+      renderAt(`/deductions?transaction=${TX}`)
+      expect(hooks.screenProps?.fromTransaction).toBeNull()
+    })
+
+    it('ignores a transaction id that is not a uuid', () => {
+      loadEverything()
+      renderAt('/deductions?transaction=nope')
+      expect(hooks.useSourceTransactions).toHaveBeenCalledWith([])
+      expect(hooks.screenProps?.fromTransaction).toBeNull()
+    })
+
+    it('looks up the source of each deduction created from a transaction', () => {
+      loadEverything()
+      hooks.useDeductions.mockReturnValue({
+        loading: false,
+        deductions: [
+          { id: 'd1', transaction_id: TX },
+          { id: 'd2', transaction_id: null },
+        ],
+      })
+      renderAt()
+      expect(hooks.useSourceTransactions).toHaveBeenCalledWith([TX])
+    })
   })
 })

@@ -46,6 +46,10 @@ export type DeductionCategory = DeductionRow['category']
  * not at all — never apportioned — so `deduction_work_use_basis` pins
  * `work_use_percent` to 100 for it, the same treatment the distance basis
  * already gets.
+ *
+ * `transaction_id` links a new deduction to the ledger transaction it was
+ * created from, at most one deduction per transaction. It is set on create
+ * alone: an edit leaves it out and the link stands.
  */
 export interface DeductionInput {
   member_id: string
@@ -61,6 +65,7 @@ export interface DeductionInput {
   /** The share of `full_amount_cents` claimed, as a percentage; 100 for a wholly work-related expense. */
   work_use_percent?: number
   category?: DeductionRow['category']
+  transaction_id?: string
 }
 
 /**

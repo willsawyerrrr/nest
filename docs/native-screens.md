@@ -629,8 +629,13 @@ the id the form minted, so a retry rewrites the same slip.
 - `OnDeviceExtraction` — routes a stored payslip or receipt (only receipts have an extractor) through a registered
   `OnDeviceExtractor` when the system language model is ready (OS 26 or later, an
   eligible device, Apple Intelligence on, model downloaded; checked through
-  `SystemLanguageModel.availability` behind `#available`), and otherwise through the
-  server functions. The file is fetched from Storage, so only readable types route. An
+  `SystemLanguageModel.availability` behind `#available`) and the per-device
+  `OnDevicePreference` is on, and otherwise through the server functions. The preference
+  (`UserDefaults`, on by default) is the "Read documents on this device" switch on the
+  Documents settings route (`Route.documents`, `DocumentsSettingsScreen`, native only);
+  with the model unavailable the switch is disabled and off, showing why
+  (`OnDeviceUnavailability`: OS too old, device not eligible, Apple Intelligence off,
+  model not ready). The file is fetched from Storage, so only readable types route. An
   extractor's not-a-document and unsupported verdicts map to the same outcomes and copy
   as the server's; any other failure falls back to the server. Trade documents have no
   on-device route and always use `trade-extract`.

@@ -49,10 +49,11 @@ import Testing
 
     private func router(
         _ result: Result<PayslipExtraction, any Error>? = .success(PayslipExtraction(model: "on-device")),
-        ready: Bool = true
+        ready: Bool = true, enabled: Bool = true
     ) -> OnDeviceExtraction<PayslipExtraction> {
         OnDeviceExtraction(
-            extractors: result.map { [Stub(result: $0)] } ?? [], isModelReady: { ready })
+            extractors: result.map { [Stub(result: $0)] } ?? [], isModelReady: { ready },
+            isEnabled: { enabled })
     }
 
     private func read(_ router: OnDeviceExtraction<PayslipExtraction>, path: String = "h/p/slip.pdf")
@@ -75,6 +76,30 @@ import Testing
 
     @Test func leavesTheServerTheDocumentWhenTheModelIsNotReady() async {
         #expect(await read(router(ready: false)) == nil)
+    }
+
+    @Test func leavesTheServerTheDocumentWhenThePreferenceIsOff() async {
+        #expect(await read(router(enabled: false)) == nil)
+    }
+
+    @Test func thePreferenceIsOnUntilTurnedOffAndIsKeptPerDevice() {
+        let defaults = UserDefaults(suiteName: "OnDevicePreferenceTests-\(UUID().uuidString)")!
+        #expect(OnDevicePreference.isEnabled(defaults))
+        OnDevicePreference.setEnabled(false, defaults)
+        #expect(!OnDevicePreference.isEnabled(defaults))
+        OnDevicePreference.setEnabled(true, defaults)
+        #expect(OnDevicePreference.isEnabled(defaults))
+    }
+
+    @Test func eachUnavailabilityHasItsOwnReason() {
+        let reasons = [
+            OnDeviceUnavailability.osTooOld, .deviceNotEligible, .appleIntelligenceOff, .modelNotReady,
+        ].map(\.reason)
+        #expect(Set(reasons).count == 4)
+    }
+
+    @Test func theModelIsReadyOnlyWithoutAnUnavailability() {
+        #expect(OnDeviceModel.isReady == (OnDeviceModel.unavailability == nil))
     }
 
     @Test func leavesTheServerAFileTheModelCannotRead() async {

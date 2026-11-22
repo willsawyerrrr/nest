@@ -726,9 +726,11 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
 - On-device receipts: the native apps read deduction receipts with the system
   model when it is ready (`DeductionReceiptExtractor`, from the PDF text layer or
   Vision OCR), converting the printed text in Swift as `fields.ts` does, and
-  fall back to `deduction-extract` on any doubt. Payslips and trade documents
-  are read only on the server (`payslip-extract`, `trade-extract`), as are all
-  PWA and MCP reads; on-device reads never send the document's text to Anthropic. See
+  fall back to `deduction-extract` on any doubt. Settings → Documents ("Read
+  documents on this device", per device, on by default) turns it off; off always
+  uses the server. Payslips and trade documents are read only on the server
+  (`payslip-extract`, `trade-extract`), as are all PWA and MCP reads; on-device
+  reads never send the document's text to Anthropic. See
   [`docs/native-screens.md`](docs/native-screens.md#uploads).
 - Uploads: anywhere the app takes a file (deduction receipts, payslips, trade
   documents) it accepts ANY type, up to 25 MiB (checked in the PWA and by the

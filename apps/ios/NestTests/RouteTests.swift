@@ -25,7 +25,7 @@ struct RouteTests {
             NavSection.settings.routes.map(\.path)
                 == [
                     "/settings/account", "/settings/members", "/settings/connections",
-                    "/settings/notifications", "/settings/planning-mode",
+                    "/settings/notifications", "/settings/planning-mode", "/settings/documents",
                 ])
     }
 

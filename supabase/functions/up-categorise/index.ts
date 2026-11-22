@@ -3,7 +3,8 @@
  * Authorization JWT (never the body).
  *
  * Takes `{ transaction_id, category_id }` (a Nest transaction id; an Up child
- * category id, or null to clear it). The transaction is read through the
+ * category id, or null to clear it), or `{ transaction_ids, category_id }` to
+ * recategorise up to 100 transactions at once, answering each one's outcome. The transaction is read through the
  * caller's own RLS-scoped client, so a row they cannot see is not found. The
  * category is written to Up with the caller's own token, read server-side via
  * the service-role-only Vault RPC, then recorded on the local row through the
@@ -11,7 +12,7 @@
  * reflects it straight away. Failures are a stable `code` with fixed copy.
  */
 
-import { UpClient } from '../_shared/up.ts'
+import { MAX_RATE_LIMIT_RETRIES, UpClient } from '../_shared/up.ts'
 import { handlePreflight, json, requirePost } from '../_shared/http.ts'
 import { resolveCaller, type ResolvedCaller } from '../_shared/caller.ts'
 import { runCategorise } from './categorise.ts'
@@ -63,8 +64,12 @@ Deno.serve(async (request) => {
       if (error) throw new Error(`Failed to read token: ${error.message}`)
       return data
     },
-    categorise: (token, upId, categoryId) =>
-      new UpClient(token).categoriseTransaction(upId, categoryId),
+    categorise: (token, upId, categoryId, retryRateLimit) =>
+      new UpClient(token).categoriseTransaction(
+        upId,
+        categoryId,
+        retryRateLimit ? MAX_RATE_LIMIT_RETRIES : 0,
+      ),
     recordCategory: async (transactionId, categoryId) => {
       const { data, error } = await caller!.admin.rpc('set_up_transaction_category', {
         p_transaction_id: transactionId,

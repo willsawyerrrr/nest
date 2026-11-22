@@ -52,7 +52,7 @@ from Nest are built and deployed.
   Once per run, through the first member whose token lists their accounts, it
   refreshes `up_category` from `GET /categories` via `sync_up_categories`.
   Idempotent throughout.
-- **`up-categorise/`** — recategorises one Up transaction from Nest (see
+- **`up-categorise/`** — recategorises one Up transaction, or a batch, from Nest (see
   [Recategorising from Nest](#recategorising-from-nest-up-categorise)). The MCP
   server's `categorise_transaction` tool calls it.
 - **`up-webhook/`** — real-time ingestion (see [Webhook](#webhook--near-real-time-up-webhook)),
@@ -239,6 +239,17 @@ and an Up child category id or null to clear the category:
    recategorisation), so the caller retries; setting the same category on Up
    again is idempotent.
 
+`{ transaction_ids, category_id }` (1–100 distinct ids) recategorises a batch
+with one category and one token read. An unknown or parent category, or no
+token, fails the whole request as above; otherwise it answers `200` with
+`results`, each `{ transaction_id }` or `{ transaction_id, code }` in request
+order. Each transaction is read, checked and written in turn, one Up call at a
+time; a `429` is retried after Up's `Retry-After` (else exponential backoff),
+up to three times. Once a failure that holds for the whole token is seen —
+`up_auth_failed`, or `up_rate_limited` those retries did not clear — the rest
+report it without another call to Up. Any other failure is that transaction's
+alone.
+
 ### Reviewing transactions (`/transactions/review`)
 
 The PWA's review screen (`routes/TransactionReviewSection.tsx`,
@@ -280,6 +291,20 @@ the transaction unreviewed and renders Nest's own copy per `up-categorise` code
 (`up_not_connected` and `up_auth_failed` link to Connections). That includes
 `save_failed`: Up took the category but Nest's copy did not, so the transaction
 stays unreviewed with the picker's choice kept, and saving again retries.
+
+Each unreviewed row has a checkbox, and a bar above the list selects all of
+them (every unreviewed row the screen shows), counts the selection, and acts on
+it:
+
+- **Mark reviewed** — `review_transaction` for each, a few at a time, leaving
+  each note as it is.
+- **Set category** + **Apply** — `up-categorise`'s batch form (100 per
+  request), then `review_transaction` for each one Up and Nest both took. A move
+  into `gifts-and-charity` shows the Gifts notice.
+
+A transaction either step fails stays unreviewed and selected, and an alert
+names each one with Nest's copy for its code (linking to Connections where that
+is the fix). The rest leave the list.
 
 ### Webhook — near-real-time (`up-webhook`)
 

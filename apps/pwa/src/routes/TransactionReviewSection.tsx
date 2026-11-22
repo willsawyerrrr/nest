@@ -34,6 +34,8 @@ export function TransactionReviewSection() {
       accountNames={accountNames}
       {...(deducted.ids && { deductedIds: deducted.ids })}
       onReview={review.review}
+      onReviewMany={review.reviewMany}
+      onCategoriseMany={review.categoriseMany}
     />
   )
 }

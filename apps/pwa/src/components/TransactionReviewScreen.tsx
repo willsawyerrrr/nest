@@ -7,6 +7,7 @@ import {
   Badge,
   Box,
   Button,
+  Checkbox,
   Collapse,
   Group,
   Select,
@@ -23,7 +24,7 @@ import {
   IconReceiptTax,
 } from '@tabler/icons-react'
 import { useIsWide } from '../hooks/useIsWide'
-import type { ReviewInput } from '../hooks/useTransactionReview'
+import type { BulkOutcome, ReviewInput } from '../hooks/useTransactionReview'
 import { formatIsoDate, isoDate } from '../lib/dates'
 import { GIFT_TRANSACTION_CATEGORY } from '../lib/giftCandidates'
 import { createDeductionPath, isOutflow } from '../lib/transactionDeduction'
@@ -44,6 +45,7 @@ import { EmptyState } from './EmptyState'
 import { FormError } from './FormError'
 import { MoneyText } from './MoneyText'
 import { PageSection } from './PageSection'
+import { BulkBar, BulkFailureAlert, type BulkFailure } from './TransactionReviewBulk'
 
 interface TransactionReviewScreenProps {
   /** The unreviewed transactions, newest first. */
@@ -56,6 +58,13 @@ interface TransactionReviewScreenProps {
   /** The ids of the transactions that already have a deduction. */
   deductedIds?: ReadonlySet<string>
   onReview: (transactionId: string, input: ReviewInput) => Promise<void>
+  /** Marks the transactions reviewed as they stand. */
+  onReviewMany: (transactionIds: readonly string[]) => Promise<BulkOutcome>
+  /** Sets one Up category on the transactions and marks them reviewed. */
+  onCategoriseMany: (
+    transactionIds: readonly string[],
+    categoryId: string | null,
+  ) => Promise<BulkOutcome>
 }
 
 /** Which action is saving, so only its button shows progress. */
@@ -222,6 +231,8 @@ function ReviewRow({
   accountName,
   focused,
   deducted,
+  selected,
+  onSelect,
   onReview,
   onGiftFiled,
 }: {
@@ -231,6 +242,9 @@ function ReviewRow({
   accountName: string | null
   focused: boolean
   deducted: boolean
+  /** Whether the row is selected for a bulk action; undefined when it cannot be (already reviewed). */
+  selected: boolean | undefined
+  onSelect: (selected: boolean) => void
   onReview: TransactionReviewScreenProps['onReview']
   onGiftFiled: () => void
 }) {
@@ -252,6 +266,16 @@ function ReviewRow({
 
   const header = (
     <Group gap="sm" wrap="nowrap" align="flex-start">
+      {selected !== undefined && (
+        <Checkbox
+          pt={2}
+          size="xs"
+          checked={selected}
+          onChange={(event) => onSelect(event.currentTarget.checked)}
+          aria-label={`Select ${transactionLabel(transaction)}`}
+          style={{ flexShrink: 0 }}
+        />
+      )}
       <UnstyledButton
         onClick={() => setOpened((open) => !open)}
         aria-expanded={opened}
@@ -357,6 +381,10 @@ function ReviewRow({
  * also become one ("Create deduction"), which opens the Deductions form
  * prefilled from it; one that has a deduction is marked instead. `focused` — the transaction a
  * notification names — leads the list, expanded, even once reviewed.
+ *
+ * Unreviewed rows can be selected, one by one or all at once, and the selection
+ * marked reviewed or given one category together. A transaction a bulk action
+ * could not save stays selected and waiting, and the screen names it and why.
  */
 export function TransactionReviewScreen({
   transactions,
@@ -365,13 +393,61 @@ export function TransactionReviewScreen({
   accountNames,
   deductedIds,
   onReview,
+  onReviewMany,
+  onCategoriseMany,
 }: TransactionReviewScreenProps) {
   const [giftFiled, setGiftFiled] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set())
+  const [busy, setBusy] = useState<'review' | 'categorise' | null>(null)
+  const [bulkFailure, setBulkFailure] = useState<BulkFailure | null>(null)
   const groups = categoryGroups(categories)
   const rows: ReviewTransaction[] =
     focused && !transactions.some((transaction) => transaction.id === focused.id)
       ? [focused, ...transactions]
       : transactions
+  const selectable = rows.filter((transaction) => transaction.reviewed_at === null)
+  // Rows that leave the list (reviewed elsewhere, or by this action) leave the selection.
+  const selected = selectable.filter((transaction) => selectedIds.has(transaction.id))
+
+  function select(id: string, on: boolean) {
+    setSelectedIds((current) => {
+      const next = new Set(current)
+      if (on) {
+        next.add(id)
+      } else {
+        next.delete(id)
+      }
+      return next
+    })
+  }
+
+  async function runBulk(action: 'review' | 'categorise', categoryId?: string) {
+    const ids = selected.map((transaction) => transaction.id)
+    const labels = new Map(
+      selected.map((transaction) => [transaction.id, transactionLabel(transaction)]),
+    )
+    setBusy(action)
+    setBulkFailure(null)
+    try {
+      const { failed } =
+        action === 'review'
+          ? await onReviewMany(ids)
+          : await onCategoriseMany(ids, categoryId ?? null)
+      setSelectedIds(new Set(failed.map(({ id }) => id)))
+      setBulkFailure(
+        failed.length > 0
+          ? failed.map(({ id, code }) => ({ label: labels.get(id) ?? 'Card purchase', code }))
+          : null,
+      )
+      if (categoryId === GIFT_TRANSACTION_CATEGORY && failed.length < ids.length) {
+        setGiftFiled(true)
+      }
+    } catch {
+      setBulkFailure(ids.map((id) => ({ label: labels.get(id) ?? 'Card purchase', code: null })))
+    } finally {
+      setBusy(null)
+    }
+  }
 
   let content: ReactNode
   if (rows.length === 0) {
@@ -379,6 +455,19 @@ export function TransactionReviewScreen({
   } else {
     content = (
       <Stack gap="sm">
+        {selectable.length > 0 && (
+          <BulkBar
+            selectable={selectable.length}
+            selectedCount={selected.length}
+            groups={groups}
+            busy={busy}
+            onSelectAll={(on) =>
+              setSelectedIds(new Set(on ? selectable.map((transaction) => transaction.id) : []))
+            }
+            onReviewMany={() => void runBulk('review')}
+            onCategoriseMany={(categoryId) => void runBulk('categorise', categoryId)}
+          />
+        )}
         {rows.map((transaction) => (
           <ReviewRow
             key={transaction.id}
@@ -388,6 +477,10 @@ export function TransactionReviewScreen({
             accountName={accountNames[transaction.account_id] ?? null}
             focused={transaction.id === focused?.id}
             deducted={deductedIds?.has(transaction.id) ?? false}
+            selected={
+              transaction.reviewed_at === null ? selectedIds.has(transaction.id) : undefined
+            }
+            onSelect={(on) => select(transaction.id, on)}
             onReview={onReview}
             onGiftFiled={() => setGiftFiled(true)}
           />
@@ -404,8 +497,11 @@ export function TransactionReviewScreen({
   return (
     <PageSection
       title="Review transactions"
-      intro="Check each Up transaction's category, fix any that are wrong, and add a note."
+      intro="Check each Up transaction's category, fix any that are wrong, and add a note. Select several to review them together."
     >
+      {bulkFailure && (
+        <BulkFailureAlert failure={bulkFailure} onClose={() => setBulkFailure(null)} />
+      )}
       {giftFiled && (
         <Alert
           color="info"

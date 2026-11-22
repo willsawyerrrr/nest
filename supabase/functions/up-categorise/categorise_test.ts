@@ -50,7 +50,7 @@ Deno.test('runCategorise writes the category to Up and then the local row', asyn
     body: { transaction_id: TX, category_id: 'gifts-and-charity', parent_category_id: 'personal' },
   })
   assertEquals(calls, [
-    ['up', 'up:token', 'up-tx-1', 'gifts-and-charity'],
+    ['up', 'up:token', 'up-tx-1', 'gifts-and-charity', false],
     ['local', TX, 'gifts-and-charity'],
   ])
 })
@@ -203,4 +203,111 @@ Deno.test('runCategorise answers server_error when a lookup throws', async () =>
   )
   assertEquals(result.status, 500)
   assertEquals(result.body.code, 'server_error')
+})
+
+const TX2 = '22222222-2222-4222-8222-222222222222'
+const TX3 = '33333333-3333-4333-8333-333333333333'
+
+Deno.test('runCategorise recategorises a batch, reporting each outcome in order', async () => {
+  const calls: unknown[][] = []
+  const result = await quietly(() =>
+    runCategorise(
+      { transaction_ids: [TX, TX2, TX3], category_id: 'groceries' },
+      deps({
+        readTransaction: (id) =>
+          Promise.resolve(
+            id === TX2
+              ? null
+              : { id, source: 'up', external_id: `up-${id}`, is_categorizable: true },
+          ),
+        categorise: (...args) => {
+          calls.push(args)
+          return args[1] === `up-${TX3}`
+            ? Promise.reject(new UpApiError(422, '/x', 'no'))
+            : Promise.resolve()
+        },
+      }),
+    )
+  )
+  assertEquals(result, {
+    status: 200,
+    body: {
+      category_id: 'groceries',
+      parent_category_id: 'personal',
+      results: [
+        { transaction_id: TX },
+        { transaction_id: TX2, code: 'transaction_not_found' },
+        { transaction_id: TX3, code: 'up_rejected' },
+      ],
+    },
+  })
+  assertEquals(calls, [
+    ['up:token', `up-${TX}`, 'groceries', true],
+    ['up:token', `up-${TX3}`, 'groceries', true],
+  ])
+})
+
+Deno.test('runCategorise stops calling Up once a batch hits a token-wide failure', async () => {
+  let calls = 0
+  const result = await quietly(() =>
+    runCategorise(
+      { transaction_ids: [TX, TX2, TX3], category_id: null },
+      deps({
+        categorise: () => {
+          calls++
+          return Promise.reject(new UpApiError(429, '/x', 'slow down'))
+        },
+      }),
+    )
+  )
+  assertEquals(calls, 1)
+  assertEquals(result.body.results, [
+    { transaction_id: TX, code: 'up_rate_limited' },
+    { transaction_id: TX2, code: 'up_rate_limited' },
+    { transaction_id: TX3, code: 'up_rate_limited' },
+  ])
+})
+
+Deno.test('runCategorise reports a batch row Nest could not record as save_failed', async () => {
+  const result = await runCategorise(
+    { transaction_ids: [TX, TX2], category_id: 'groceries' },
+    deps({ recordCategory: (id) => Promise.resolve(id !== TX2) }),
+  )
+  assertEquals(result.body.results, [
+    { transaction_id: TX },
+    { transaction_id: TX2, code: 'save_failed' },
+  ])
+})
+
+Deno.test('runCategorise answers a batch-wide failure as itself', async () => {
+  const parent = await runCategorise(
+    { transaction_ids: [TX], category_id: 'personal' },
+    deps(),
+  )
+  assertEquals([parent.status, parent.body.code], [422, 'parent_category'])
+  const unconnected = await runCategorise(
+    { transaction_ids: [TX], category_id: 'groceries' },
+    deps({ tokenFor: () => Promise.resolve(null) }),
+  )
+  assertEquals([unconnected.status, unconnected.body.code], [409, 'up_not_connected'])
+})
+
+Deno.test('runCategorise refuses a malformed batch', async () => {
+  const bodies = [
+    { transaction_ids: [], category_id: null },
+    { transaction_ids: ['nope'], category_id: null },
+    { transaction_ids: [TX, TX], category_id: null },
+    { transaction_ids: [TX], transaction_id: TX, category_id: null },
+    {
+      transaction_ids: Array.from(
+        { length: 101 },
+        (_, i) => `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`,
+      ),
+      category_id: null,
+    },
+  ]
+  for (const body of bodies) {
+    const result = await runCategorise(body, deps())
+    assertEquals(result.body.code, 'invalid_request')
+  }
 })

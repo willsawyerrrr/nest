@@ -633,6 +633,27 @@ the id the form minted, so a retry rewrites the same slip.
   extractor's not-a-document and unsupported verdicts map to the same outcomes and copy
   as the server's; any other failure falls back to the server. Trade documents have no
   on-device route and always use `trade-extract`.
+- `DeductionReceiptExtractor` — the registered receipt extractor. The text comes from the
+  PDF's text layer (`DocumentText`; PDFKit), or Vision `VNRecognizeTextRequest` over an
+  image or a scanned PDF's rendered pages (at most 3 pages); image input to the model is
+  not used. The system model (`@Generable` `GeneratedReceipt`, every field nullable,
+  greedy sampling) reports the description, date and amount as printed, and the app
+  converts them as `fields.ts` does (`PrintedText`, `ReceiptReading`; a date printed
+  `DD/MM/YYYY`, `6 Jul 2025` or without a year converts in Swift, a yearless one inside
+  the financial year). `ReceiptPrompt` sizes the prompt against
+  `SystemLanguageModel.contextSize` (4096 before iOS 27, 8192 after, covering prompt,
+  schema and answer) and a too-long document goes to the server. A reading is accepted
+  only when `ReceiptCheck` finds nothing doubtful: OCR confidence at least 0.6; the text
+  looks like a receipt (a receipt word, no statement balances) since the model does not
+  reliably decline other documents; an amount was read; the description, amount and date
+  are each found in the text (a converted date in the order printed); nothing came back
+  unconvertible or negative. The model claiming a document is not a receipt is not taken
+  as a verdict. Any refusal or error leaves the receipt to `deduction-extract`. Parity
+  with the server is held by `deduction-receipt-parity.json` (run through `fields.ts` by
+  `fields_parity_test.ts` and through the port by `ReceiptFieldsParityTests`) and
+  `deduction-corpus-parity.json` (the eval corpus's synthetic receipts and non-receipts;
+  see [`on-device-extraction.md`](on-device-extraction.md)). The live model is not run in
+  CI. Payslips and trade documents have no on-device extractor yet.
 - `UploadQueue` — the native `useUploadQueue`: store, then read, then hand back a draft.
   At most three files are in flight and 20 open per panel (the rest are left out with
   the usual message); a failed, unreadable or unsupported file never stops the others;

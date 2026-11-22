@@ -8,7 +8,7 @@ struct DeductionsService: Sendable {
     static let bucket = "receipts"
 
     var data: NestData
-    var onDevice = OnDeviceExtraction<DeductionExtraction>()
+    var onDevice = OnDeviceExtraction<DeductionExtraction>(extractors: [DeductionReceiptExtractor()])
 
     private static let deductionTables: Set<String> = ["deduction_receipt", "deduction_group"]
 

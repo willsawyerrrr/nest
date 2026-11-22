@@ -721,6 +721,12 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   [`docs/on-device-extraction.md`](docs/on-device-extraction.md) for the
   confirmed SDK facts and results. Real documents stay git-ignored under
   `evals/local/`.
+- On-device receipts: the native apps read deduction receipts with the system
+  model when it is ready (`DeductionReceiptExtractor`, from the PDF text layer or
+  Vision OCR), converting the printed text in Swift as `fields.ts` does, and
+  fall back to `deduction-extract` on any doubt. Payslips and trade documents
+  stay on the server. See
+  [`docs/native-screens.md`](docs/native-screens.md#uploads).
 - Uploads: anywhere the app takes a file (deduction receipts, payslips, trade
   documents) it accepts ANY type, up to 25 MiB (checked in the PWA and by the
   `receipts`/`payslips` buckets' `file_size_limit`). The extension alone decides

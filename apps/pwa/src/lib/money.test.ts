@@ -12,6 +12,7 @@ import {
   formatUnitPrice,
   microdollarsToDollars,
   moneyColor,
+  toNumericValue,
   workUseAmountCents,
 } from './money'
 
@@ -242,5 +243,18 @@ describe('formatCentsRate', () => {
   it('shows fractional cents trimmed to two decimals', () => {
     expect(formatCentsRate(67.5, 'hr')).toBe('67.5c/hr')
     expect(formatCentsRate(67.456, 'hr')).toBe('67.46c/hr')
+  })
+})
+
+describe('toNumericValue', () => {
+  it('is empty when unset', () => {
+    expect(toNumericValue(null)).toBe('')
+    expect(toNumericValue(undefined)).toBe('')
+    expect(toNumericValue('')).toBe('')
+  })
+
+  it('keeps a number and parses a numeric string', () => {
+    expect(toNumericValue(12.5)).toBe(12.5)
+    expect(toNumericValue('12.50')).toBe(12.5)
   })
 })

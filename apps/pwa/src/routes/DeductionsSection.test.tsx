@@ -1,6 +1,6 @@
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor } from '../test/render'
+import { act, render, screen, waitFor } from '../test/render'
 import { DeductionsSection } from './DeductionsSection'
 
 const hooks = vi.hoisted(() => ({
@@ -154,6 +154,20 @@ describe('DeductionsSection', () => {
         deductionDate: '2026-03-10',
         financialYear: 2026,
       })
+    })
+
+    it('closes the form once the screen is done with the transaction', async () => {
+      loadEverything()
+      hooks.useSourceTransactions.mockImplementation((ids: string[]) => ({
+        transactions: ids.includes(TX) ? { [TX]: outflow } : {},
+        loading: false,
+      }))
+      renderAt(`/deductions?transaction=${TX}`)
+      await waitFor(() => expect(hooks.screenProps?.fromTransaction).toBeTruthy())
+
+      act(() => (hooks.screenProps!.onFromTransactionDone as () => void)())
+
+      await waitFor(() => expect(hooks.screenProps?.fromTransaction).toBeNull())
     })
 
     it('opens nothing for a transaction that already has a deduction', () => {

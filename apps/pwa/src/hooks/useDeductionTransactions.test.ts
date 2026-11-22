@@ -18,13 +18,24 @@ beforeEach(() => {
 
 describe('useDeductedTransactionIds', () => {
   it('collects the transaction ids deductions point at', async () => {
-    builder.result = { data: [{ transaction_id: 't1' }, { transaction_id: 't2' }], error: null }
+    builder.result = {
+      data: [{ transaction_id: 't1' }, { transaction_id: null }, { transaction_id: 't2' }],
+      error: null,
+    }
     const { result } = renderHook(() => useDeductedTransactionIds(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     expect(from).toHaveBeenCalledWith('deduction')
     expect(builder.not).toHaveBeenCalledWith('transaction_id', 'is', null)
     expect(result.current.ids).toEqual(new Set(['t1', 't2']))
+  })
+
+  it('stays unloaded when the read fails', async () => {
+    builder.result = { data: null, error: new Error('boom') }
+    const { result } = renderHook(() => useDeductedTransactionIds(), { wrapper: makeWrapper() })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    expect(result.current.ids).toBeNull()
   })
 })
 
@@ -47,6 +58,14 @@ describe('useSourceTransactions', () => {
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     expect(from).not.toHaveBeenCalled()
+    expect(result.current.transactions).toEqual({})
+  })
+
+  it('has no transactions when the read fails', async () => {
+    builder.result = { data: null, error: new Error('boom') }
+    const { result } = renderHook(() => useSourceTransactions(['t1']), { wrapper: makeWrapper() })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
     expect(result.current.transactions).toEqual({})
   })
 })

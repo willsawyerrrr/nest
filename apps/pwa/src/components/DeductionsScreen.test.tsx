@@ -222,6 +222,27 @@ describe('DeductionsScreen', () => {
     await waitFor(() => expect(onFromTransactionDone).toHaveBeenCalled())
   })
 
+  it('saves a deduction from a transaction without a handler for finishing', async () => {
+    const onCreate = vi.fn().mockResolvedValue(undefined)
+    renderScreen({
+      deductions: [],
+      currentMemberId: 'm1',
+      onCreate,
+      fromTransaction: {
+        transactionId: 'tx1',
+        description: 'Bunnings',
+        amountCents: 120_00,
+        deductionDate: '2026-08-14',
+        financialYear: 2027,
+      },
+    })
+    const submit = screen
+      .getAllByRole('button', { name: /add deduction/i })
+      .find((button) => button.getAttribute('type') === 'submit')!
+    await userEvent.click(submit)
+    await waitFor(() => expect(onCreate).toHaveBeenCalled())
+  })
+
   it('renders the claimed distance beside the date of a distance-basis deduction', () => {
     renderScreen({
       deductions: [

@@ -715,6 +715,12 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   half-up to cents once per trade, as a contract note prints it; brokerage is the
   fee including GST. See
   [`docs/investments.md`](docs/investments.md).
+- Extraction eval: a synthetic labelled corpus and harness compare the server
+  extractors with Apple Foundation Models (`supabase/functions/_eval/`,
+  `evals/foundation-models/`); see
+  [`docs/on-device-extraction.md`](docs/on-device-extraction.md) for the
+  confirmed SDK facts and results. Real documents stay git-ignored under
+  `evals/local/`.
 - Uploads: anywhere the app takes a file (deduction receipts, payslips, trade
   documents) it accepts ANY type, up to 25 MiB (checked in the PWA and by the
   `receipts`/`payslips` buckets' `file_size_limit`). The extension alone decides

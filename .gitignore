@@ -48,3 +48,8 @@ CLAUDE.local.md
 
 # Mac app release artefact
 /Nest.zip
+
+# Extraction eval: generated documents and results, and any real documents kept locally
+evals/out/
+evals/local/
+evals/foundation-models/.build/

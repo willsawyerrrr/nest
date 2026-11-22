@@ -690,6 +690,16 @@ believe was read off the document — so confirmation is structural rather than 
 convention the UI is trusted to follow. It also means a failure at any step can
 leave nothing half-written.
 
+### Where a slip is read
+
+The server path (`payslip-extract`, Claude) reads every slip from the PWA, the
+MCP tool `create_payslip_from_document`, and the native apps. The native upload
+route tries the on-device model first when Apple Intelligence is ready, but no
+payslip extractor is registered, so native slips are read on the server. The
+slip is sent to Anthropic for that read; see
+[`on-device-extraction.md`](on-device-extraction.md) for the on-device results
+and [`native-screens.md`](native-screens.md#uploads) for the routing.
+
 ### Request
 
 The client uploads the file to the private `payslips` bucket **first** — the file

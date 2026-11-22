@@ -66,6 +66,18 @@ Clients talk to the database in the way that fits each job:
   (`verify_jwt=false`, signature-verified instead). The pure tax engine runs
   client-side in the PWA; an authoritative server-side tax estimate is a future
   edge function.
+- **Document extraction paths** — a payslip, deduction receipt, or trade
+  document is always stored first, then read by one of two paths, and either only
+  pre-fills a form the member confirms. The **server** path (the three edge
+  functions above, Claude Haiku 4.5) serves the PWA, the MCP tools
+  (`create_payslip_from_document`, `create_deduction_from_document`,
+  `create_trades_from_document`), and the native apps as the fallback. The
+  **on-device** path (Apple Foundation Models, native apps only) is used when
+  `SystemLanguageModel.availability` is `.available` (iOS 26 or later, an eligible
+  device, Apple Intelligence on, model downloaded). It reads deduction receipts only; the document's text
+  is not sent to Anthropic. Any doubt or failure falls back to the server
+  path. See [`native-screens.md`](native-screens.md#uploads) and
+  [`on-device-extraction.md`](on-device-extraction.md).
 - **SQL views / RPC** — derived reporting (spend-vs-budget, savings progress) and
   household management (`create_household`, `join_household`, and the temporary
   invite-code RPCs `create_invite_code` / `revoke_invite_code`), callable through

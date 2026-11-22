@@ -345,6 +345,7 @@ export function evaluateHousehold(bundle: HouseholdBundle, now: Date): Firing[] 
           formatCents(Math.abs(transaction.amount_cents))
         }) was synced from your card as Gifts and Charity.`,
         url: '/gifts',
+        native: { category: 'gift_candidate', transactionId: transaction.id },
       },
     })
   }

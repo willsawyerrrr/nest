@@ -356,6 +356,7 @@ Deno.test('gift_candidate_new fires for a recent, unclaimed, undismissed transac
   assertEquals(firings[0].dedupeKey, 'tx-1')
   assertEquals(firings[0].visibleToMemberId, undefined)
   assertEquals(firings[0].payload.url, '/gifts')
+  assertEquals(firings[0].payload.native, { category: 'gift_candidate', transactionId: 'tx-1' })
   assert(firings[0].payload.body.includes('"Flowers" ($45.00)'))
 })
 

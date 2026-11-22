@@ -10,6 +10,7 @@ final class NestAppDelegate: NSObject, UIApplicationDelegate, UNUserNotification
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         UNUserNotificationCenter.current().delegate = self
+        UNUserNotificationCenter.current().setNotificationCategories(NotificationActions.categories)
         return true
     }
 
@@ -34,16 +35,24 @@ final class NestAppDelegate: NSObject, UIApplicationDelegate, UNUserNotification
         Task { @MainActor in completionHandler([.banner, .sound]) }
     }
 
-    /// Opens the screen a tapped notification names, then completes on the main
-    /// thread.
+    /// Acts on the member's response: opens the screen a tapped notification (or
+    /// its link action) names, or sets a gift candidate aside from its dismiss
+    /// action, then completes on the main thread.
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping @Sendable () -> Void
     ) {
-        let destination = NotificationDestination(userInfo: response.notification.request.content.userInfo)
+        let outcome = NotificationResponse(
+            actionIdentifier: response.actionIdentifier,
+            userInfo: response.notification.request.content.userInfo)
         Task { @MainActor in
-            if let destination { NotificationRouter.shared.open(destination) }
+            switch outcome {
+            case .open(let destination): NotificationRouter.shared.open(destination)
+            case .dismissGiftCandidate(let id):
+                try? await GiftCandidateDismisser().dismiss(transactionID: id)
+            case .ignore: break
+            }
             completionHandler()
         }
     }

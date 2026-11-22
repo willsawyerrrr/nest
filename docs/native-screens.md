@@ -531,7 +531,12 @@ hidden by row-level security (`private_gift`). The device never widens that:
 - A budget for the member's own gift reports no spend (as MCP `list_gifts` does):
   its row shows only the budget, and a group or total made up only of such gifts
   shows only the budget. Such budgets are left out of the link choices.
-- Gift rows are not exposed to Spotlight or App Intents.
+- Gift rows are not exposed to Spotlight or App Intents. A "Gifts" App Shortcut
+  only opens this screen.
+- A gift-candidate notification's **Not a gift** action writes the same
+  `gift_transaction_dismissal` as the inbox's set-aside control
+  (`GiftDismissalValues`), without opening the app; **Link to a gift** opens this
+  screen (see [`ios.md`](ios.md#push-notifications)).
 
 `GiftsViewModelTests` covers hidden rows never reaching the content or
 presentation, the cache never serving another user's rows, purchases and

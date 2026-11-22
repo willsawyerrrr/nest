@@ -35,6 +35,19 @@ export interface PushPayload {
   body: string
   /** Where `notificationclick` navigates. */
   url: string
+  /**
+   * What only the native app uses: the notification category whose actions it
+   * offers, and the record those actions act on. Web Push omits it.
+   */
+  native?: NativeAction
+}
+
+/** The native notification category and the record its actions act on. */
+export interface NativeAction {
+  /** The `UNNotificationCategory` identifier the app registers actions under. */
+  category: string
+  /** The transaction the category's actions act on. */
+  transactionId: string
 }
 
 /** The outcome of one device's delivery attempt. */
@@ -121,7 +134,8 @@ export async function createPushSender(keys: VapidKeys): Promise<PushSender> {
     })
     try {
       // High urgency so an installed iOS PWA is woken rather than batched.
-      await subscriber.pushTextMessage(JSON.stringify(payload), {
+      const { native: _native, ...web } = payload
+      await subscriber.pushTextMessage(JSON.stringify(web), {
         urgency: webpush.Urgency.High,
       })
       return { delivered: true }

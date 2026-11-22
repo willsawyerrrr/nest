@@ -119,11 +119,21 @@ export async function signProviderToken(
   return `${signingInput}.${encodeBase64Url(new Uint8Array(signature))}`
 }
 
-/** The body the app renders and routes on: the alert plus the in-app `url` to open. */
+/**
+ * The body the app renders and routes on: the alert plus the in-app `url` to
+ * open. A payload with a `native` action carries its category in `aps` and its
+ * transaction id alongside `url`.
+ */
 export function apnsBody(payload: PushPayload): string {
+  const { native } = payload
   return JSON.stringify({
-    aps: { alert: { title: payload.title, body: payload.body }, sound: 'default' },
+    aps: {
+      alert: { title: payload.title, body: payload.body },
+      sound: 'default',
+      ...(native && { category: native.category }),
+    },
     url: payload.url,
+    ...(native && { transactionId: native.transactionId }),
   })
 }
 

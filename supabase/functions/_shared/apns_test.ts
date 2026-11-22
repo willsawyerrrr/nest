@@ -72,6 +72,19 @@ Deno.test('apnsBody carries the alert and the url to open', () => {
   })
 })
 
+Deno.test('apnsBody carries a native action as the aps category and a transaction id', () => {
+  const native = { category: 'gift_candidate', transactionId: 'tx-1' }
+  assertEquals(JSON.parse(apnsBody({ ...PAYLOAD, native })), {
+    aps: {
+      alert: { title: 'Hello', body: 'World' },
+      sound: 'default',
+      category: 'gift_candidate',
+    },
+    url: '/gifts',
+    transactionId: 'tx-1',
+  })
+})
+
 Deno.test('isGone matches 410 and a 400 BadDeviceToken only', () => {
   assert(isGone(410, 'Unregistered'))
   assert(isGone(410, null))

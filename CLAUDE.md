@@ -26,7 +26,10 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   adds Siri / App Intents access to key figures — the
   fortnightly buffer, savings-goal progress, a named budget line's planned
   amount so far, and how much of the pay goes to a named account; budget lines and
-  pay-split accounts are named inline in the Siri phrase and indexed in Spotlight. The native app is the single session owner: one Google OAuth at
+  pay-split accounts are named inline in the Siri phrase and indexed in Spotlight,
+  and App Shortcuts open the Gifts, Summary, Goals, Budget and transaction-review
+  screens. A gift-candidate notification offers Link to a gift and Not a gift
+  actions. The native app is the single session owner: one Google OAuth at
   launch (`supabase-swift`, Keychain-stored), so an in-process App Shortcut can
   answer with the app closed, and it mirrors that session into its `WKWebView`
   of the PWA (`WebRouteView`, kept for a `.web` route though none uses one; a `.atDocumentStart` `window.__NEST_NATIVE_SHELL__` marker, `setSession` on
@@ -1067,7 +1070,7 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   service-role-only `vapid_keys()` RPC and set by hand; the APNs auth key (`.p8`),
   its key id, the team id and the bundle id are likewise read only through
   `apns_keys()`. `_shared/apns.ts` signs an ES256 provider token (reused for 50
-  minutes) and POSTs `{ aps: { alert, sound }, url }` to the token's own APNs host,
+  minutes) and POSTs `{ aps: { alert, sound, category? }, url, transactionId? }` to the token's own APNs host,
   pruning only on a `410` or a `400 BadDeviceToken`. Either channel may be
   unconfigured: its devices are skipped, and only when neither is does
   `notify-eval` answer `503`. `push-key` serves the public VAPID key so rotating
@@ -1078,7 +1081,9 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   the native screen a tapped notification opens in the app (an in-app path
   naming a `Route`, with any context that screen takes, such as a promote draft
   for Goals or Budget or the `id` of the transaction to review; the app ignores
-  anything else). The native app's web view reports its device as on
+  anything else); a gift-candidate payload also carries a `native` action
+  (category and transaction id, sent to APNs only) whose notification actions
+  open Gifts or set the candidate aside. The native app's web view reports its device as on
   in the Notifications settings (status `native`, gated on
   `__NEST_NATIVE_SHELL__`), with no web opt-in; the native Notifications screen
   shows the same state, reads and upserts `notification_preference` on

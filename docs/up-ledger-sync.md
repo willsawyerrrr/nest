@@ -485,7 +485,8 @@ Purely PostgREST + RLS (no new edge functions): the household already reads
   negative, as a credit card or home loan is) and badges for "Deleted at
   source" and "Not in net worth". Mobile cards, desktop dense rows. Read-only:
   net-worth inclusion is set on Net worth. Labels and grouping live in
-  `apps/pwa/src/lib/accounts.ts`.
+  `apps/pwa/src/lib/accounts.ts`, mirrored natively by `AccountsPresentation`
+  (see [`native-screens.md`](native-screens.md#accounts)).
 - **Transactions view** — a paginated, filterable list from `public.transactions`
   ordered by `posted_at` desc: filter by account, date range, kind, status
   (pending vs settled), and (once mirrored) category. Show signed amount with the

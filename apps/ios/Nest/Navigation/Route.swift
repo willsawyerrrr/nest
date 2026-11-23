@@ -74,6 +74,7 @@ enum Route: String, CaseIterable, Identifiable, Hashable {
     case splits = "/splits"
     case transactionReview = "/transactions/review"
     case netWorth = "/net-worth"
+    case accounts = "/accounts"
     case goals = "/goals"
     case wishlist = "/wishlist"
     case superannuation = "/super"
@@ -109,6 +110,7 @@ enum Route: String, CaseIterable, Identifiable, Hashable {
         case .gifts: "Gifts"
         case .splits: "Pay splits"
         case .netWorth: "Net worth"
+        case .accounts: "Accounts"
         case .goals: "Goals"
         case .wishlist: "Wishlist"
         case .superannuation: "Super"
@@ -138,7 +140,7 @@ enum Route: String, CaseIterable, Identifiable, Hashable {
         case .summary: .summary
         case .inflows, .budget, .breakdowns, .gifts, .splits: .plan
         case .transactionReview: .review
-        case .netWorth, .goals, .wishlist, .superannuation, .equity, .investments: .grow
+        case .netWorth, .accounts, .goals, .wishlist, .superannuation, .equity, .investments: .grow
         case .tax, .payslips, .deductions, .helpDebt, .eofy: .tax
         case .household, .members, .connections, .notifications, .planningMode, .documents: .settings
         case .planning, .allowance, .whatsNew: nil
@@ -163,6 +165,7 @@ enum Route: String, CaseIterable, Identifiable, Hashable {
         case .wishlist: .native(AnyView(WishlistScreen()))
         case .household: .native(AnyView(HouseholdScreen()))
         case .netWorth: .native(AnyView(NetWorthScreen()))
+        case .accounts: .native(AnyView(AccountsScreen()))
         case .tax: .native(AnyView(TaxScreen()))
         case .eofy: .native(AnyView(EofyScreen()))
         case .payslips: .native(AnyView(PayslipsScreen()))

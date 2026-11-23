@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase'
 import {
   REVIEW_PAGE_SIZE,
   REVIEW_TRANSACTION_COLUMNS,
+  REVIEWABLE_FILTER,
   ReviewError,
   type ReviewTransaction,
   type UpCategory,
@@ -33,7 +34,7 @@ const REVIEW_CONCURRENCY = 5
 const CATEGORISE_BATCH = 100
 
 export interface UseTransactionReviewResult {
-  /** The unreviewed categorisable Up transactions, newest first, at most {@link REVIEW_PAGE_SIZE}. */
+  /** The unreviewed Up transactions awaiting review, newest first, at most {@link REVIEW_PAGE_SIZE}. */
   transactions: ReviewTransaction[] | null
   /** The transaction `?id=` names, whether or not it is reviewed; null when none is named or visible. */
   focused: ReviewTransaction | null
@@ -129,7 +130,7 @@ export function useTransactionReview(focusId: string | null): UseTransactionRevi
       .from('transactions')
       .select(REVIEW_TRANSACTION_COLUMNS)
       .eq('source', 'up')
-      .eq('is_categorizable', true)
+      .or(REVIEWABLE_FILTER)
       .is('reviewed_at', null)
       .order('posted_at', { ascending: false })
       .limit(REVIEW_PAGE_SIZE)

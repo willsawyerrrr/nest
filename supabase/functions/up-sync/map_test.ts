@@ -195,3 +195,33 @@ Deno.test('mapTransaction leaves the performing customer null when Up omits it',
     null,
   )
 })
+
+Deno.test('mapTransaction maps a transfer from outside the household to income', () => {
+  const row = mapTransaction(
+    transaction(
+      {
+        description: 'Transfer from $friend',
+        isCategorizable: false,
+        transactionType: 'Transfer',
+        amount: { currencyCode: 'AUD', value: '25.00', valueInBaseUnits: 2500 },
+      },
+      { category: null },
+    ),
+    accounts,
+  )
+  assertEquals(row?.kind, 'income')
+  assertEquals(row?.transaction_type, 'Transfer')
+})
+
+Deno.test('mapTransaction carries the Salary and Interest transaction types through', () => {
+  for (const transactionType of ['Salary', 'Interest']) {
+    const row = mapTransaction(
+      transaction(
+        { transactionType, amount: { currencyCode: 'AUD', value: '9.00', valueInBaseUnits: 900 } },
+      ),
+      accounts,
+    )
+    assertEquals(row?.kind, 'income')
+    assertEquals(row?.transaction_type, transactionType)
+  }
+})

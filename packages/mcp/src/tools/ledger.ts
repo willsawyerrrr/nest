@@ -242,6 +242,20 @@ interface TransactionRow {
 
 const MAX_TRANSACTIONS = 200
 
+/**
+ * Whether a transaction awaits review: unreviewed, and either categorisable or
+ * an incoming transfer from outside the household's own accounts (income of
+ * type Transfer). Pay and interest arrive reviewed, and an internal transfer
+ * never awaits review.
+ */
+function awaitsReview(row: TransactionRow): boolean {
+  return (
+    row.reviewed_at === null &&
+    (row.is_categorizable === true ||
+      (row.kind === 'income' && row.transaction_type === 'Transfer'))
+  )
+}
+
 export const listTransactionsInput = z.object({
   account: z.string().trim().min(1).optional(),
   kind: z.enum(['income', 'expense', 'transfer']).optional(),
@@ -257,7 +271,7 @@ export const listTransactionsInput = z.object({
  * Ledger transactions the member's row-level security exposes (a co-member's
  * spending account is hidden, as is a gift already claimed for them), newest
  * first. `external_category` narrows to a source category such as Up's
- * `gifts-and-charity`, `unreviewed` to those no member has reviewed, and `note`
+ * `gifts-and-charity`, `unreviewed` to those awaiting review (see `awaitsReview`), and `note`
  * to those whose note contains the text, ignoring case. `amount_cents` is
  * signed: negative is an outflow.
  */
@@ -277,7 +291,7 @@ export async function listTransactions(
       return (
         (input.from === undefined || day >= input.from) &&
         (input.to === undefined || day <= input.to) &&
-        (input.unreviewed !== true || row.reviewed_at === null) &&
+        (input.unreviewed !== true || awaitsReview(row)) &&
         (note === undefined || (row.notes?.toLowerCase().includes(note) ?? false))
       )
     })

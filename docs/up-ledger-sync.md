@@ -201,7 +201,9 @@ below).
 external_id)` and returns `table(id, inserted)` (`xmax = 0` on a fresh insert),
 which is what prompts review of a newly arrived transaction (see
 [Review prompt](#review-prompt-on-first-sight)). It never writes `notes`,
-the review columns, `category_id`, or `created_at`; it restamps `external_category_since` only when
+`reviewed_by_member_id`, `category_id`, or `created_at`, and sets `reviewed_at`
+only on insert, to now for a `Salary` or `Interest` transaction (income needing
+no decision), so a later sync never reviews or un-reviews a row; it restamps `external_category_since` only when
 `external_category` changes, so the gift-candidate notification fires for a
 recategorisation into gifts; it holds a linked `gift_purchase` to its
 transaction's amount; and it leaves a conflicting row in another household
@@ -254,9 +256,15 @@ alone.
 
 The PWA's review screen (`routes/TransactionReviewSection.tsx`,
 `components/TransactionReviewScreen.tsx`, `hooks/useTransactionReview.ts`)
-lists the signed-in member's unreviewed, categorisable Up transactions
-(`source = 'up'`, `is_categorizable`, `reviewed_at` null), newest first and
-capped at the newest 100; RLS already limits them to the member's
+lists the signed-in member's unreviewed Up transactions (`source = 'up'`,
+`reviewed_at` null, and `is_categorizable` or an incoming transfer from outside
+the household's own accounts), newest first and capped at the newest 100. A
+`Salary` or `Interest` transaction arrives reviewed (by no member), and an
+incoming transfer (e.g. `Transfer from $friend`) is Up `Transfer` income with no
+`transferAccount`, so it lands as `kind = 'income'`, `transaction_type =
+'Transfer'` and stays reviewable even though Up does not let it be categorised;
+an internal transfer (`kind = 'transfer'`) never awaits review. Other incoming
+payments (`Direct Credit`, `Osko Payment Received`) await review. RLS already limits them to the member's
 balance-visible accounts. It has no nav entry or Summary card: it is reached by
 URL, and `?id=<transaction id>` leads with that transaction, expanded and
 scrolled to, even once it is reviewed (what a notification opens).
@@ -347,7 +355,8 @@ dedupe key is the transaction id, so whichever path runs first is the only one
 to send.
 
 - **Which rows.** `is_categorizable` (so transfers, round-ups and covers are
-  skipped; pending holds are included), unreviewed, and dated by Up
+  skipped, an incoming outside transfer among them; pending holds are included),
+  unreviewed (so pay and interest, which arrive reviewed, are skipped), and dated by Up
   (`posted_at`) within 48 hours of the ledger's first sight (`created_at`), so a
   backfill of history is never announced. A row a gift purchase links is
   skipped.
@@ -389,7 +398,8 @@ lookup it takes is resolved in the sync layer, so the mapper stays I/O-free:
 | `up_message` | `tx.attributes.message` |
 | `up_note` | `tx.attributes.note?.text` |
 | `performing_customer_name` | `tx.attributes.performingCustomer?.displayName` |
-| `notes`, `reviewed_at`, `reviewed_by_member_id` | never written — the household's own |
+| `reviewed_at` | on insert only: now for `transaction_type` `Salary` or `Interest`, else null; never written on update |
+| `notes`, `reviewed_by_member_id` | never written — the household's own |
 | `category_id` | null — see below |
 
 **Categories/tags.** Up's category is a fixed child-under-parent taxonomy;

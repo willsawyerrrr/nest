@@ -183,7 +183,7 @@ private enum Fixtures {
         let items = URLComponents(url: count.url!, resolvingAgainstBaseURL: false)?.queryItems ?? []
         #expect(
             Dictionary(uniqueKeysWithValues: items.map { ($0.name, $0.value ?? "") }) == [
-                "select": "id", "source": "eq.up", "is_categorizable": "eq.true",
+                "select": "id", "source": "eq.up", "or": "(is_categorizable.eq.true,and(kind.eq.income,transaction_type.eq.Transfer))",
                 "reviewed_at": "is.null",
             ])
     }

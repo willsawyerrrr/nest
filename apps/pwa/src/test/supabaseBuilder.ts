@@ -11,6 +11,7 @@ export type BuilderMethod =
   | 'upsert'
   | 'delete'
   | 'eq'
+  | 'or'
   | 'neq'
   | 'order'
   | 'single'

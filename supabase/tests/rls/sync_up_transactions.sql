@@ -3,7 +3,8 @@
 --
 -- Both are SECURITY DEFINER and granted to service_role alone. The upsert lands
 -- rows on (source, external_id), reports which it inserted, never writes
--- `notes`, stamps `external_category_since` only when the category changes,
+-- `notes`, inserts Salary and Interest rows already reviewed (and never touches
+-- review state on an update), stamps `external_category_since` only when the category changes,
 -- holds a linked gift purchase to its transaction's amount, and leaves a
 -- conflicting row in another household alone. The delete removes the named Up
 -- rows in the household except those a gift purchase links.
@@ -190,6 +191,97 @@ begin
     and external_category = 'clothing-and-accessories'
     from public.transactions where external_id = 'tx-1'),
     'a changed category restamps external_category_since';
+end;
+$$;
+
+-- ── Salary and Interest insert already reviewed ──────────────────────────────
+
+set local role service_role;
+select * from public.sync_up_transactions(
+  current_setting('test.hid')::uuid,
+  jsonb_build_array(
+    jsonb_build_object(
+      'account_id', current_setting('test.aid'), 'member_id', current_setting('test.mid'),
+      'external_id', 'tx-salary', 'external_category', null, 'external_parent_category', null,
+      'is_categorizable', true, 'transaction_type', 'Salary',
+      'deep_link_url', 'up://transaction/tx-salary', 'up_message', null, 'up_note', null,
+      'performing_customer_name', null, 'posted_at', '2026-11-03T09:00:00+11:00',
+      'amount_cents', 200000, 'description', 'Employer Pty Ltd', 'kind', 'income', 'status', 'settled'),
+    jsonb_build_object(
+      'account_id', current_setting('test.aid'), 'member_id', current_setting('test.mid'),
+      'external_id', 'tx-interest', 'external_category', null, 'external_parent_category', null,
+      'is_categorizable', true, 'transaction_type', 'Interest',
+      'deep_link_url', 'up://transaction/tx-interest', 'up_message', null, 'up_note', null,
+      'performing_customer_name', null, 'posted_at', '2026-11-03T09:00:00+11:00',
+      'amount_cents', 12, 'description', 'Interest', 'kind', 'income', 'status', 'settled'),
+    jsonb_build_object(
+      'account_id', current_setting('test.aid'), 'member_id', current_setting('test.mid'),
+      'external_id', 'tx-credit', 'external_category', null, 'external_parent_category', null,
+      'is_categorizable', true, 'transaction_type', 'Direct Credit',
+      'deep_link_url', 'up://transaction/tx-credit', 'up_message', null, 'up_note', null,
+      'performing_customer_name', null, 'posted_at', '2026-11-03T09:00:00+11:00',
+      'amount_cents', 5000, 'description', 'Refund', 'kind', 'income', 'status', 'settled'),
+    jsonb_build_object(
+      'account_id', current_setting('test.aid'), 'member_id', current_setting('test.mid'),
+      'external_id', 'tx-ext-transfer', 'external_category', null, 'external_parent_category', null,
+      'is_categorizable', false, 'transaction_type', 'Transfer',
+      'deep_link_url', 'up://transaction/tx-ext-transfer', 'up_message', null, 'up_note', null,
+      'performing_customer_name', null, 'posted_at', '2026-11-03T09:00:00+11:00',
+      'amount_cents', 2500, 'description', 'Transfer from $friend', 'kind', 'income', 'status', 'settled')
+  )
+);
+reset role;
+
+do $$
+begin
+  assert (select reviewed_at is not null and reviewed_by_member_id is null
+    from public.transactions where external_id = 'tx-salary'),
+    'a Salary row inserts reviewed, by no member';
+  assert (select reviewed_at is not null and reviewed_by_member_id is null
+    from public.transactions where external_id = 'tx-interest'),
+    'an Interest row inserts reviewed, by no member';
+  assert (select reviewed_at is null from public.transactions where external_id = 'tx-credit'),
+    'a Direct Credit row still awaits review';
+  assert (select reviewed_at is null from public.transactions where external_id = 'tx-ext-transfer'),
+    'an incoming transfer row still awaits review';
+end;
+$$;
+
+-- A member returns the salary to unreviewed; a re-sync leaves that, and leaves
+-- a reviewed row reviewed.
+update public.transactions set reviewed_at = null where external_id = 'tx-salary';
+update public.transactions set reviewed_at = '2026-11-03', reviewed_by_member_id = :'mid'
+  where external_id = 'tx-credit';
+
+set local role service_role;
+select * from public.sync_up_transactions(
+  current_setting('test.hid')::uuid,
+  jsonb_build_array(
+    jsonb_build_object(
+      'account_id', current_setting('test.aid'), 'member_id', current_setting('test.mid'),
+      'external_id', 'tx-salary', 'external_category', null, 'external_parent_category', null,
+      'is_categorizable', true, 'transaction_type', 'Salary',
+      'deep_link_url', 'up://transaction/tx-salary', 'up_message', null, 'up_note', null,
+      'performing_customer_name', null, 'posted_at', '2026-11-03T09:00:00+11:00',
+      'amount_cents', 200000, 'description', 'Employer Pty Ltd', 'kind', 'income', 'status', 'settled'),
+    jsonb_build_object(
+      'account_id', current_setting('test.aid'), 'member_id', current_setting('test.mid'),
+      'external_id', 'tx-credit', 'external_category', null, 'external_parent_category', null,
+      'is_categorizable', true, 'transaction_type', 'Direct Credit',
+      'deep_link_url', 'up://transaction/tx-credit', 'up_message', null, 'up_note', null,
+      'performing_customer_name', null, 'posted_at', '2026-11-03T09:00:00+11:00',
+      'amount_cents', 5000, 'description', 'Refund', 'kind', 'income', 'status', 'settled')
+  )
+);
+reset role;
+
+do $$
+begin
+  assert (select reviewed_at is null from public.transactions where external_id = 'tx-salary'),
+    'a re-sync does not review a Salary row a member returned to unreviewed';
+  assert (select reviewed_at = '2026-11-03'::timestamptz and reviewed_by_member_id is not null
+    from public.transactions where external_id = 'tx-credit'),
+    'a re-sync keeps a reviewed row reviewed';
 end;
 $$;
 

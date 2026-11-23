@@ -6,6 +6,9 @@ struct Filter: Equatable, Sendable {
     let op: String
     let value: String
 
+    /// The query-item value: `op.value`, or the bare `value` for a group with no operator.
+    var queryValue: String { op.isEmpty ? value : "\(op).\(value)" }
+
     static func eq(_ column: String, _ value: String) -> Filter {
         .init(column: column, op: "eq", value: value)
     }
@@ -20,6 +23,10 @@ struct Filter: Equatable, Sendable {
     }
     static func `in`(_ column: String, _ values: [String]) -> Filter {
         .init(column: column, op: "in", value: "(\(values.joined(separator: ",")))")
+    }
+    /// A PostgREST `or=(…)` group over `conditions`, each rendered `column.op.value`.
+    static func or(_ conditions: String) -> Filter {
+        .init(column: "or", op: "", value: "(\(conditions))")
     }
     static func isNull(_ column: String) -> Filter {
         .init(column: column, op: "is", value: "null")
@@ -61,7 +68,7 @@ struct SupabaseAPI: Sendable {
         _: T.Type, filters: [Filter] = [], order: [Order] = [], limit: Int? = nil
     ) async throws -> [T] {
         var items = [URLQueryItem(name: "select", value: T.columns)]
-        items += filters.map { URLQueryItem(name: $0.column, value: "\($0.op).\($0.value)") }
+        items += filters.map { URLQueryItem(name: $0.column, value: $0.queryValue) }
         if !order.isEmpty {
             let value = order.map { "\($0.column).\($0.ascending ? "asc" : "desc")" }.joined(
                 separator: ",")
@@ -210,7 +217,7 @@ struct SupabaseAPI: Sendable {
     }
 
     private static func items(_ filters: [Filter]) -> [URLQueryItem] {
-        filters.map { URLQueryItem(name: $0.column, value: "\($0.op).\($0.value)") }
+        filters.map { URLQueryItem(name: $0.column, value: $0.queryValue) }
     }
 
     private func request(

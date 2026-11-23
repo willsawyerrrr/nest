@@ -151,6 +151,32 @@ import Testing
                 == nil)
     }
 
+    @Test func rpcRowsAreCachedPerArgumentsAndDroppedByANamingWrite() async throws {
+        let server = Server()
+        let data = makeData(server)
+        func read(_ start: String) async throws -> [Snapshot<ActualSpendRow>] {
+            var snapshots: [Snapshot<ActualSpendRow>] = []
+            for try await snapshot in data.rpcRows(
+                "budget_actual_spend", params: ["p_start": start], as: ActualSpendRow.self)
+            {
+                snapshots.append(snapshot)
+            }
+            return snapshots
+        }
+        server.body = #"[{"line_group":"needs","spent_cents":1250},{"line_group":null,"spent_cents":40}]"#
+        let first = try await read("2026-11-12")
+        #expect(first.map(\.isCached) == [false])
+        #expect(first.last?.rows == [.init(lineGroup: .needs, spentCents: 1250), .init(lineGroup: nil, spentCents: 40)])
+        #expect(server.requests.last?.url?.path == "/rest/v1/rpc/budget_actual_spend")
+        #expect(try await read("2026-11-12").map(\.isCached) == [true, false])
+        #expect(try await read("2026-10-29").map(\.isCached) == [false])
+
+        try await data.delete(
+            CategoryGroupOverride.self, filters: [.eq("category_id", "booze")],
+            also: ["budget_actual_spend"])
+        #expect(try await read("2026-11-12").map(\.isCached) == [false])
+    }
+
     @Test func signedOutReadsFailAsUnauthenticatedWithoutNetwork() async {
         struct NoSession: Error {}
         let server = Server()

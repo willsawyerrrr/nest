@@ -9,7 +9,7 @@ savers, super, and gifts, and breaks into four stages:
 - [ ] Ledger UI (accounts + transactions) over synced data. The transaction
   review screen (below) and the accounts view are built; a transaction ledger
   is not.
-- [ ] Reconcile actual spend against the budget.
+- [x] Reconcile actual spend against the budget.
 - [x] Track actual tax paid (PAYG withheld) vs the estimate: payslips supply
   actual withholding, and Up salary credits corroborate each slip's net pay.
 
@@ -498,37 +498,76 @@ Purely PostgREST + RLS (no new edge functions): the household already reads
 
 ## 3. Reconcile actual spend vs budget
 
-The budget is **plan-only and fortnightly** today: `budget_line` rows carry an
-amount + frequency in fixed `budget_group`s (needs / wants / discretionary /
-savings / investments), normalised to a fortnight, with no link to actual
-transactions. Reconciliation adds an *actual* column beside the *planned* one.
+The native Budget screen shows each group's actual spend for a fortnight beside its planned
+fortnightly subtotal: what was spent, and what is left or by how much it went
+over. The plan stays plan-only — nothing about a line or the buffer moves with
+spend.
 
-The gap: **there is no link between Up categories and budget lines/groups.** A
-budget line is a free-text purpose in a group; a transaction's category is Up's
-fixed taxonomy. Bridging them is the core design problem (open question):
+### Decisions
 
-- **Category → group mapping.** Map each Up category (or parent) to a
-  `budget_group`, so settled spend rolls up per group and compares against that
-  group's planned fortnightly total. Coarse but immediately useful, and it only
-  needs the category mirror from Stage 3 of sync.
-- **Category → line mapping.** Finer: map categories (or rules over
-  description/tag) to specific `budget_line`s. More powerful, more config; likely
-  a later refinement.
-- **Destination-account view.** Budget lines already route to a funding account
-  (`destination_account_id`, or a goal's saver for Savings/Investments — see
-  `pay-splits.md`). Actual spend *from* each account can be compared against the
-  lines routed *to* it, giving a per-account planned-vs-actual without needing a
-  category map at all. A pragmatic first cut.
+- **Category → group mapping.** Each Up child category counts toward one
+  `budget_group`. `up_category_default_group` holds a seeded default shared by
+  every household (essentials such as groceries, rent, utilities, fuel and
+  health → Needs; dining, streaming, clothing, travel and gifts → Wants; bars,
+  booze, events, hobbies and gambling → Discretionary; `investments` →
+  Investments; nothing → Savings). `up_category_group` holds a household's
+  override per category, including a null group that counts it toward none;
+  no row falls back to the default. Group-level mapping is coarse but needs no
+  configuration to be useful. Per-line mapping and description rules are a
+  later refinement, and the destination-account view was set aside because
+  spend from one account rarely belongs to the lines routed to it alone.
+- **Period: the pay-cycle fortnight.** The plan is fortnightly, so the
+  reconciled period is a fortnight, on a 14-day grid stepped from the
+  household's earliest confirmed payday (`pay_anchor_date`) among its recurring
+  salary and wage inflows, else from the calendar feed's `2020-07-01` epoch
+  (`payCycleAnchor`, `spendFortnight` in `@nest/plan`). A fortnight therefore
+  opens on a payday. Planning mode never moves the grid: it reads the real
+  inflows. The screen opens on the fortnight holding today and steps back through
+  earlier ones.
+- **Days are local.** A transaction counts on its `posted_at` date in the
+  household's `timezone`, so a purchase at 11pm counts that day.
+- **Settled spend by default.** A held transaction can still change amount or
+  drop, so only settled spend counts unless the member turns on "Include
+  pending" for the view.
+- **What counts as spend.** A row with an Up category counts whatever its sign,
+  so a refund back into a category nets off that category's spend. An
+  uncategorised `expense` (a Pay Anyone or BPAY payment, say) counts as spend
+  in no group. `kind = 'transfer'` never counts: every move between the owner's
+  own accounts — round-ups, covers from a saver, saver transfers — carries
+  Up's `transferAccount` and lands as a transfer. Uncategorised income (pay, a
+  transfer in from someone else) never counts.
+- **Spend in no group is shown, not hidden.** Spend in a category mapped to
+  none, and uncategorised spend, total to one "in no group" figure on the screen,
+  so remapping a category never makes money silently disappear.
+- **Privacy.** `budget_actual_spend` is SECURITY INVOKER, so the
+  `transactions` policies apply: the figure covers the accounts the member can
+  see, never a co-member's private spending account, and never a gift claimed
+  for them. The two partners can therefore see different actuals beside the
+  same plan.
 
-Design decisions to settle: the reconciliation **period** (fortnight to match the
-plan, or calendar month), whether **pending** spend counts, how **transfers** and
-**income** are excluded (the `transfer` kind and positive `income` amounts should
-not count as spend), and where actual-vs-planned surfaces (a column on the Budget
-tab, an overlay on the Summary donut, or its own view).
+### Implementation
 
-Recommend the coarse **category→group** (or account-routed) rollup first, over
-settled expense transactions, on the fortnightly period, surfaced beside the
-existing planned totals. Defer per-line mapping and rules.
+- `budget_actual_spend(p_start date, p_end date, p_include_pending boolean
+  default false)` returns `(line_group, spent_cents)`, one row per group with
+  spend and a null `line_group` row for spend in no group.
+- The native Budget screen (`apps/ios/Nest/Screens/Budget`) reads it.
+  `ActualSpendViewModel` reads the household's stored `inflows` (never the
+  planning sandbox), asks the engine's `spendFortnight` entry
+  (`payCycleAnchor` + `spendFortnight`) for the fortnight at the chosen offset,
+  then calls the RPC through `NestData.rpcRows` (cached first under
+  `budget_actual_spend`, keyed by its arguments) and folds the rows with the
+  engine's `actualSpend` entry (`actualSpendByGroup`). `ActualSpendBar` renders
+  the fortnight, its steppers, the "Include pending" switch, the in-no-group
+  total and the Category groups button above the groups; each group card shows
+  spent and left or over beneath its subtotal (`GroupSpendLine`, copy in
+  `ActualSpendPresentation`).
+- `CategoryGroupsSheet` (`CategoryGroupsViewModel`) lists `up_category`'s child
+  categories under their parents with `up_category_default_group` and the
+  household's `up_category_group` rows. Picking a group or "No group" upserts
+  the override (a null `line_group` for none); picking "Default (…)" deletes it.
+  Each write drops the cached `budget_actual_spend` results, and closing the
+  sheet reloads the spend.
+- The PWA does not show actual spend.
 
 ## 4. Actual PAYG tax paid vs estimate
 
@@ -604,13 +643,7 @@ The PWA hides all of it when the household has no credits (no Up connection).
 
 1. **All-time history** — whether to offer an on-demand backfill past the prior
    financial year.
-2. **Category mapping** — how Up categories map onto `budget_group` /
-   `budget_line` for reconciliation (category→group vs category→line vs
-   account-routed), once the category mirror fills `category_id`.
-3. **Tags** — whether to ingest Up tags at all. No column today, and the gift
+2. **Tags** — whether to ingest Up tags at all. No column today, and the gift
    use case is served by `external_category`, so nothing needs them yet.
-4. **Pending spend** — does reconciliation count `HELD`/pending transactions or
-   settled-only?
-5. **Reconciliation period** — fortnight (matches the plan) vs calendar month.
-6. **Ledger UI placement** — a new Ledger/Transactions tab vs extending Net
+3. **Ledger UI placement** — a new Ledger/Transactions tab vs extending Net
    worth / Household.

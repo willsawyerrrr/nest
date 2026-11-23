@@ -1017,6 +1017,42 @@ struct RedbarkConnection: NestRow {
     }
 }
 
+/// Row of `up_category_default_group`: the budget group an Up child category's
+/// spend counts toward unless the household overrides it.
+struct CategoryGroupDefault: NestRow {
+    static let table = "up_category_default_group"
+
+    let categoryId: String
+    let lineGroup: BudgetGroup
+
+    var id: String { categoryId }
+
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case categoryId = "category_id"
+        case lineGroup = "line_group"
+    }
+}
+
+/// Row of `up_category_group`: a household's override of a category's budget
+/// group; a nil `lineGroup` counts it toward no group.
+struct CategoryGroupOverride: NestRow {
+    static let table = "up_category_group"
+
+    let categoryId: String
+    let householdId: String
+    let lineGroup: BudgetGroup?
+    let updatedAt: String
+
+    var id: String { categoryId }
+
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case categoryId = "category_id"
+        case householdId = "household_id"
+        case lineGroup = "line_group"
+        case updatedAt = "updated_at"
+    }
+}
+
 /// The readable columns of `calendar_feed` (never `token_hash`, the credential:
 /// a `select *` fails because the role lacks privilege on it).
 struct CalendarFeed: NestRow {

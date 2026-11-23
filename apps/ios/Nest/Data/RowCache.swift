@@ -20,6 +20,15 @@ struct QueryKey: Hashable, Sendable {
         query = parts.joined(separator: "&")
     }
 
+    /// A call of the Postgres function `name`, cached under its name and keyed
+    /// by its arguments.
+    init(function name: String, params: some Encodable) {
+        table = name
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys
+        query = (try? encoder.encode(params)).map { String(decoding: $0, as: UTF8.self) } ?? ""
+    }
+
     /// `<table>__<digest of query>.json`, so a table's entries share a prefix.
     var fileName: String {
         let digest = SHA256.hash(data: Data(query.utf8)).map { String(format: "%02x", $0) }.joined()

@@ -1,25 +1,33 @@
 import SwiftUI
 
 /// The native Budget route: budget lines by group with the engine's fortnightly
-/// subtotals, each member's allowance, and temporary items, with the PWA's
-/// add, edit and delete for lines and the allowance edit. A `draft` (a wishlist
-/// item promoted to a budget line) opens a prefilled add form above the list.
+/// subtotals and each group's actual spend this pay-cycle fortnight, each
+/// member's allowance, and temporary items, with the PWA's add, edit and delete
+/// for lines and the allowance edit. A `draft` (a wishlist item promoted to a
+/// budget line) opens a prefilled add form above the list.
 struct BudgetScreen: View {
     @State private var model: BudgetViewModel
+    @State private var spend: ActualSpendViewModel
     @State private var draft: PromoteDraft?
     private let planning = PlanningStore.shared
 
-    init(model: BudgetViewModel = BudgetViewModel(), draft: PromoteDraft? = nil) {
+    init(
+        model: BudgetViewModel = BudgetViewModel(),
+        spend: ActualSpendViewModel = ActualSpendViewModel(), draft: PromoteDraft? = nil
+    ) {
         _model = State(initialValue: model)
+        _spend = State(initialValue: spend)
         _draft = State(initialValue: draft)
     }
 
     var body: some View {
         ScreenStateView(state: model.state, retry: { Task { await model.retry() } }) { content in
             BudgetContentView(
-                model: model, presentation: BudgetPresentation(content: content), draft: $draft)
+                model: model, spend: spend, presentation: BudgetPresentation(content: content),
+                draft: $draft)
         }
         .task(id: planning.revision) { await model.load() }
+        .task(id: spend.request) { await spend.load() }
     }
 }
 
@@ -38,6 +46,7 @@ enum BudgetEditing: Equatable {
 
 struct BudgetContentView: View {
     let model: BudgetViewModel
+    let spend: ActualSpendViewModel
     let presentation: BudgetPresentation
     @Binding var draft: PromoteDraft?
 
@@ -45,6 +54,7 @@ struct BudgetContentView: View {
     @State private var deleting: BudgetLineRow?
     @State private var deletingTemporary: TemporaryRow?
     @State private var search = ""
+    @State private var editingCategoryGroups = false
 
     private var searching: Bool { !search.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
@@ -65,6 +75,7 @@ struct BudgetContentView: View {
                     ) { try await model.createLine($0) }
                 }
             }
+            ActualSpendBar(model: spend) { editingCategoryGroups = true }
             InflowAddButton(label: "Add item") { editing = .addItem }
                 .accessibilityIdentifier("add-budget-item")
             BudgetSearchField(text: $search)
@@ -75,7 +86,13 @@ struct BudgetContentView: View {
                 }
             }
             ForEach(presentation.groups(search: search, sort: model.lineSort)) { section in
-                GroupCard(section: section) {
+                GroupCard(
+                    section: section,
+                    spend: spend.spend.map {
+                        ActualSpendPresentation.groupSpend(
+                            plannedCents: section.subtotalCents, spentCents: $0.groups[section.group])
+                    }
+                ) {
                     if section.group == .discretionary && !searching {
                         AllowancesBlock(
                             rows: presentation.allowances, editing: $editing,
@@ -108,6 +125,9 @@ struct BudgetContentView: View {
                 form: temporaryForm)
         }
         .budgetLineDeleteAlert($deleting) { try await model.deleteLine(id: $0) }
+        .sheet(isPresented: $editingCategoryGroups, onDismiss: { spend.refresh() }) {
+            CategoryGroupsSheet()
+        }
         .alert(
             "Delete temporary item?",
             isPresented: Binding(
@@ -248,6 +268,8 @@ private struct BudgetSearchField: View {
 
 private struct GroupCard<Header: View, Lines: View>: View {
     let section: BudgetGroupSection
+    /// The group's spend this fortnight; nil while it loads.
+    let spend: ActualSpendPresentation.GroupSpend?
     @ViewBuilder var header: Header
     @ViewBuilder var lines: Lines
 
@@ -263,6 +285,9 @@ private struct GroupCard<Header: View, Lines: View>: View {
                         .accessibilityLabel(
                             "\(section.title) fortnightly subtotal \(MoneyFormat.cents(Int(section.subtotalCents)))"
                         )
+                }
+                if let spend {
+                    GroupSpendLine(title: section.title, spend: spend)
                 }
                 header
                 lines

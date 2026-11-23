@@ -2050,5 +2050,120 @@
         false
       ]
     }
+  },
+  {
+    "name": "spend fortnight: the current fortnight from a payday",
+    "entry": "spendFortnight",
+    "input": {
+      "inflows": [
+        {
+          "type": "salary",
+          "paid_on": null,
+          "pay_anchor_date": "2026-07-09"
+        },
+        {
+          "type": "wage",
+          "paid_on": null,
+          "pay_anchor_date": "2026-07-16"
+        },
+        {
+          "type": "salary",
+          "paid_on": "2026-07-02",
+          "pay_anchor_date": "2026-07-02"
+        },
+        {
+          "type": "bonus",
+          "paid_on": null,
+          "pay_anchor_date": "2026-07-01"
+        }
+      ],
+      "today": "2026-11-23",
+      "offset": 0
+    },
+    "expected": {
+      "periodStart": "2026-11-12",
+      "periodEnd": "2026-11-25"
+    }
+  },
+  {
+    "name": "spend fortnight: two fortnights back",
+    "entry": "spendFortnight",
+    "input": {
+      "inflows": [
+        {
+          "type": "salary",
+          "paid_on": null,
+          "pay_anchor_date": "2026-07-09"
+        },
+        {
+          "type": "wage",
+          "paid_on": null,
+          "pay_anchor_date": "2026-07-16"
+        },
+        {
+          "type": "salary",
+          "paid_on": "2026-07-02",
+          "pay_anchor_date": "2026-07-02"
+        },
+        {
+          "type": "bonus",
+          "paid_on": null,
+          "pay_anchor_date": "2026-07-01"
+        }
+      ],
+      "today": "2026-11-23",
+      "offset": -2
+    },
+    "expected": {
+      "periodStart": "2026-10-15",
+      "periodEnd": "2026-10-28"
+    }
+  },
+  {
+    "name": "spend fortnight: no confirmed payday",
+    "entry": "spendFortnight",
+    "input": {
+      "inflows": [],
+      "today": "2026-11-23",
+      "offset": 0
+    },
+    "expected": {
+      "periodStart": "2026-11-11",
+      "periodEnd": "2026-11-24"
+    }
+  },
+  {
+    "name": "actual spend: groups, a refund and no group",
+    "entry": "actualSpend",
+    "input": {
+      "rows": [
+        {
+          "line_group": "needs",
+          "spent_cents": 41250
+        },
+        {
+          "line_group": "wants",
+          "spent_cents": 8820
+        },
+        {
+          "line_group": "discretionary",
+          "spent_cents": -1200
+        },
+        {
+          "line_group": null,
+          "spent_cents": 4510
+        }
+      ]
+    },
+    "expected": {
+      "groups": {
+        "needs": 41250,
+        "wants": 8820,
+        "discretionary": -1200,
+        "savings": 0,
+        "investments": 0
+      },
+      "unbudgeted": 4510
+    }
   }
 ]

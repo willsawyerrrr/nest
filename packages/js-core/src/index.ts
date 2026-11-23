@@ -29,6 +29,7 @@ import {
   type TemporaryItem,
 } from '@nest/plan'
 import { configsByYear, FY2027_CONFIG } from '@nest/tax'
+import { actualSpendOf, spendFortnightOf } from './actualSpend.ts'
 import { summariseBreakdowns } from './breakdowns.ts'
 import { cashFlowOf, layoutSankey } from './cashFlow.ts'
 import { deductionFigures, financialYearOptions } from './deductions.ts'
@@ -44,6 +45,8 @@ import { householdYear, mlsWhatIf, salarySacrifice, taxScreen } from './taxScree
 export type { EstimateInput, EstimateProjection } from './estimate.ts'
 export { projectEstimate } from './estimate.ts'
 export { serialise } from './serialise.ts'
+export { actualSpendOf, spendFortnightOf } from './actualSpend.ts'
+export type { ActualSpendInput, SpendFortnightInput } from './actualSpend.ts'
 export { summariseBreakdowns } from './breakdowns.ts'
 export { previewInflowDraft, summariseInflows } from './inflows.ts'
 export type { InflowDraftInput, InflowDraftPreview, InflowsInput } from './inflows.ts'
@@ -198,6 +201,8 @@ export const entryPoints = {
   projectGoalQueue: entry(projectGoalQueueAt),
   summariseBreakdowns: entry(summariseBreakdowns),
   budgetOverview: entry(budgetOverviewOf),
+  spendFortnight: entry(spendFortnightOf),
+  actualSpend: entry(actualSpendOf),
   taxScreen: entry(taxScreen),
   salarySacrifice: entry(salarySacrifice),
   mlsWhatIf: entry(mlsWhatIf),

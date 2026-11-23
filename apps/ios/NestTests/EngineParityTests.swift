@@ -83,8 +83,22 @@ import Testing
         #expect(
             entries == [
                 "estimateTax", "summariseHousehold", "projectGoalQueue", "summariseBreakdowns",
-                "budgetOverview", "summariseEquity",
+                "budgetOverview", "summariseEquity", "spendFortnight", "actualSpend",
             ])
+    }
+
+    @Test func decodesTheSpendFortnightAndActualSpendIntoTypedResults() async throws {
+        let engine = try await Self.engine.value
+        let current = try #require(
+            Self.fixtures.first { $0.name == "spend fortnight: the current fortnight from a payday" })
+        let period: SpendPeriod = try await engine.call(.spendFortnight, current.input)
+        #expect(period == SpendPeriod(periodStart: "2026-11-12", periodEnd: "2026-11-25"))
+
+        let rows = try #require(Self.fixtures.first { $0.entry == "actualSpend" })
+        let spend: ActualSpend = try await engine.call(.actualSpend, rows.input)
+        #expect(spend.groups.needs == 412_50)
+        #expect(spend.groups.discretionary == -12_00)
+        #expect(spend.unbudgeted == 45_10)
     }
 
     @Test func decodesTheMicrodollarTradeEstimateToExactCents() async throws {

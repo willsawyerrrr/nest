@@ -44,6 +44,8 @@ enum ReviewFixtures {
         /// A status and body answered by `up-categorise`.
         var categorise: (Int, String) = (200, "{}")
         var reviewStatus = 200
+        /// Transactions `review_transaction` refuses.
+        var refusedReviews: Set<String> = []
         private let lock = NSLock()
         private var recorded: [(path: String, query: String, body: [String: Any])] = []
         var requests: [(path: String, query: String, body: [String: Any])] {
@@ -62,7 +64,9 @@ enum ReviewFixtures {
             case "account_directory": return (200, ReviewFixtures.accounts)
             case "deduction": return (200, deductions)
             case "up-categorise": return categorise
-            case "review_transaction": return (reviewStatus, "{}")
+            case "review_transaction":
+                let id = (json as? [String: Any])?["p_transaction_id"] as? String ?? ""
+                return (refusedReviews.contains(id) ? 500 : reviewStatus, "{}")
             default: return (200, "[]")
             }
         }
@@ -279,5 +283,57 @@ enum ReviewFixtures {
         _ = await model.review(transactionID: "t1", note: "")
 
         #expect(model.state.value?.rows.isEmpty == true)
+    }
+
+    @Test func marksManyReviewedKeepingEachNoteAndReportsTheRefused() async {
+        let server = Server()
+        server.refusedReviews = ["t2"]
+        let model = TransactionReviewViewModel(data: makeData(server))
+        await model.load()
+
+        let failed = await model.reviewMany(["t1", "t2", "t3"])
+
+        #expect(failed == [BulkFailure(id: "t2", code: nil)])
+        let reviews = server.requests.filter { $0.path == "review_transaction" }
+        #expect(Set(reviews.compactMap { $0.body["p_transaction_id"] as? String }) == ["t1", "t2", "t3"])
+        #expect(reviews.allSatisfy { $0.body["p_note"] == nil })
+    }
+
+    @Test func setsOneCategoryOnManyInOneRequestReviewingOnlyThoseUpTook() async throws {
+        let server = Server()
+        server.categorise = (
+            200,
+            #"{"category_id":"groceries","parent_category_id":"home","results":[{"transaction_id":"t1"},{"transaction_id":"t2","code":"up_rejected"},{"transaction_id":"t3"}]}"#
+        )
+        let model = TransactionReviewViewModel(data: makeData(server))
+        await model.load()
+
+        let failed = await model.categoriseMany(["t1", "t2", "t3"], categoryID: "groceries")
+
+        #expect(failed == [BulkFailure(id: "t2", code: "up_rejected")])
+        let categorise = server.requests.filter { $0.path == "up-categorise" }
+        #expect(categorise.count == 1)
+        let body = try #require(categorise.first?.body)
+        #expect(body["transaction_ids"] as? [String] == ["t1", "t2", "t3"])
+        #expect(body["category_id"] as? String == "groceries")
+        let reviewed = server.requests.filter { $0.path == "review_transaction" }
+            .compactMap { $0.body["p_transaction_id"] as? String }
+        #expect(Set(reviewed) == ["t1", "t3"])
+    }
+
+    @Test func failsEveryTransactionInABatchUpRefusesAsAWhole() async {
+        let server = Server()
+        server.categorise = (409, #"{"code":"up_not_connected","error":"x"}"#)
+        let model = TransactionReviewViewModel(data: makeData(server))
+        await model.load()
+
+        let failed = await model.categoriseMany(["t1", "t2"], categoryID: "groceries")
+
+        #expect(
+            failed == [
+                BulkFailure(id: "t1", code: "up_not_connected"),
+                BulkFailure(id: "t2", code: "up_not_connected"),
+            ])
+        #expect(!server.requests.contains { $0.path == "review_transaction" })
     }
 }

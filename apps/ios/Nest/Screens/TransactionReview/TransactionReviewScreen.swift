@@ -3,7 +3,10 @@ import SwiftUI
 /// The native transaction review route (`/transactions/review`): the member's
 /// unreviewed Up transactions, each confirmed, recategorised and annotated, or
 /// filed as a gift. `focusID` (a notification's `?id=`) leads the list,
-/// expanded and scrolled to, even once reviewed.
+/// expanded and scrolled to, even once reviewed. Unreviewed rows can be
+/// selected, one by one or all at once, and the selection marked reviewed or
+/// given one category together; a transaction a bulk action could not save
+/// stays selected and waiting, and the screen names it and why.
 struct TransactionReviewScreen: View {
     @State private var model: TransactionReviewViewModel
 
@@ -28,22 +31,53 @@ struct TransactionReviewContentView: View {
     let presentation: TransactionReviewPresentation
 
     @State private var giftFiled = false
+    @State private var selectedIDs: Set<String> = []
+    @State private var busy: BulkReviewAction?
+    @State private var bulkFailures: [BulkFailureLine]?
+
+    private var selectable: [ReviewRow] { presentation.rows.filter { !$0.reviewed } }
+    /// Rows that leave the list (reviewed elsewhere, or by this action) leave the selection.
+    private var selected: [ReviewRow] { selectable.filter { selectedIDs.contains($0.id) } }
 
     var body: some View {
         NestPageSection(
             title: "Review transactions",
-            intro: "Check each Up transaction's category, fix any that are wrong, and add a note."
+            intro:
+                "Check each Up transaction's category, fix any that are wrong, and add a note. Select several to review them together."
         ) {
+            if let bulkFailures {
+                BulkFailureAlert(failures: bulkFailures) { self.bulkFailures = nil }
+            }
             if giftFiled { giftNotice }
             if presentation.rows.isEmpty {
                 NestEmptyState(text: "Nothing to review.")
             } else {
                 ScrollViewReader { proxy in
                     VStack(alignment: .leading, spacing: NestSpacing.sm) {
+                        if !selectable.isEmpty {
+                            BulkReviewBar(
+                                selectable: selectable.count, selectedCount: selected.count,
+                                groups: presentation.groups, busy: busy,
+                                onSelectAll: { on in
+                                    selectedIDs = on ? Set(selectable.map(\.id)) : []
+                                },
+                                onReviewMany: { Task { await runBulk(.review) } },
+                                onCategoriseMany: { id in
+                                    Task { await runBulk(.categorise, categoryID: id) }
+                                })
+                        }
                         ForEach(presentation.rows) { row in
                             ReviewRowView(
                                 row: row, groups: presentation.groups,
                                 startsOpen: row.id == presentation.focusedID,
+                                selected: row.reviewed ? nil : selectedIDs.contains(row.id),
+                                onSelect: { on in
+                                    if on {
+                                        selectedIDs.insert(row.id)
+                                    } else {
+                                        selectedIDs.remove(row.id)
+                                    }
+                                },
                                 onReview: { note, category in
                                     await model.review(
                                         transactionID: row.id, note: note, category: category)
@@ -64,6 +98,30 @@ struct TransactionReviewContentView: View {
                     }
                 }
             }
+        }
+    }
+
+    /// Runs a bulk action on the selection, keeping what failed selected and named.
+    private func runBulk(_ action: BulkReviewAction, categoryID: String? = nil) async {
+        let rows = selected
+        let ids = rows.map(\.id)
+        let labels = Dictionary(uniqueKeysWithValues: rows.map { ($0.id, $0.title) })
+        busy = action
+        bulkFailures = nil
+        let failed =
+            action == .review
+            ? await model.reviewMany(ids)
+            : await model.categoriseMany(ids, categoryID: categoryID)
+        busy = nil
+        selectedIDs = Set(failed.map(\.id))
+        bulkFailures =
+            failed.isEmpty
+            ? nil
+            : failed.map {
+                BulkFailureLine(id: $0.id, label: labels[$0.id] ?? "Card purchase", code: $0.code)
+            }
+        if categoryID == TransactionReviewPresentation.giftCategory && failed.count < ids.count {
+            giftFiled = true
         }
     }
 
@@ -102,6 +160,9 @@ struct TransactionReviewContentView: View {
 private struct ReviewRowView: View {
     let row: ReviewRow
     let groups: [UpCategoryGroup]
+    /// Whether the row is selected for a bulk action; nil when it cannot be (already reviewed).
+    let selected: Bool?
+    let onSelect: (Bool) -> Void
     let onReview: (String, ReviewCategory) async -> ReviewOutcome
     let onGiftFiled: () -> Void
 
@@ -115,12 +176,15 @@ private struct ReviewRowView: View {
     #endif
 
     init(
-        row: ReviewRow, groups: [UpCategoryGroup], startsOpen: Bool,
+        row: ReviewRow, groups: [UpCategoryGroup], startsOpen: Bool, selected: Bool?,
+        onSelect: @escaping (Bool) -> Void,
         onReview: @escaping (String, ReviewCategory) async -> ReviewOutcome,
         onGiftFiled: @escaping () -> Void
     ) {
         self.row = row
         self.groups = groups
+        self.selected = selected
+        self.onSelect = onSelect
         self.onReview = onReview
         self.onGiftFiled = onGiftFiled
         _isOpen = State(initialValue: startsOpen)
@@ -140,6 +204,11 @@ private struct ReviewRowView: View {
     private var content: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top, spacing: NestSpacing.sm) {
+                if let selected {
+                    ReviewCheckbox(value: selected ? .on : .off, label: "Select \(row.title)") {
+                        onSelect(!selected)
+                    }
+                }
                 Button { isOpen.toggle() } label: { header.contentShape(Rectangle()) }
                     .buttonStyle(.plain)
                     .accessibilityValue(isOpen ? "Expanded" : "Collapsed")
@@ -363,7 +432,7 @@ private struct ReviewForm: View {
 }
 
 /// The PWA's three `xs` button variants: filled lime, light lime, and default outline.
-private struct ReviewButtonStyle: ButtonStyle {
+struct ReviewButtonStyle: ButtonStyle {
     enum Kind { case primary, light, outline }
     let kind: Kind
     @Environment(\.isEnabled) private var isEnabled

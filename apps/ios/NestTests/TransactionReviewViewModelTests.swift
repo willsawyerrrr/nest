@@ -99,7 +99,9 @@ enum ReviewFixtures {
         #expect(presentation.rows.first?.meta == "Spending · 20 Nov 2026")
         let list = try #require(server.requests.first { $0.path == "transactions" })
         #expect(list.query.contains("source=eq.up"))
-        #expect(list.query.contains("is_categorizable=eq.true"))
+        #expect(
+            list.query.contains(
+                "or=(is_categorizable.eq.true,and(kind.eq.income,transaction_type.eq.Transfer))"))
         #expect(list.query.contains("reviewed_at=is.null"))
         #expect(list.query.contains("order=posted_at.desc"))
         #expect(list.query.contains("limit=100"))

@@ -417,7 +417,7 @@ export function createServer(ctx: NestContext, transport: 'stdio' | 'http' = 'st
     'list_transactions',
     {
       description:
-        "List ledger transactions visible to the member, newest first (limit default 50, max 200), with signed amount_cents (negative is an outflow), Up's transaction_type, is_categorizable, message and note (up_message, up_note), the household's own notes, and review state (reviewed_at, reviewed_by_member_id). Filter by account (id or name), kind, from / to (YYYY-MM-DD), external_category (the Up category, e.g. gifts-and-charity for the synced gift-spend candidates), unreviewed: true, or note (text the household's note contains, ignoring case).",
+        "List ledger transactions visible to the member, newest first (limit default 50, max 200), with signed amount_cents (negative is an outflow), Up's transaction_type, is_categorizable, message and note (up_message, up_note), the household's own notes, and review state (reviewed_at, reviewed_by_member_id). Filter by account (id or name), kind, from / to (YYYY-MM-DD), external_category (the Up category, e.g. gifts-and-charity for the synced gift-spend candidates), unreviewed: true (those awaiting review: not yet reviewed and categorisable, or an incoming transfer from outside the household; pay and interest arrive reviewed), or note (text the household's note contains, ignoring case).",
       inputSchema: listTransactionsInput.shape,
       annotations: { readOnlyHint: true },
     },

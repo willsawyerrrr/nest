@@ -3,7 +3,7 @@ import Foundation
 /// Every row the transaction review screen reads, as the PWA's
 /// `useTransactionReview` and `useAccountDirectory` read them.
 struct TransactionReviewRows: Codable, Sendable, Equatable {
-    /// The unreviewed categorisable Up transactions, newest first.
+    /// The unreviewed Up transactions awaiting review, newest first.
     var transactions: [LedgerTransaction] = []
     /// The transaction `?id=` names, reviewed or not; empty when none is named or visible.
     var focused: [LedgerTransaction] = []
@@ -15,10 +15,14 @@ struct TransactionReviewRows: Codable, Sendable, Equatable {
     /// The most unreviewed transactions read at once, newest first.
     static let pageSize = 100
 
-    /// The Up transactions awaiting review: categorisable and unreviewed, row-level
-    /// security scoping them to the member's balance-visible accounts.
+    /// The Up transactions awaiting review: unreviewed, and either categorisable or an
+    /// incoming transfer from outside the household's own accounts (income of type
+    /// Transfer), row-level security scoping them to the member's balance-visible
+    /// accounts.
     static let awaitingReview: [Filter] = [
-        .eq("source", "up"), .eq("is_categorizable", "true"), .isNull("reviewed_at"),
+        .eq("source", "up"),
+        .or("is_categorizable.eq.true,and(kind.eq.income,transaction_type.eq.Transfer)"),
+        .isNull("reviewed_at"),
     ]
 
     /// The tables behind the screen. Transactions skip the row cache, as on

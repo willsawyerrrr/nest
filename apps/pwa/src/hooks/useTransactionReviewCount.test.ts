@@ -1,5 +1,6 @@
 import { renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { REVIEWABLE_FILTER } from '../lib/transactionReview'
 import { makeWrapper } from '../test/queryWrapper'
 import { useTransactionReviewCount } from './useTransactionReviewCount'
 
@@ -8,10 +9,11 @@ const { builder, from } = vi.hoisted(() => {
     result: { count: 4 as number | null, error: null as unknown },
     select: vi.fn(),
     eq: vi.fn(),
+    or: vi.fn(),
     is: vi.fn(),
     then: (resolve: (value: unknown) => unknown) => Promise.resolve(builder.result).then(resolve),
   }
-  for (const method of ['select', 'eq', 'is'] as const) {
+  for (const method of ['select', 'eq', 'or', 'is'] as const) {
     builder[method].mockImplementation(() => builder)
   }
   return { builder, from: vi.fn(() => builder) }
@@ -25,7 +27,7 @@ beforeEach(() => {
 })
 
 describe('useTransactionReviewCount', () => {
-  it('counts the categorisable, unreviewed Up transactions the review screen lists', async () => {
+  it('counts the unreviewed Up transactions the review screen lists', async () => {
     const { result } = renderHook(() => useTransactionReviewCount(true), {
       wrapper: makeWrapper(),
     })
@@ -34,7 +36,7 @@ describe('useTransactionReviewCount', () => {
     expect(from).toHaveBeenCalledWith('transactions')
     expect(builder.select).toHaveBeenCalledWith('id', { count: 'exact', head: true })
     expect(builder.eq).toHaveBeenCalledWith('source', 'up')
-    expect(builder.eq).toHaveBeenCalledWith('is_categorizable', true)
+    expect(builder.or).toHaveBeenCalledWith(REVIEWABLE_FILTER)
     expect(builder.is).toHaveBeenCalledWith('reviewed_at', null)
   })
 

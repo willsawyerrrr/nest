@@ -5,6 +5,16 @@ import { GIFT_TRANSACTION_CATEGORY } from './giftCandidates'
 export const REVIEW_TRANSACTION_COLUMNS =
   'id,account_id,amount_cents,description,posted_at,status,external_category,external_parent_category,deep_link_url,is_categorizable,up_message,up_note,notes,reviewed_at'
 
+/**
+ * PostgREST `or` filter for the Up transactions that can await review: those Up
+ * lets a member categorise, and an incoming transfer from outside the
+ * household's own accounts (Up names no `transferAccount` for it, so it lands
+ * as income of transaction type Transfer, which Up does not let be categorised).
+ * An internal transfer is the `transfer` kind and never qualifies.
+ */
+export const REVIEWABLE_FILTER =
+  'is_categorizable.eq.true,and(kind.eq.income,transaction_type.eq.Transfer)'
+
 /** A transaction as the review screen reads it. */
 export type ReviewTransaction = Pick<
   Tables<'transactions'>,

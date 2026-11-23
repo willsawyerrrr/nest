@@ -37,8 +37,8 @@ the PWA's `TabBar` natively: on iPhone (compact width) a top bar (brand mark,
 "What's new", burger) whose burger opens a left drawer over a dimmed scrim; on
 iPad, Mac Catalyst and `NestMac` a persistent 240pt sidebar (wordmark lockup, nav,
 "What's new" in the footer). Both render `NavMenu` (`NavMenu.swift`) over
-`NavEntry.entries(planningActive:)`: Summary stands alone, Plan, Grow, Tax and
-Settings are collapsible groups with uppercase headers and chevrons, the active
+`NavEntry.entries(planningActive:)`: Summary stands alone, Plan, Review, Grow, Tax
+and Settings are collapsible groups with uppercase headers and chevrons, the active
 item takes a brand wash with a leading bar, and a folded group holding the
 selected route shows a brand dot. The group holding the selected route opens on
 every selection and the rest fold away; toggling a header in between stands.
@@ -46,8 +46,9 @@ Planning sits beside Summary while planning mode is on. `⌘1`…`⌘9` jump to 
 route and `⇧⌘←` / `⇧⌘→` cycle through them.
 
 `Route` (`Route.swift`) is the single route registry: it enumerates every PWA
-path, its `NavSection` groups (Summary, Plan, Grow, Tax, Settings) mirror the
-PWA's `NAV_SECTIONS`, and `planning`, `allowance` and `whatsNew` sit outside the
+path, its `NavSection` groups (Summary, Plan, Review, Grow, Tax, Settings) mirror the
+PWA's `NAV_SECTIONS` plus Review, which holds the native-only Transactions entry
+(the PWA's review screen has no nav entry), and `planning`, `allowance` and `whatsNew` sit outside the
 nav (Planning is reached from the planning banner and the Planning mode settings
 screen; What's new from the header button). A screen is registered by adding or
 editing its `Route` case and `content`; the chrome reads the registry and never

@@ -32,7 +32,7 @@ struct RouteTests {
     @Test func routesOutsideTheNavHaveNoSection() {
         #expect(
             Route.allCases.filter { $0.section == nil }
-                == [.planning, .allowance, .whatsNew, .transactionReview])
+                == [.planning, .allowance, .whatsNew])
     }
 
     @Test func everyRouteIsNative() {
@@ -44,9 +44,10 @@ struct RouteTests {
         }
     }
 
-    @Test func transactionReviewIsReachableByURLAlone() {
+    @Test func transactionReviewSitsUnderReview() {
         #expect(Route.transactionReview.path == "/transactions/review")
-        #expect(Route.transactionReview.title == "Review transactions")
+        #expect(Route.transactionReview.title == "Transactions")
+        #expect(NavSection.review.routes == [.transactionReview])
         guard case .native = Route.transactionReview.content(id: "t1") else {
             Issue.record("transaction review is not native")
             return
@@ -68,14 +69,14 @@ struct RouteTests {
         let entries = NavEntry.entries(planningActive: false)
         #expect(
             entries == [
-                .item(.summary), .group(.plan), .group(.grow), .group(.tax), .group(.settings),
+                .item(.summary), .group(.plan), .group(.review), .group(.grow), .group(.tax), .group(.settings),
             ])
     }
 
     @Test func planningSitsBesideSummaryWhilePlanningModeIsOn() {
         let entries = NavEntry.entries(planningActive: true)
         #expect(entries.prefix(2) == [.item(.summary), .item(.planning)])
-        #expect(entries.count == 6)
+        #expect(entries.count == 7)
     }
 
     @Test func everyNavRouteIsReachableOnceInDisplayOrder() {

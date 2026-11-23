@@ -1,9 +1,9 @@
 import Foundation
 import SwiftUI
 
-/// A top-level section of the nav, mirroring the PWA's `NAV_SECTIONS` groups.
+/// A top-level section of the nav, mirroring the PWA's `NAV_SECTIONS` groups, plus Review.
 enum NavSection: CaseIterable, Identifiable, Hashable {
-    case summary, plan, grow, tax, settings
+    case summary, plan, review, grow, tax, settings
 
     var id: Self { self }
 
@@ -11,6 +11,7 @@ enum NavSection: CaseIterable, Identifiable, Hashable {
         switch self {
         case .summary: "Summary"
         case .plan: "Plan"
+        case .review: "Review"
         case .grow: "Grow"
         case .tax: "Tax"
         case .settings: "Settings"
@@ -34,13 +35,13 @@ enum NavEntry: Identifiable, Hashable {
     }
 
     /// The nav in display order, as the PWA's `navSections`: Summary stands
-    /// alone, every other section is a group, and Planning sits beside Summary
-    /// while planning mode is on.
+    /// alone, every other section is a group (even one holding a single route),
+    /// and Planning sits beside Summary while planning mode is on.
     static func entries(planningActive: Bool) -> [NavEntry] {
         NavSection.allCases.flatMap { section -> [NavEntry] in
-            guard section.routes.count > 1 else {
+            guard section != .summary else {
                 let items = section.routes.map(NavEntry.item)
-                return section == .summary && planningActive ? items + [.item(.planning)] : items
+                return planningActive ? items + [.item(.planning)] : items
             }
             return [.group(section)]
         }
@@ -71,6 +72,7 @@ enum Route: String, CaseIterable, Identifiable, Hashable {
     case breakdowns = "/breakdowns"
     case gifts = "/gifts"
     case splits = "/splits"
+    case transactionReview = "/transactions/review"
     case netWorth = "/net-worth"
     case goals = "/goals"
     case wishlist = "/wishlist"
@@ -92,7 +94,6 @@ enum Route: String, CaseIterable, Identifiable, Hashable {
     case planning = "/planning"
     case allowance = "/allowance"
     case whatsNew = "/whats-new"
-    case transactionReview = "/transactions/review"
 
     var id: String { rawValue }
 
@@ -127,7 +128,7 @@ enum Route: String, CaseIterable, Identifiable, Hashable {
         case .planning: "Planning"
         case .allowance: "Allowance"
         case .whatsNew: "What's new"
-        case .transactionReview: "Review transactions"
+        case .transactionReview: "Transactions"
         }
     }
 
@@ -136,10 +137,11 @@ enum Route: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .summary: .summary
         case .inflows, .budget, .breakdowns, .gifts, .splits: .plan
+        case .transactionReview: .review
         case .netWorth, .goals, .wishlist, .superannuation, .equity, .investments: .grow
         case .tax, .payslips, .deductions, .helpDebt, .eofy: .tax
         case .household, .members, .connections, .notifications, .planningMode, .documents: .settings
-        case .planning, .allowance, .whatsNew, .transactionReview: nil
+        case .planning, .allowance, .whatsNew: nil
         }
     }
 

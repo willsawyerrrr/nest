@@ -1022,7 +1022,13 @@ any failure, `save_failed` included (Up took the category, Nest's copy did
 not), leaves the transaction unreviewed and shows
 `ReviewFailure`'s fixed copy for the function's `code` (with a
 link to Connections for `up_not_connected` and `up_auth_failed`), keeping the
-picker's choice so saving again retries. Rows reload after each review.
+picker's choice so saving again retries. Rows reload after each review. Unreviewed
+rows carry a checkbox, and a bar above the list selects all of them and, once
+any are selected, offers Mark reviewed (`review_transaction` with no note, five
+at a time) and a category menu with Apply, which sends the selection to
+`up-categorise`'s batch form (100 per request) and marks reviewed only those Up
+and Nest both took. A transaction either step refuses stays selected and
+unreviewed, and an alert names each one with its `ReviewFailure` copy.
 `UpCategories` (the picker's groups and labels), `ReviewFailure` (the failure
 copy) and `ReviewWrites.swift`'s request bodies are shared with the review
 notification: its **Looks right** action makes the screen's Looks right write

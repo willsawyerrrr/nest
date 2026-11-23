@@ -783,8 +783,17 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   each active recurring inflow (taxes and salary sacrifice attributed across
   taxable inflows pro rata to gross; non-taxable bear none), draws a
   negative buffer as a Shortfall source, scales every node and ribbon
-  by one value-to-pixel factor, and can drill into budget lines; actual-spend
-  reconciliation via Up ingestion is a later enhancement. Each line carries an
+  by one value-to-pixel factor, and can drill into budget lines. The Budget tab
+  shows each group's actual spend for a fortnight on the household's pay cycle
+  (stepped from the earliest confirmed salary/wage payday, else 2020-07-01)
+  beside its planned subtotal: each Up child category counts toward a group
+  through a seeded shared default (`up_category_default_group`) a household can
+  override per category, to no group included (`up_category_group`), and
+  `budget_actual_spend` (SECURITY INVOKER, so only the member's visible
+  accounts) sums settled spend by default, nets refunds, never counts transfers
+  or uncategorised income, and reports spend in no group on its own; see
+  [`docs/up-ledger-sync.md`](docs/up-ledger-sync.md#3-reconcile-actual-spend-vs-budget).
+  Each line carries an
   amount on a frequency (weekly through annual, or an arbitrary every-N-weeks or
   every-N-months cadence, exactly as inflows do), normalised to fortnightly and
   annual. A budget
@@ -1025,8 +1034,8 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   see, grouped by type with each group's total, each with its owner (a member
   or Joint), source, balance and deleted-at-source and net-worth-exclusion
   badges; it is read-only (see
-  [`docs/up-ledger-sync.md`](docs/up-ledger-sync.md#2-ledger-ui-accounts--transactions)). Spend
-  reconciliation and actual tax paid are deferred.
+  [`docs/up-ledger-sync.md`](docs/up-ledger-sync.md#2-ledger-ui-accounts--transactions)). Actual
+  tax paid is deferred.
   Sources (Up Bank API + Redbark + manual entry) are
   source-agnostic. Edge functions (`up-connect` / `up-disconnect` / `up-sync` /
   `up-categorise` / `up-webhook` / `changelog`) live under `supabase/functions/` and auto-deploy to

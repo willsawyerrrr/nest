@@ -4,8 +4,8 @@ The plan-only, fortnightly budget: how money in (inflows) is classified for tax,
 how it is allocated across grouped budget lines, how savings goals project
 toward a target, and how short-lived temporary items run until a target date. It
 replaces the
-household's spreadsheet with no transaction data — projections only. Actual-spend
-reconciliation arrives later with Up ingestion.
+household's spreadsheet. The plan is projections only; the Budget tab sets each
+group's actual spend from synced Up transactions beside it.
 
 Amounts are integer minor units (cents). The fortnight is the primary period; the
 household is a single shared container with money fully pooled.
@@ -82,7 +82,9 @@ it either (see [`payslips.md`](payslips.md#money-that-lands-once)).
 
 A budget line allocates a recurring amount to a named purpose within one of six
 fixed groups. There is one living budget per household — no per-period
-versioning. No actual-spend reconciliation yet. The UI labels a budget line a
+versioning. Each group shows the fortnight's actual spend from synced Up
+transactions beside its planned subtotal (see
+[Actual spend](#actual-spend)). The UI labels a budget line a
 **budget item** (Add item, Delete budget item, and so on); "line" persists only
 in the schema (the `budget_line` table and its `line_group` column).
 
@@ -99,6 +101,20 @@ A budget line = `household_id`, `line_group`, `name`, `amount` + `frequency`
 (normalized to fortnightly and annual). Like inflows, a line on the `every N
 weeks` or `every N months` cadence carries its interval `N` in `interval_count`,
 the unit read from the frequency.
+
+### Actual spend
+
+Above the groups, the Budget tab names a fortnight on the household's pay cycle
+— the one holding today, with steppers back through earlier ones — and each
+group shows what was spent in it, and what is left or by how much it went over
+its fortnightly subtotal. Spend reaches a group through its Up category: a
+seeded default map every household shares, which a household can override per
+category, including to no group. Only settled spend counts unless "Include
+pending" is on; transfers between the household's own accounts and
+uncategorised income never count; refunds net off their category. Spend in no
+group shows as its own total. It covers the accounts the signed-in member can
+see. The decisions behind each rule are in
+[`up-ledger-sync.md`](up-ledger-sync.md#3-reconcile-actual-spend-vs-budget).
 
 ### Member spending allowances
 
@@ -515,8 +531,8 @@ reload-safe; keyboard shortcuts jump between them.
 
 - **Netting non-taxable inflows against categories** — assign a non-taxable
   inflow to a specific budget category so it nets against that spend.
-- **Actual-spend reconciliation** — reconcile spend against the budget from Up
-  transaction ingestion (savings-goal balances already come from linked savers).
+- **Per-line actual spend** — mapping Up categories (or description rules) to
+  individual budget lines rather than to groups.
 - **Linking temporary items to Up Saver accounts** — the Up API exposes account
   types `SAVER`, `TRANSACTIONAL`, and `HOME_LOAN`, including balances and
   transactions. Savings goals already link to a synced saver for their balance; a

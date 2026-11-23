@@ -69,9 +69,58 @@ struct BreakdownRowModel: Equatable, Identifiable, Sendable {
     let variance: VarianceNote
 }
 
+/// A signed difference spelled out against what it is measured against, coloured by sign.
+struct DifferenceModel: Equatable, Sendable {
+    let cents: Int64
+    let against: String
+
+    var text: String {
+        "\(MoneyFormat.cents(Int(abs(cents)))) \(cents > 0 ? "more" : "less") than \(against)"
+    }
+
+    var sign: MoneySign { MoneySign(cents: Int(cents)) }
+}
+
+/// The Up credit that carried a payslip, measured against the slip's and the plan's net.
+enum CreditNoteModel: Equatable, Sendable {
+    case missing
+    /// `landed` names when and how much; `net` is nil where the credit matches the slip.
+    case landed(landed: String, net: DifferenceModel?, plan: DifferenceModel?)
+
+    static let missingText = "No matching credit in Up"
+    static let matchedText = " — matches the slip’s net"
+}
+
+/// One of a member's salary credits as the net-pay block lists it.
+struct NetPayCreditModel: Equatable, Identifiable, Sendable {
+    let id: String
+    let date: String
+    let payer: String
+    let amountCents: Int64
+    let noPayslip: Bool
+    let cadenceNote: String?
+    let amountDrift: DifferenceModel?
+}
+
+/// A member's net pay as it landed in Up over the year.
+struct MemberNetPayModel: Equatable, Sendable {
+    let receivedCents: Int64
+    /// `across 3 credits`.
+    let count: String
+    /// `· 2 of 3 slips matched · paid every 14 days`, or empty.
+    let qualifiers: String
+    let credits: [NetPayCreditModel]
+
+    static let title = "Net pay received in Up"
+    /// Credits listed before the rest fold behind "Show all".
+    static let collapsedCount = 6
+}
+
 /// A payslip's expanded body.
 struct PayslipDetailModel: Equatable, Sendable {
     let figures: [FigureCellModel]
+    /// The Up credit that carried the slip; nil where the household has no credits.
+    let creditNote: CreditNoteModel?
     let earnings: [BreakdownRowModel]
     let earningsNote: String?
     let tax: [BreakdownRowModel]
@@ -109,6 +158,7 @@ struct MemberPayslipsModel: Equatable, Identifiable, Sendable {
     let totals: [FigureCellModel]?
     let reportedNote: String?
     let unmeasured: [UnmeasuredRowModel]
+    let netPay: MemberNetPayModel?
     let cards: [PayslipCardModel]
     var id: String { member.id }
 }
@@ -128,6 +178,18 @@ struct PayslipsPresentation: Sendable {
         content.rows.members.map(memberModel)
     }
 
+    /// Up salary credits no member can be tied to, as the PWA's `UnattributedSalaryNote`;
+    /// nil where there are none.
+    var unattributedNote: String? {
+        Self.unattributedNote(content.overview.netPay?.unattributed ?? [])
+    }
+
+    private var creditMatches: [String: NetPay.CreditMatch] {
+        Dictionary(
+            (content.overview.netPay?.byPayslip ?? []).map { ($0.payslipId, $0.match) },
+            uniquingKeysWith: { first, _ in first })
+    }
+
     private var inflowNames: [String: String] {
         Dictionary(
             content.rows.inflows.map { ($0.id, $0.name) }, uniquingKeysWith: { first, _ in first })
@@ -140,6 +202,7 @@ struct PayslipsPresentation: Sendable {
             (overview?.variances ?? []).map { ($0.payslipId, $0.variance) },
             uniquingKeysWith: { first, _ in first })
         let names = inflowNames
+        let matches = creditMatches
         return MemberPayslipsModel(
             member: member,
             countLabel: payslips.count == 1 ? "1 payslip" : "\(payslips.count) payslips",
@@ -153,8 +216,13 @@ struct PayslipsPresentation: Sendable {
                         "\(MoneyFormat.cents(Int(position.expectedCents))) projected to \(Self.date(position.asAt)), \(MoneyFormat.cents(Int(position.annualExpectedCents))) for the year",
                     actualCents: position.actualCents, variance: VarianceNote(cents: position.varianceCents))
             },
+            netPay: content.overview.netPay?.members.first { $0.memberId == member.id }
+                .flatMap(Self.netPay),
             cards: payslips.compactMap { payslip in
-                variances[payslip.id].map { Self.card(payslip, variance: $0, inflowNames: names) }
+                variances[payslip.id].map {
+                    Self.card(
+                        payslip, variance: $0, inflowNames: names, creditMatch: matches[payslip.id])
+                }
             })
     }
 
@@ -204,12 +272,14 @@ struct PayslipsPresentation: Sendable {
     // MARK: Cards
 
     static func card(
-        _ payslip: Payslip, variance: PayslipVariance, inflowNames: [String: String]
+        _ payslip: Payslip, variance: PayslipVariance, inflowNames: [String: String],
+        creditMatch: NetPay.CreditMatch? = nil
     ) -> PayslipCardModel {
         PayslipCardModel(
             payslip: payslip, period: periodLabel(payslip),
             paid: payslip.paidOn.map { "Paid \(date($0))" }, pill: pill(variance),
-            detail: detail(payslip, variance: variance, inflowNames: inflowNames))
+            detail: detail(
+                payslip, variance: variance, inflowNames: inflowNames, creditMatch: creditMatch))
     }
 
     /// A payslip's inclusive pay period as a short date range.
@@ -265,7 +335,8 @@ struct PayslipsPresentation: Sendable {
     }
 
     static func detail(
-        _ payslip: Payslip, variance: PayslipVariance, inflowNames: [String: String]
+        _ payslip: Payslip, variance: PayslipVariance, inflowNames: [String: String],
+        creditMatch: NetPay.CreditMatch? = nil
     ) -> PayslipDetailModel {
         let figures = [
             FigureCellModel(
@@ -297,7 +368,7 @@ struct PayslipsPresentation: Sendable {
                 variance: VarianceNote(cents: group.varianceCents))
         }
         return PayslipDetailModel(
-            figures: figures, earnings: earnings,
+            figures: figures, creditNote: creditMatch.map(creditNote), earnings: earnings,
             earningsNote: unallocatedNote(
                 variance.unallocatedCents, over: "of the gross is not itemised.",
                 under: "more than the gross is itemised."),
@@ -310,6 +381,64 @@ struct PayslipsPresentation: Sendable {
                 : nil,
             partCycleNote: variance.partCycleReason.flatMap { partCycleNotes[$0] },
             note: payslip.note, documentPath: payslip.filePath)
+    }
+
+    // MARK: Net pay
+
+    /// How a slip's net stands against the credit that carried it, as the PWA's
+    /// `PayslipCreditNote`.
+    static func creditNote(_ match: NetPay.CreditMatch) -> CreditNoteModel {
+        guard match.status != .missing, let postedOn = match.postedOn,
+            let amount = match.amountCents
+        else { return .missing }
+        let net = match.status == .matched
+            ? nil : match.netDifferenceCents.map { DifferenceModel(cents: $0, against: "the slip’s net") }
+        let plan = match.modelledDifferenceCents.flatMap {
+            $0 == 0 ? nil : DifferenceModel(cents: $0, against: "the plan’s net")
+        }
+        return .landed(
+            landed: "Landed in Up \(date(postedOn)): \(MoneyFormat.cents(Int(amount)))", net: net,
+            plan: plan)
+    }
+
+    /// A member's salary credits over the year, as the PWA's `MemberNetPayBlock`; nil
+    /// for a member with none.
+    static func netPay(_ netPay: NetPay.Member) -> MemberNetPayModel? {
+        if netPay.credits.isEmpty { return nil }
+        let count = netPay.credits.count
+        var qualifiers = ""
+        if netPay.payslipCount > 0 {
+            qualifiers += " · \(netPay.matchedCount) of \(netPay.payslipCount) slips matched"
+        }
+        if let cadence = netPay.cadenceDays { qualifiers += " · paid every \(cadence) days" }
+        return MemberNetPayModel(
+            receivedCents: netPay.receivedCents,
+            count: count == 1 ? "across 1 credit" : "across \(count) credits",
+            qualifiers: qualifiers,
+            credits: netPay.credits.map { credit in
+                NetPayCreditModel(
+                    id: credit.id, date: date(credit.postedOn), payer: credit.payer,
+                    amountCents: credit.amountCents, noPayslip: credit.payslipId == nil,
+                    cadenceNote: credit.cadenceDrift
+                        ? "\(credit.daysSincePrevious.map(String.init) ?? "") days after the previous pay; paid every \(netPay.cadenceDays.map(String.init) ?? "")"
+                        : nil,
+                    amountDrift: credit.amountDrift
+                        ? credit.previousDifferenceCents.map {
+                            DifferenceModel(cents: $0, against: "the previous pay")
+                        }
+                        : nil)
+            })
+    }
+
+    /// Joint-account salary from payers no slip matched; nil for none.
+    static func unattributedNote(_ credits: [NetPay.Candidate]) -> String? {
+        if credits.isEmpty { return nil }
+        var seen = Set<String>()
+        let payers = credits.map { $0.payer.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { seen.insert($0).inserted }
+        let count = credits.count == 1 ? "1 salary credit" : "\(credits.count) salary credits"
+        return
+            "\(count) from \(payers.joined(separator: ", ")) landed in a joint account this year. Add a payslip they carry to link them to whoever was paid."
     }
 
     private static func unallocatedNote(_ cents: Int64, over: String, under: String) -> String? {

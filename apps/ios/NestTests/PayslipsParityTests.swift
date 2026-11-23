@@ -5,7 +5,8 @@ import Testing
 
 /// Holds the native Payslips to the PWA's figures: `payslips-parity.json` carries rows and
 /// what the PWA computes from them (each slip's variance, each member's year to date,
-/// reported totals and unmeasured positions). The screen's own assembly
+/// reported totals and unmeasured positions, and the net-pay corroboration against the
+/// household's income credits). The screen's own assembly
 /// (`PayslipsRows.input`) feeds the bundled engine, and the result must equal them.
 @Suite struct PayslipsParityTests {
     struct Fixture: Decodable, Sendable {
@@ -17,7 +18,7 @@ import Testing
 
     private final class BundleLocator {}
 
-    private static let fixtures: [Fixture] = {
+    static let fixtures: [Fixture] = {
         let url = Bundle(for: BundleLocator.self).url(
             forResource: "payslips-parity", withExtension: "json")!
         return try! JSONDecoder().decode([Fixture].self, from: Data(contentsOf: url))

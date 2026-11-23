@@ -28,6 +28,7 @@ private enum Household {
             "tax_profile": json(rows.taxProfiles), "super_contribution": json(rows.contributions),
             "help_debt": json(rows.helpDebts), "deduction": json(rows.deductions),
             "payslip": json(rows.payslips), "payslip_line": json(rows.lines),
+            "transactions": json(rows.credits),
         ]
     }
 }
@@ -111,6 +112,11 @@ private final class StubService: PayslipsServicing, @unchecked Sendable {
             #expect(requests.first { $0.table == table }?.query.contains("financial_year=eq.2027") == true)
         }
         #expect(requests.first { $0.table == "payslip" }?.query.contains("order=period_end.desc") == true)
+        let credits = requests.first { $0.table == "transactions" }?.query ?? ""
+        for clause in ["kind=eq.income", "amount_cents=gt.0", "posted_at=gte.", "posted_at=lt.", "order=posted_at.asc"] {
+            #expect(credits.contains(clause), "\(clause)")
+        }
+        #expect(model.state.value?.rows.credits.count == Household.fixture.rows.credits.count)
     }
 
     @Test func aFailureWithNothingCachedIsFailed() async {

@@ -9,12 +9,16 @@ import {
   type TaxProfileRow,
 } from '@nest/household'
 import {
+  corroborateNetPay,
   latestReportedYearToDate,
+  modelledNetCents,
   payslipVariance,
   payslipYearPositions,
   payslipYearToDate,
   unmeasuredInflowPositions,
   type Frequency,
+  type MemberNetPay,
+  type PayslipCreditMatch,
   type PayslipLine,
   type PayslipTotals,
   type PayslipTotalsRow,
@@ -22,6 +26,7 @@ import {
   type PayslipYearPositions,
   type PayslipYearToDateTotals,
   type ReconciledInflow,
+  type SalaryCreditCandidate,
   type UnmeasuredInflowPosition,
 } from '@nest/plan'
 import { configsByYear, FY2027_CONFIG } from '@nest/tax'
@@ -46,6 +51,7 @@ export interface PayslipInputRow {
   gross_cents: number
   tax_withheld_cents: number
   super_cents: number
+  net_cents: number
   salary_sacrifice_cents: number | null
   ytd_gross_cents: number | null
   ytd_tax_withheld_cents: number | null
@@ -63,6 +69,19 @@ export interface PayslipLineInputRow {
   attracts_super: boolean | null
 }
 
+/**
+ * An `income` credit a payslip's net is corroborated against, dated by the caller
+ * on its local calendar day (`posted_on`), as the PWA dates it.
+ */
+export interface SalaryCreditInputRow {
+  id: string
+  posted_on: string
+  amount_cents: number
+  member_id: string | null
+  description: string
+  transaction_type: string | null
+}
+
 /** The input of {@link payslipsOverview}: the financial year's rows and the estimate's. */
 export interface PayslipsInput {
   financialYear: number
@@ -74,6 +93,8 @@ export interface PayslipsInput {
   deductions: DeductionRow[]
   payslips: PayslipInputRow[]
   lines: PayslipLineInputRow[]
+  /** The household's `income` credits around the year; none leaves `netPay` null. */
+  credits?: SalaryCreditInputRow[]
 }
 
 /** One member's payslips measured against the plan, and their year to date. */
@@ -85,6 +106,13 @@ export interface MemberPayslipsOverview {
   reported: PayslipYearToDateTotals | null
   positions: PayslipYearPositions
   unmeasured: UnmeasuredInflowPosition[]
+}
+
+/** The net-pay corroboration in list form, keyed by payslip and member id. */
+export interface NetPayOverview {
+  byPayslip: { payslipId: string; match: PayslipCreditMatch }[]
+  members: MemberNetPay[]
+  unattributed: SalaryCreditCandidate[]
 }
 
 function totalsRow(payslip: PayslipInputRow): PayslipTotalsRow {
@@ -213,5 +241,57 @@ export function payslipsOverview(input: PayslipsInput) {
       ],
     }
   })
-  return { members }
+  return { members, netPay: netPayOverview(input, members) }
+}
+
+/**
+ * Corroborates every slip's net against the household's credits, as the PWA's
+ * `netPayCorroboration` does: each slip carries the plan's net for its period from
+ * its own variance. Null where the household has no credits.
+ */
+function netPayOverview(
+  input: PayslipsInput,
+  members: readonly MemberPayslipsOverview[],
+): NetPayOverview | null {
+  const credits = input.credits ?? []
+  if (credits.length === 0) {
+    return null
+  }
+  const variances = new Map(
+    members.flatMap((member) =>
+      member.variances.map((each) => [each.payslipId, each.variance] as const),
+    ),
+  )
+  const corroboration = corroborateNetPay(
+    input.financialYear,
+    input.members.map((member) => member.id),
+    input.payslips.map((payslip) => {
+      const variance = variances.get(payslip.id)
+      return {
+        id: payslip.id,
+        memberId: payslip.member_id,
+        paidOn: payslip.paid_on,
+        periodStart: payslip.period_start,
+        periodEnd: payslip.period_end,
+        netCents: payslip.net_cents,
+        modelledNetCents: variance ? modelledNetCents(variance) : null,
+      }
+    }),
+    credits.map((credit) => ({
+      id: credit.id,
+      postedOn: credit.posted_on,
+      amountCents: credit.amount_cents,
+      memberId: credit.member_id,
+      payer: credit.description,
+      transactionType: credit.transaction_type,
+    })),
+  )
+  return {
+    byPayslip: [...corroboration.byPayslip].map(([payslipId, match]) => ({ payslipId, match })),
+    members: [...corroboration.byMember.values()].map((member) => ({
+      ...member,
+      credits: [...member.credits],
+    })),
+    unattributed: [...corroboration.unattributed],
+  }
 }

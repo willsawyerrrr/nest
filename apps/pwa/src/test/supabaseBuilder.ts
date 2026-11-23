@@ -19,6 +19,10 @@ export type BuilderMethod =
   | 'in'
   | 'not'
   | 'limit'
+  | 'range'
+  | 'gte'
+  | 'lt'
+  | 'or'
 
 /**
  * A chainable, thenable stand-in for a Supabase PostgREST query builder. Every

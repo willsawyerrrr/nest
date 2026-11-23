@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatIsoDate, isoDate, isoDaysBefore, todayIso } from './dates'
+import { formatIsoDate, isoDate, isoDaysBefore, localDayStart, todayIso } from './dates'
 
 describe('formatIsoDate', () => {
   it('formats an ISO date as a short local date', () => {
@@ -29,5 +29,13 @@ describe('isoDaysBefore', () => {
   it('counts back over a month boundary', () => {
     expect(isoDaysBefore('2026-07-14', 13)).toBe('2026-07-01')
     expect(isoDaysBefore('2026-07-07', 13)).toBe('2026-06-24')
+  })
+})
+
+describe('localDayStart', () => {
+  it('is the instant local midnight falls on that date', () => {
+    const start = new Date(localDayStart('2026-07-14'))
+    expect(isoDate(start)).toBe('2026-07-14')
+    expect([start.getHours(), start.getMinutes(), start.getSeconds()]).toEqual([0, 0, 0])
   })
 })

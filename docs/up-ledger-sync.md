@@ -239,6 +239,33 @@ and an Up child category id or null to clear the category:
    recategorisation), so the caller retries; setting the same category on Up
    again is idempotent.
 
+### Transactions list (`/transactions`)
+
+The PWA's **Transactions** screen (Plan nav group; `routes/TransactionsSection.tsx`,
+`components/TransactionListScreen.tsx`, `hooks/useTransactionList.ts`,
+`lib/transactionList.ts`) lists every transaction the signed-in member can see —
+any source, status, kind, or review state — newest first (`posted_at`, then
+`id`), 50 at a time through `.range()` with a **Load more** button. RLS limits
+it to the member's balance-visible accounts, so a co-member's own spending
+account never appears.
+
+Filters run server-side and live in the URL's search params, so a filtered view
+is linkable: `account` (an `account_directory` id), `from` and `to` (local
+dates, `to` inclusive — compared against `posted_at` from local midnight),
+`kind` (`income` / `expense` / `transfer`), `status` (`pending` / `settled`),
+and `category` (an Up category id: a parent matches its children through
+`external_parent_category`; `none` matches uncategorised rows). A malformed
+value is ignored. **Clear filters** resets them all.
+
+Rows are the review screen's rows, plus a tag naming whose transaction it is:
+the account owner's name (`member_id`), or `Joint` for a joint account, naming
+Up's `performing_customer_name` where present (`Joint · $alex`). Expanding a row
+opens the same review form — category, Nest note, **Looks right**, **Save**,
+**It's a gift**, **Create deduction** — for any transaction: `review_transaction`
+takes any visible row, and the category picker is disabled where the row is not
+categorisable (a transfer, a non-Up row). A review refreshes the list. Wide
+screens show dense rows, narrow ones compact cards.
+
 ### Reviewing transactions (`/transactions/review`)
 
 The PWA's review screen (`routes/TransactionReviewSection.tsx`,
@@ -246,12 +273,17 @@ The PWA's review screen (`routes/TransactionReviewSection.tsx`,
 lists the signed-in member's unreviewed, categorisable Up transactions
 (`source = 'up'`, `is_categorizable`, `reviewed_at` null), newest first and
 capped at the newest 100; RLS already limits them to the member's
-balance-visible accounts. It has no nav entry or Summary card: it is reached by
-URL, and `?id=<transaction id>` leads with that transaction, expanded and
-scrolled to, even once it is reviewed (what a notification opens).
+balance-visible accounts. It has no nav entry of its own: it is reached from
+the Summary's "N to review" card (for a member who has turned on the
+`transaction_review` notification) or by URL, and `?id=<transaction id>` leads
+with that transaction, expanded and scrolled to, even once it is reviewed (what
+a notification opens). The same rows and review form appear on the
+[transactions list](#transactions-list-transactions), which shows every
+transaction rather than only those awaiting review.
 
-Each row shows the description, signed amount, account, date, a `Pending` pill
-while Up holds it, its Up category (`Parent › Child` from `up_category`), and
+Each row (`components/TransactionRow.tsx`, shared with the transactions list)
+shows the description, signed amount, account, date, a `Pending` pill while Up
+holds it, a `Transfer` pill for a transfer, its Up category (`Parent › Child` from `up_category`), and
 Up's own note and message, read-only — Up's API cannot write either. Expanding
 a row offers a category picker (Up's child categories grouped by parent) and
 the household's own note, prefilled from `notes`, with three actions:
@@ -445,16 +477,13 @@ Purely PostgREST + RLS (no new edge functions): the household already reads
   source" and "Not in net worth". Mobile cards, desktop dense rows. Read-only:
   net-worth inclusion is set on Net worth. Labels and grouping live in
   `apps/pwa/src/lib/accounts.ts`.
-- **Transactions view** — a paginated, filterable list from `public.transactions`
-  ordered by `posted_at` desc: filter by account, date range, kind, status
-  (pending vs settled), and (once mirrored) category. Show signed amount with the
-  app's green/red money semantics, description, account, pending badge, member
-  attribution tag.
-- New nav tab (e.g. **Ledger** or **Transactions**), slotting into the existing
-  `NAV_SECTIONS`-driven tab bar; mobile cards / desktop dense rows like Budget and
-  Inflows.
-
-Staged: the accounts view and the transactions list, then filters/search.
+- **Transactions view (built)** — `/transactions`, the **Transactions** item in the
+  Plan nav group: a paginated list from `public.transactions` ordered by
+  `posted_at` desc, filtered by account, date range, kind, status, and Up
+  category, each row showing the signed amount in the app's green/red money
+  semantics, description, account, date, category, pending pill, and member
+  attribution tag, and expanding to the review form; mobile cards, desktop dense
+  rows. See [Transactions list](#transactions-list-transactions).
 
 ## 3. Reconcile actual spend vs budget
 

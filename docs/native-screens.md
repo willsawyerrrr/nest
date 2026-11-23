@@ -364,6 +364,26 @@ and trades) and snapshots rows and figures into
 `apps/ios/NestTests/Fixtures/net-worth-parity.json`; `NetWorthParityTests` runs the same
 rows through `NetWorthRows.input` and the bundled engine and asserts identical figures.
 
+## Accounts
+
+`Route.accounts` (`/accounts`, the Grow group after Net worth) is native
+(`AccountsScreen`), laid out as the PWA's Accounts tab: the title and intro, then every
+account the member can see grouped by type (Spending, Savings, Offset, Credit, Home loan,
+Other; empty types omitted), each group headed by its label and summed balance. An
+account is a dense ruled row on iPad and Mac (icon and name, owner, source, balance) and a
+bordered card on iPhone (name over `owner · source`, balance beside); the icon is the
+name's leading Up emoji or a wallet glyph, the owner a member's name or Joint, and
+"Deleted at source" and "Not in net worth" pills qualify the name. Balances are neutral
+unless negative. With no accounts it shows the PWA's empty state, pointing at
+Connections. Read-only: net-worth inclusion is set on Net worth.
+
+It reads `accounts_with_balance` and `members`, each ordered by name, through
+`AccountsViewModel`. There is no engine figure: `AccountsPresentation` groups and labels
+the rows as the PWA's `groupAccountsByType`, `accountOwnerLabel` and `ledgerSourceLabel`.
+`apps/pwa/src/lib/accountsParity.test.ts` snapshots rows and the groups the PWA lists
+into `apps/ios/NestTests/Fixtures/accounts-parity.json`; `AccountsParityTests` asserts
+`AccountsPresentation` lists the same.
+
 ## Planning mode
 
 Planning mode is native: `Route.planning` (`PlanningScreen`) and

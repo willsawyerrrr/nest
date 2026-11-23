@@ -17,7 +17,10 @@ struct RouteTests {
                 == ["/inflows", "/budget", "/breakdowns", "/gifts", "/splits"])
         #expect(
             NavSection.grow.routes.map(\.path)
-                == ["/net-worth", "/goals", "/wishlist", "/super", "/equity", "/investments"])
+                == [
+                    "/net-worth", "/accounts", "/goals", "/wishlist", "/super", "/equity",
+                    "/investments",
+                ])
         #expect(
             NavSection.tax.routes.map(\.path)
                 == ["/tax", "/payslips", "/deductions", "/help-debt", "/eofy"])

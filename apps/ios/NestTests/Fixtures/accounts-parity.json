@@ -1,0 +1,295 @@
+{
+  "rows": {
+    "accounts": [
+      {
+        "household_id": "h1",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "id": "a1",
+        "name": "🏖️ Holiday",
+        "type": "savings",
+        "balance_cents": 125000,
+        "owner_member_id": null,
+        "source": "up",
+        "external_id": "ext-a1",
+        "currency": "AUD",
+        "exclude_from_net_worth": false,
+        "deleted_from_source_at": null
+      },
+      {
+        "household_id": "h1",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "id": "a2",
+        "name": "Credit card",
+        "type": "credit",
+        "balance_cents": -182055,
+        "owner_member_id": "m2",
+        "source": "redbark",
+        "external_id": "ext-a2",
+        "currency": "AUD",
+        "exclude_from_net_worth": false,
+        "deleted_from_source_at": null
+      },
+      {
+        "household_id": "h1",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "id": "a3",
+        "name": "Emergency",
+        "type": "savings",
+        "balance_cents": 800000,
+        "owner_member_id": "m1",
+        "source": "up",
+        "external_id": "ext-a3",
+        "currency": "AUD",
+        "exclude_from_net_worth": true,
+        "deleted_from_source_at": null
+      },
+      {
+        "household_id": "h1",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "id": "a4",
+        "name": "Home loan",
+        "type": "home_loan",
+        "balance_cents": -51240000,
+        "owner_member_id": null,
+        "source": "redbark",
+        "external_id": "ext-a4",
+        "currency": "AUD",
+        "exclude_from_net_worth": false,
+        "deleted_from_source_at": null
+      },
+      {
+        "household_id": "h1",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "id": "a5",
+        "name": "Offset",
+        "type": "offset",
+        "balance_cents": 4200000,
+        "owner_member_id": null,
+        "source": "redbark",
+        "external_id": "ext-a5",
+        "currency": "AUD",
+        "exclude_from_net_worth": false,
+        "deleted_from_source_at": null
+      },
+      {
+        "household_id": "h1",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "id": "a6",
+        "name": "Old saver",
+        "type": "savings",
+        "balance_cents": 0,
+        "owner_member_id": "gone",
+        "source": "up",
+        "external_id": "ext-a6",
+        "currency": "AUD",
+        "exclude_from_net_worth": false,
+        "deleted_from_source_at": "2026-01-01T00:00:00Z"
+      },
+      {
+        "household_id": "h1",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "id": "a7",
+        "name": "Shares",
+        "type": "other",
+        "balance_cents": 1500000,
+        "owner_member_id": "m1",
+        "source": "manual",
+        "external_id": "ext-a7",
+        "currency": "AUD",
+        "exclude_from_net_worth": false,
+        "deleted_from_source_at": null
+      },
+      {
+        "household_id": "h1",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "id": "a8",
+        "name": "💳 Spending",
+        "type": "transaction",
+        "balance_cents": 31240,
+        "owner_member_id": "m1",
+        "source": "up",
+        "external_id": "ext-a8",
+        "currency": "AUD",
+        "exclude_from_net_worth": false,
+        "deleted_from_source_at": null
+      },
+      {
+        "household_id": "h1",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "id": "a9",
+        "name": "💳 Spending",
+        "type": "transaction",
+        "balance_cents": 9810,
+        "owner_member_id": "m2",
+        "source": "up",
+        "external_id": "ext-a9",
+        "currency": "AUD",
+        "exclude_from_net_worth": false,
+        "deleted_from_source_at": null
+      }
+    ],
+    "members": [
+      {
+        "household_id": "h1",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "id": "m1",
+        "name": "Alex",
+        "user_id": "u-m1",
+        "email": null,
+        "date_of_birth": null,
+        "up_connected_at": null,
+        "up_sync_failed_at": null
+      },
+      {
+        "household_id": "h1",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "id": "m2",
+        "name": "Sam",
+        "user_id": "u-m2",
+        "email": null,
+        "date_of_birth": null,
+        "up_connected_at": null,
+        "up_sync_failed_at": null
+      }
+    ]
+  },
+  "expected": [
+    {
+      "label": "Spending",
+      "total": "$410.50",
+      "accounts": [
+        {
+          "id": "a8",
+          "emoji": "💳",
+          "label": "Spending",
+          "owner": "Alex",
+          "source": "Up",
+          "balance": "$312.40",
+          "deleted": false,
+          "excluded": false
+        },
+        {
+          "id": "a9",
+          "emoji": "💳",
+          "label": "Spending",
+          "owner": "Sam",
+          "source": "Up",
+          "balance": "$98.10",
+          "deleted": false,
+          "excluded": false
+        }
+      ]
+    },
+    {
+      "label": "Savings",
+      "total": "$9,250.00",
+      "accounts": [
+        {
+          "id": "a1",
+          "emoji": "🏖️",
+          "label": "Holiday",
+          "owner": "Joint",
+          "source": "Up",
+          "balance": "$1,250.00",
+          "deleted": false,
+          "excluded": false
+        },
+        {
+          "id": "a3",
+          "emoji": null,
+          "label": "Emergency",
+          "owner": "Alex",
+          "source": "Up",
+          "balance": "$8,000.00",
+          "deleted": false,
+          "excluded": true
+        },
+        {
+          "id": "a6",
+          "emoji": null,
+          "label": "Old saver",
+          "owner": "Unknown",
+          "source": "Up",
+          "balance": "$0.00",
+          "deleted": true,
+          "excluded": false
+        }
+      ]
+    },
+    {
+      "label": "Offset",
+      "total": "$42,000.00",
+      "accounts": [
+        {
+          "id": "a5",
+          "emoji": null,
+          "label": "Offset",
+          "owner": "Joint",
+          "source": "Redbark",
+          "balance": "$42,000.00",
+          "deleted": false,
+          "excluded": false
+        }
+      ]
+    },
+    {
+      "label": "Credit",
+      "total": "-$1,820.55",
+      "accounts": [
+        {
+          "id": "a2",
+          "emoji": null,
+          "label": "Credit card",
+          "owner": "Sam",
+          "source": "Redbark",
+          "balance": "-$1,820.55",
+          "deleted": false,
+          "excluded": false
+        }
+      ]
+    },
+    {
+      "label": "Home loan",
+      "total": "-$512,400.00",
+      "accounts": [
+        {
+          "id": "a4",
+          "emoji": null,
+          "label": "Home loan",
+          "owner": "Joint",
+          "source": "Redbark",
+          "balance": "-$512,400.00",
+          "deleted": false,
+          "excluded": false
+        }
+      ]
+    },
+    {
+      "label": "Other",
+      "total": "$15,000.00",
+      "accounts": [
+        {
+          "id": "a7",
+          "emoji": null,
+          "label": "Shares",
+          "owner": "Alex",
+          "source": "Manual",
+          "balance": "$15,000.00",
+          "deleted": false,
+          "excluded": false
+        }
+      ]
+    }
+  ]
+}

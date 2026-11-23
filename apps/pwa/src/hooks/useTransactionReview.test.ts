@@ -151,4 +151,61 @@ describe('useTransactionReview', () => {
 
     await waitFor(() => expect(from.mock.calls.length).toBeGreaterThan(before))
   })
+
+  it('marks many reviewed, keeping each note, and reports the ones refused', async () => {
+    rpc.mockImplementation((_name: string, args: { p_transaction_id: string }) =>
+      Promise.resolve(
+        args.p_transaction_id === 't2'
+          ? { data: null, error: { message: 'no' } }
+          : { data: {}, error: null },
+      ),
+    )
+    const { result } = await loaded()
+
+    const outcome = await act(() => result.current.reviewMany(['t1', 't2', 't3']))
+
+    expect(outcome).toEqual({ failed: [{ id: 't2', code: null }] })
+    expect(rpc).toHaveBeenCalledTimes(3)
+    expect(rpc).toHaveBeenCalledWith('review_transaction', { p_transaction_id: 't1' })
+  })
+
+  it('sets one category on many in a single request, reviewing only those Up took', async () => {
+    invoke.mockResolvedValue({
+      data: {
+        results: [
+          { transaction_id: 't1' },
+          { transaction_id: 't2', code: 'up_rejected' },
+          { transaction_id: 't3' },
+        ],
+      },
+      error: null,
+    })
+    const { result } = await loaded()
+
+    const outcome = await act(() => result.current.categoriseMany(['t1', 't2', 't3'], 'groceries'))
+
+    expect(invoke).toHaveBeenCalledTimes(1)
+    expect(invoke).toHaveBeenCalledWith('up-categorise', {
+      body: { transaction_ids: ['t1', 't2', 't3'], category_id: 'groceries' },
+    })
+    expect(
+      rpc.mock.calls.map(([, args]) => (args as { p_transaction_id: string }).p_transaction_id),
+    ).toEqual(['t1', 't3'])
+    expect(outcome).toEqual({ failed: [{ id: 't2', code: 'up_rejected' }] })
+  })
+
+  it('fails every transaction in a batch Up refuses as a whole', async () => {
+    invoke.mockResolvedValue({ data: null, error: failure('up_not_connected') })
+    const { result } = await loaded()
+
+    const outcome = await act(() => result.current.categoriseMany(['t1', 't2'], 'groceries'))
+
+    expect(rpc).not.toHaveBeenCalled()
+    expect(outcome).toEqual({
+      failed: [
+        { id: 't1', code: 'up_not_connected' },
+        { id: 't2', code: 'up_not_connected' },
+      ],
+    })
+  })
 })

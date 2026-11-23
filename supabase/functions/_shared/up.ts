@@ -109,7 +109,7 @@ export interface ListTransactionsOptions {
 }
 
 /** Retries of one request after a `429` before it fails. */
-const MAX_RATE_LIMIT_RETRIES = 3
+export const MAX_RATE_LIMIT_RETRIES = 3
 
 /** The longest wait honoured between `429` retries, so a run stays within its time limit. */
 const MAX_RATE_LIMIT_WAIT_MS = 30_000
@@ -209,25 +209,38 @@ export class UpClient {
   /**
    * Sets a transaction's category to the child category `categoryId`, or clears
    * it with null (`PATCH /transactions/{id}/relationships/category`). Up answers
-   * `204`; any other status throws an {@link UpApiError}. A `429` is not
-   * retried: the caller reports it and the member tries again.
+   * `204`; any other status throws an {@link UpApiError}. A `429` is retried up
+   * to `rateLimitRetries` times (none by default, so a single change is reported
+   * and the member tries again) after the wait {@link rateLimitWaitMs} names.
    */
-  async categoriseTransaction(id: string, categoryId: string | null): Promise<void> {
+  async categoriseTransaction(
+    id: string,
+    categoryId: string | null,
+    rateLimitRetries = 0,
+  ): Promise<void> {
     const path = `/transactions/${encodeURIComponent(id)}/relationships/category`
-    const response = await this.fetchImpl(`${this.baseUrl}${path}`, {
-      method: 'PATCH',
-      headers: {
-        Authorization: `Bearer ${this.token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        data: categoryId === null ? null : { type: 'categories', id: categoryId },
-      }),
-    })
-    if (!response.ok) {
-      throw new UpApiError(response.status, path, await response.text())
+    for (let attempt = 0;; attempt++) {
+      const response = await this.fetchImpl(`${this.baseUrl}${path}`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${this.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          data: categoryId === null ? null : { type: 'categories', id: categoryId },
+        }),
+      })
+      if (response.status === 429 && attempt < rateLimitRetries) {
+        await response.body?.cancel()
+        await this.sleep(rateLimitWaitMs(response, attempt))
+        continue
+      }
+      if (!response.ok) {
+        throw new UpApiError(response.status, path, await response.text())
+      }
+      await response.body?.cancel()
+      return
     }
-    await response.body?.cancel()
   }
 
   /** Lists every webhook registered for the token's owner. */

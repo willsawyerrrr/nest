@@ -34,6 +34,8 @@ function makeTransaction(overrides: Partial<ReviewTransaction> = {}): ReviewTran
 }
 
 const onReview = vi.fn()
+const onReviewMany = vi.fn()
+const onCategoriseMany = vi.fn()
 
 function renderScreen(props: Partial<Parameters<typeof TransactionReviewScreen>[0]> = {}) {
   return render(
@@ -44,6 +46,8 @@ function renderScreen(props: Partial<Parameters<typeof TransactionReviewScreen>[
         categories={categories}
         accountNames={{ a1: 'Spending' }}
         onReview={onReview}
+        onReviewMany={onReviewMany}
+        onCategoriseMany={onCategoriseMany}
         {...props}
       />
     </MemoryRouter>,
@@ -57,6 +61,8 @@ async function expand(name: RegExp | string = /Cafe Lune/) {
 beforeEach(() => {
   vi.clearAllMocks()
   onReview.mockResolvedValue(undefined)
+  onReviewMany.mockResolvedValue({ failed: [] })
+  onCategoriseMany.mockResolvedValue({ failed: [] })
 })
 
 describe('TransactionReviewScreen', () => {
@@ -251,5 +257,116 @@ describe('TransactionReviewScreen', () => {
     await waitFor(() =>
       expect(screen.queryByRole('link', { name: 'Open Gifts' })).not.toBeInTheDocument(),
     )
+  })
+
+  describe('bulk review', () => {
+    const three = [
+      makeTransaction({ id: 't1', description: 'Cafe Lune' }),
+      makeTransaction({ id: 't2', description: 'Grocer' }),
+      makeTransaction({ id: 't3', description: 'Bakery' }),
+    ]
+
+    it('selects rows one by one and counts them', async () => {
+      renderScreen({ transactions: three })
+      expect(screen.getByRole('checkbox', { name: 'Select all' })).not.toBeChecked()
+      expect(screen.queryByRole('button', { name: 'Mark reviewed' })).not.toBeInTheDocument()
+
+      await userEvent.click(screen.getByRole('checkbox', { name: 'Select Grocer' }))
+
+      expect(screen.getByRole('checkbox', { name: '1 selected' })).toBePartiallyChecked()
+      expect(screen.getByRole('button', { name: 'Mark reviewed' })).toBeInTheDocument()
+    })
+
+    it('selects every unreviewed row, leaving a reviewed focused one out', async () => {
+      const focused = makeTransaction({ id: 'f', description: 'Done', reviewed_at: '2026-11-21' })
+      renderScreen({ transactions: three, focused })
+      expect(screen.queryByRole('checkbox', { name: 'Select Done' })).not.toBeInTheDocument()
+
+      await userEvent.click(screen.getByRole('checkbox', { name: 'Select all' }))
+      expect(screen.getByRole('checkbox', { name: '3 selected' })).toBeChecked()
+
+      await userEvent.click(screen.getByRole('button', { name: 'Mark reviewed' }))
+      expect(onReviewMany).toHaveBeenCalledWith(['t1', 't2', 't3'])
+      await waitFor(() =>
+        expect(screen.getByRole('checkbox', { name: 'Select all' })).not.toBeChecked(),
+      )
+    })
+
+    it('sets one category on the selection', async () => {
+      renderScreen({ transactions: three })
+      await userEvent.click(screen.getByRole('checkbox', { name: 'Select Cafe Lune' }))
+      await userEvent.click(screen.getByRole('checkbox', { name: 'Select Bakery' }))
+      const apply = screen.getByRole('button', { name: 'Apply' })
+      expect(apply).toBeDisabled()
+
+      await userEvent.click(screen.getByRole('combobox', { name: 'Category for selected' }))
+      await userEvent.click(await screen.findByRole('option', { name: 'Groceries' }))
+      await userEvent.click(apply)
+
+      expect(onCategoriseMany).toHaveBeenCalledWith(['t1', 't3'], 'groceries')
+    })
+
+    it('names the ones that failed and keeps them selected', async () => {
+      onCategoriseMany.mockResolvedValue({
+        failed: [
+          { id: 't2', code: 'up_rate_limited' },
+          { id: 't3', code: 'up_auth_failed' },
+        ],
+      })
+      renderScreen({ transactions: three })
+      await userEvent.click(screen.getByRole('checkbox', { name: 'Select all' }))
+      await userEvent.click(screen.getByRole('combobox', { name: 'Category for selected' }))
+      await userEvent.click(await screen.findByRole('option', { name: 'Groceries' }))
+      await userEvent.click(screen.getByRole('button', { name: 'Apply' }))
+
+      expect(
+        await screen.findByText("2 couldn't be saved and are still waiting for review"),
+      ).toBeInTheDocument()
+      expect(
+        screen.getByText('Grocer: Up is busy right now. Try again in a minute.'),
+      ).toBeInTheDocument()
+      expect(
+        screen.getByText('Bakery: Up rejected your token. Reconnect Up in Connections.'),
+      ).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: 'Open Connections' })).toBeInTheDocument()
+      expect(screen.getByRole('checkbox', { name: '2 selected' })).toBePartiallyChecked()
+      expect(screen.getByRole('checkbox', { name: 'Select Cafe Lune' })).not.toBeChecked()
+    })
+
+    it('points a bulk move into gifts on to the Gifts inbox', async () => {
+      renderScreen({ transactions: three })
+      await userEvent.click(screen.getByRole('checkbox', { name: 'Select Grocer' }))
+      await userEvent.click(screen.getByRole('combobox', { name: 'Category for selected' }))
+      await userEvent.click(await screen.findByRole('option', { name: 'Gifts & Charity' }))
+      await userEvent.click(screen.getByRole('button', { name: 'Apply' }))
+
+      expect(await screen.findByRole('link', { name: 'Open Gifts' })).toBeInTheDocument()
+    })
+
+    it('deselects a row', async () => {
+      renderScreen({ transactions: three })
+      const grocer = screen.getByRole('checkbox', { name: 'Select Grocer' })
+      await userEvent.click(grocer)
+      await userEvent.click(grocer)
+
+      expect(grocer).not.toBeChecked()
+      expect(screen.getByRole('checkbox', { name: 'Select all' })).not.toBeChecked()
+    })
+
+    it('names every selected row when the action itself fails, and closes the alert', async () => {
+      onReviewMany.mockRejectedValue(new Error('offline'))
+      renderScreen({ transactions: three })
+      await userEvent.click(screen.getByRole('checkbox', { name: 'Select Bakery' }))
+      await userEvent.click(screen.getByRole('button', { name: 'Mark reviewed' }))
+
+      expect(
+        await screen.findByText("1 couldn't be saved and is still waiting for review"),
+      ).toBeInTheDocument()
+      expect(screen.getByText('Bakery: Could not save this review. Try again.')).toBeInTheDocument()
+
+      const alert = screen.getByRole('alert')
+      await userEvent.click(within(alert).getByRole('button'))
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    })
   })
 })

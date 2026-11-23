@@ -324,6 +324,26 @@ Deno.test('categoriseTransaction throws an UpApiError on a 429 without retrying'
   assertEquals(calls, 1)
 })
 
+Deno.test('categoriseTransaction retries a 429 after Retry-After when asked to', async () => {
+  const waits: number[] = []
+  let calls = 0
+  const fetchImpl: typeof fetch = () => {
+    calls++
+    return Promise.resolve(
+      calls < 3
+        ? new Response('slow down', { status: 429, headers: { 'Retry-After': '2' } })
+        : new Response(null, { status: 204 }),
+    )
+  }
+
+  await new UpClient('token', 'https://up.test', fetchImpl, (ms) => {
+    waits.push(ms)
+    return Promise.resolve()
+  }).categoriseTransaction('tx-1', null, 3)
+  assertEquals(calls, 3)
+  assertEquals(waits, [2000, 2000])
+})
+
 Deno.test('createWebhook posts the url and returns the id and once-only secret', async () => {
   let request: { url: string; init?: RequestInit } | undefined
   const fetchImpl: typeof fetch = (input, init) => {

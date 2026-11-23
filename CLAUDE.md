@@ -1019,7 +1019,10 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   ("It's a gift", pointing on to Gifts), or turn an outflow into a tax deduction
   ("Create deduction", opening the Deductions form prefilled and linked through
   `deduction.transaction_id`, one deduction per transaction), with "Open in Up"
-  on each for what only Up can change, such as a cover; see
+  on each for what only Up can change, such as a cover. Rows can be selected
+  (one by one or all) and marked reviewed or given one category together, the
+  category going through `up-categorise`'s batch form; a transaction that fails
+  stays unreviewed and is named; see
   [`docs/up-ledger-sync.md`](docs/up-ledger-sync.md#reviewing-transactions-transactionsreview).
   The Accounts tab (`/accounts`, Grow group) lists every account the member can
   see, grouped by type with each group's total, each with its owner (a member

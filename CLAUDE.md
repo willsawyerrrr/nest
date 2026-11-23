@@ -1216,8 +1216,8 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
 
 ## Conventions
 
-- CI, local development and production all run Node 24 (`.nvmrc`, `engines`
-  `24.x`, `@types/node` `^24`), Vercel's newest supported runtime.
+- CI, local development and production all run Node 26 (`.nvmrc`, `engines`
+  `26.x`, `@types/node` `^26`), Vercel's newest supported runtime.
 - All planning happens in Linear, under the Nest project
   (`willsawyerrrr-dev` / WSD team). Do not produce ad-hoc chat plans or
   planning documents outside Linear — capture scope, decisions, and

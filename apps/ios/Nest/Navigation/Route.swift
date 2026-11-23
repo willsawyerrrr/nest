@@ -72,6 +72,7 @@ enum Route: String, CaseIterable, Identifiable, Hashable {
     case breakdowns = "/breakdowns"
     case gifts = "/gifts"
     case splits = "/splits"
+    case transactions = "/transactions"
     case transactionReview = "/transactions/review"
     case netWorth = "/net-worth"
     case accounts = "/accounts"
@@ -130,7 +131,8 @@ enum Route: String, CaseIterable, Identifiable, Hashable {
         case .planning: "Planning"
         case .allowance: "Allowance"
         case .whatsNew: "What's new"
-        case .transactionReview: "Transactions"
+        case .transactions: "Transactions"
+        case .transactionReview: "To review"
         }
     }
 
@@ -139,7 +141,7 @@ enum Route: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .summary: .summary
         case .inflows, .budget, .breakdowns, .gifts, .splits: .plan
-        case .transactionReview: .review
+        case .transactions, .transactionReview: .review
         case .netWorth, .accounts, .goals, .wishlist, .superannuation, .equity, .investments: .grow
         case .tax, .payslips, .deductions, .helpDebt, .eofy: .tax
         case .household, .members, .connections, .notifications, .planningMode, .documents: .settings
@@ -178,6 +180,7 @@ enum Route: String, CaseIterable, Identifiable, Hashable {
         case .superannuation: .native(AnyView(SuperScreen()))
         case .investments: .native(AnyView(InvestmentsScreen()))
         case .helpDebt: .native(AnyView(HelpDebtScreen()))
+        case .transactions: .native(AnyView(TransactionListScreen()))
         case .transactionReview: .native(AnyView(TransactionReviewScreen(focusID: id)))
         }
     }

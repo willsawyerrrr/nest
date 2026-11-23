@@ -51,35 +51,13 @@ final class TransactionReviewViewModel {
         await load()
     }
 
-    /// Marks a transaction reviewed with `note` (blank clears it), setting its Up
-    /// category through `up-categorise` first when `category` changes it. A
-    /// failed change leaves the transaction unreviewed. That includes
-    /// `save_failed`, where Up took the category but Nest's copy kept the old
-    /// one: no later sync corrects it, so the member saves again, which sets the
-    /// same category on Up and retries the copy.
+    /// Saves a review through `NestData.reviewTransaction`, reloading once it lands.
     func review(
         transactionID: String, note: String, category: ReviewCategory = .unchanged
     ) async -> ReviewOutcome {
-        if case .set(let categoryID) = category {
-            do {
-                let _: SupabaseAPI.Ignored = try await data.invoke(
-                    "up-categorise",
-                    body: UpCategoriseBody(transactionId: transactionID, categoryId: categoryID),
-                    invalidating: ["transactions"])
-            } catch {
-                return .failed(code: (error as? NestError)?.upstreamCode)
-            }
-        }
-        do {
-            try await data.call(
-                "review_transaction",
-                params: ReviewTransactionParams(transactionId: transactionID, note: note),
-                invalidating: ["transactions"])
-        } catch {
-            return .failed(code: nil)
-        }
-        await load()
-        return .saved
+        let outcome = await data.reviewTransaction(transactionID, note: note, category: category)
+        if outcome == .saved { await load() }
+        return outcome
     }
 
     /// Marks each transaction reviewed, five at a time, leaving each note as it
@@ -183,5 +161,37 @@ final class TransactionReviewViewModel {
             }
         }
         let results: [Item]
+    }
+}
+
+extension NestData {
+    /// Marks a transaction reviewed with `note` (blank clears it), setting its Up
+    /// category through `up-categorise` first when `category` changes it. A
+    /// failed change leaves the transaction unreviewed. That includes
+    /// `save_failed`, where Up took the category but Nest's copy kept the old
+    /// one: no later sync corrects it, so the member saves again, which sets the
+    /// same category on Up and retries the copy.
+    func reviewTransaction(
+        _ transactionID: String, note: String, category: ReviewCategory = .unchanged
+    ) async -> ReviewOutcome {
+        if case .set(let categoryID) = category {
+            do {
+                let _: SupabaseAPI.Ignored = try await invoke(
+                    "up-categorise",
+                    body: UpCategoriseBody(transactionId: transactionID, categoryId: categoryID),
+                    invalidating: ["transactions"])
+            } catch {
+                return .failed(code: (error as? NestError)?.upstreamCode)
+            }
+        }
+        do {
+            try await call(
+                "review_transaction",
+                params: ReviewTransactionParams(transactionId: transactionID, note: note),
+                invalidating: ["transactions"])
+        } catch {
+            return .failed(code: nil)
+        }
+        return .saved
     }
 }

@@ -47,10 +47,12 @@ struct RouteTests {
         }
     }
 
-    @Test func transactionReviewSitsUnderReview() {
+    @Test func transactionsAndTheirReviewSitUnderReview() {
+        #expect(Route.transactions.path == "/transactions")
+        #expect(Route.transactions.title == "Transactions")
         #expect(Route.transactionReview.path == "/transactions/review")
-        #expect(Route.transactionReview.title == "Transactions")
-        #expect(NavSection.review.routes == [.transactionReview])
+        #expect(Route.transactionReview.title == "To review")
+        #expect(NavSection.review.routes == [.transactions, .transactionReview])
         guard case .native = Route.transactionReview.content(id: "t1") else {
             Issue.record("transaction review is not native")
             return

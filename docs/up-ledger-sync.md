@@ -487,16 +487,14 @@ Purely PostgREST + RLS (no new edge functions): the household already reads
   net-worth inclusion is set on Net worth. Labels and grouping live in
   `apps/pwa/src/lib/accounts.ts`, mirrored natively by `AccountsPresentation`
   (see [`native-screens.md`](native-screens.md#accounts)).
-- **Transactions view** — a paginated, filterable list from `public.transactions`
-  ordered by `posted_at` desc: filter by account, date range, kind, status
-  (pending vs settled), and (once mirrored) category. Show signed amount with the
-  app's green/red money semantics, description, account, pending badge, member
-  attribution tag.
-- New nav tab (e.g. **Ledger** or **Transactions**), slotting into the existing
-  `NAV_SECTIONS`-driven tab bar; mobile cards / desktop dense rows like Budget and
-  Inflows.
-
-Staged: the accounts view and the transactions list, then filters/search.
+- **Transactions view (built natively)** — the native app's `/transactions`
+  ("Transactions", in the Review nav group): a paginated list from
+  `public.transactions` ordered by `posted_at` desc, filtered by account, date
+  range, kind, status (pending vs settled) and Up category, each row showing the
+  signed amount in the app's green/red money semantics, description, account,
+  date, category, pending pill and member attribution tag, and expanding to the
+  review form; mobile cards, desktop dense rows. See
+  [`native-screens.md`](native-screens.md#transactions).
 
 ## 3. Reconcile actual spend vs budget
 

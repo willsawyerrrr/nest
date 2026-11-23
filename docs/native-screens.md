@@ -1013,7 +1013,7 @@ asserts `HelpDebtPresentation` lists and saves the same.
 
 ## Transaction review
 
-`Route.transactionReview` (`/transactions/review`, the Transactions item of the
+`Route.transactionReview` (`/transactions/review`, the To review item of the
 Review nav group) is native (`TransactionReviewScreen`), laid out as the
 PWA's review screen: the title and intro, then the member's unreviewed,
 categorisable Up transactions, newest first and capped at the newest 100, as
@@ -1055,3 +1055,33 @@ notification: its **Looks right** action makes the screen's Looks right write
 without opening the app, and its expanded view (the notification content
 extension) picks a category with the screen's writes and failure copy (see
 [`ios.md`](ios.md#notification-content-extension)).
+
+## Transactions
+
+`Route.transactions` (`/transactions`, the Transactions item of the Review nav
+group) is native (`TransactionListScreen`), laid out as the PWA's transactions
+list: every transaction the member can see — any source, status, kind or review
+state, row-level security limiting it to their balance-visible accounts — newest
+first by the date the payment was made (`posted_at`, then `id`), 50 at a time with
+Load more (`offset` paging). Filters sit above the list in a grid (two columns on
+iPhone, three on iPad, six on a wide Mac window): Account, From and To (local
+days, `To` including all of its day, compared against `posted_at` from local
+midnight), Kind, Status and Category (Uncategorised, then each Up parent, matching
+its children through `external_parent_category`, followed by its children), each
+clearable, with Clear filters while any is set. They run server-side
+(`TransactionFilters.query`); a change starts over at the first page and keeps the
+shown rows under the refreshing banner until the new ones land.
+
+Each row is the review screen's row (`TransactionReviewPresentation.row`) plus a
+Transfer pill for a transfer and an outlined tag naming whose transaction it is: the account owner's name
+(`member_id`), or `Joint` for a joint account, with Up's
+`performing_customer_name` where present (`Joint · $alex`). Rows are bordered
+cards on iPhone and dense ruled rows on iPad and Mac, and tapping one expands the
+review screen's own `ReviewForm`, its writes going through the same
+`NestData.reviewTransaction` (`up-categorise`, then `review_transaction`); a review
+reloads every page shown. It's a gift shows the review screen's
+`GiftFiledNotice`.
+
+It reads `transactions` and `deduction` (`transaction_id` not null), both
+bypassing the row cache, `up_category`, `account_directory` and `members` through
+`TransactionListViewModel`.

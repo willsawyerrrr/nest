@@ -2,17 +2,21 @@ import CryptoKit
 import Foundation
 
 /// Identifies one cached query: a table and a stable description of the
-/// filters, order and limit that produced the rows.
+/// filters, order, limit and offset that produced the rows.
 struct QueryKey: Hashable, Sendable {
     let table: String
     let query: String
 
-    init(table: String, filters: [Filter] = [], order: [Order] = [], limit: Int? = nil) {
+    init(
+        table: String, filters: [Filter] = [], order: [Order] = [], limit: Int? = nil,
+        offset: Int? = nil
+    ) {
         self.table = table
         let parts =
             filters.map { "\($0.column)=\($0.op).\($0.value)" }.sorted()
             + order.map { "order:\($0.column).\($0.ascending ? "asc" : "desc")" }
             + (limit.map { ["limit:\($0)"] } ?? [])
+            + (offset.map { ["offset:\($0)"] } ?? [])
         query = parts.joined(separator: "&")
     }
 

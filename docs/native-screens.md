@@ -986,8 +986,8 @@ asserts `HelpDebtPresentation` lists and saves the same.
 
 ## Transaction review
 
-`Route.transactionReview` (`/transactions/review`, outside the nav like
-Planning and What's new) is native (`TransactionReviewScreen`), laid out as the
+`Route.transactionReview` (`/transactions/review`, the Transactions item of the
+Review nav group) is native (`TransactionReviewScreen`), laid out as the
 PWA's review screen: the title and intro, then the member's unreviewed,
 categorisable Up transactions, newest first and capped at the newest 100, as
 bordered cards on iPhone and dense ruled rows on iPad and Mac. Each row shows the

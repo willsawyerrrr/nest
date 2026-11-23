@@ -20,7 +20,7 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   own macOS share extension) is a SwiftUI app: a navigation shell (burger menu
   and drawer on iPhone, persistent sidebar on iPad and Mac, both the PWA's
   collapsible nav groups) over a route registry (`Route.swift`) whose every route
-  is a native screen. Native screens (Summary, Budget, Allowance, Breakdowns, Goals, Payslips, Deductions, Planning mode, Wishlist, Tax estimate, EOFY, Inflows, Gifts, Pay splits, Members, Household, Connections, Notifications, What's new, Equity, Net worth, Accounts, Super, Investments, HELP debt and Transaction review) follow
+  is a native screen. Native screens (Summary, Budget, Allowance, Breakdowns, Goals, Payslips, Deductions, Planning mode, Wishlist, Tax estimate, EOFY, Inflows, Gifts, Pay splits, Members, Household, Connections, Notifications, What's new, Equity, Net worth, Accounts, Super, Investments, HELP debt, Transactions and Transaction review) follow
   the pattern in [`docs/native-screens.md`](docs/native-screens.md) on the native
   design system (`apps/ios/Nest/DesignSystem/`) and data layer (typed Supabase
   access, a per-user row cache, `NestError`; see
@@ -1044,6 +1044,12 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   category going through `up-categorise`'s batch form; a transaction that fails
   stays unreviewed and is named; see
   [`docs/up-ledger-sync.md`](docs/up-ledger-sync.md#reviewing-transactions-transactionsreview).
+  The native app's Transactions screen (`/transactions`, Review nav group
+  beside To review) lists every transaction the member can see, newest first
+  by payment date and paged 50 at a time, filtered server-side by account, date
+  range, kind, status and Up category, each row naming its owner or `Joint` and
+  expanding to the review screen's form; see
+  [`docs/native-screens.md`](docs/native-screens.md#transactions).
   The Accounts tab (`/accounts`, Grow group) lists every account the member can
   see, grouped by type with each group's total, each with its owner (a member
   or Joint), source, balance and deleted-at-source and net-worth-exclusion

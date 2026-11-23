@@ -158,6 +158,7 @@ struct InflowSwitch: View {
 /// A date input showing `D MMM YYYY`, clearable, picking in a sheet.
 struct InflowDateInput: View {
     @Binding var iso: String?
+    var placeholder = "Pick date"
     @State private var isPresented = false
     @State private var picked = Date()
 
@@ -167,7 +168,7 @@ struct InflowDateInput: View {
                 picked = iso.flatMap(InflowsPresentation.parseIsoDate) ?? Date()
                 isPresented = true
             } label: {
-                Text(iso.map(InflowsPresentation.formatIsoDate) ?? "Pick date")
+                Text(iso.map(InflowsPresentation.formatIsoDate) ?? placeholder)
                     .foregroundStyle(iso == nil ? NestColor.dimmedText : NestColor.text)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }

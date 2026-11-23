@@ -48,7 +48,7 @@ struct TransactionReviewContentView: View {
             if let bulkFailures {
                 BulkFailureAlert(failures: bulkFailures) { self.bulkFailures = nil }
             }
-            if giftFiled { giftNotice }
+            if giftFiled { GiftFiledNotice { giftFiled = false } }
             if presentation.rows.isEmpty {
                 NestEmptyState(text: "Nothing to review.")
             } else {
@@ -124,9 +124,14 @@ struct TransactionReviewContentView: View {
             giftFiled = true
         }
     }
+}
 
-    /// Points a transaction just filed as a gift on to the Gifts inbox.
-    private var giftNotice: some View {
+/// Points a transaction just filed as a gift on to the Gifts inbox, shared by
+/// the review screen and the transactions list.
+struct GiftFiledNotice: View {
+    let onClose: () -> Void
+
+    var body: some View {
         HStack(alignment: .top, spacing: NestSpacing.xs) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Filed as a gift. Link it to a recipient from the Gifts inbox.")
@@ -139,7 +144,7 @@ struct TransactionReviewContentView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             Button {
-                giftFiled = false
+                onClose()
             } label: {
                 Image(systemName: "xmark").font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(NestColor.info).frame(width: 24, height: 24)
@@ -262,8 +267,9 @@ private struct ReviewRowView: View {
     }
 }
 
-/// The editor under an expanded row: category, Nest note, and the review actions.
-private struct ReviewForm: View {
+/// The editor under an expanded row: category, Nest note, and the review actions,
+/// shared by the review screen and the transactions list.
+struct ReviewForm: View {
     let transaction: LedgerTransaction
     let categorisable: Bool
     let isGift: Bool

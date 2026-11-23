@@ -69,9 +69,11 @@ struct SupabaseAPI: Sendable {
 
     // MARK: PostgREST
 
-    /// Rows of `T` matching `filters`, in `order`.
+    /// Rows of `T` matching `filters`, in `order`, at most `limit` of them after
+    /// skipping the first `offset`.
     func select<T: NestRow>(
-        _: T.Type, filters: [Filter] = [], order: [Order] = [], limit: Int? = nil
+        _: T.Type, filters: [Filter] = [], order: [Order] = [], limit: Int? = nil,
+        offset: Int? = nil
     ) async throws -> [T] {
         var items = [URLQueryItem(name: "select", value: T.columns)]
         items += filters.map { URLQueryItem(name: $0.column, value: $0.queryValue) }
@@ -81,6 +83,7 @@ struct SupabaseAPI: Sendable {
             items.append(URLQueryItem(name: "order", value: value))
         }
         if let limit { items.append(URLQueryItem(name: "limit", value: String(limit))) }
+        if let offset { items.append(URLQueryItem(name: "offset", value: String(offset))) }
         let data = try await request("GET", path: "rest/v1/\(T.table)", query: items)
         return try decode([T].self, from: data)
     }

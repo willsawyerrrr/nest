@@ -1121,6 +1121,18 @@ null; Up's own taxonomy is mirrored in `up_category`.
     assignable to a transaction.
   - `up-sync` refreshes it from Up's `GET /categories` once per run through
     `sync_up_categories`; `authenticated` can `select` every row and write none.
+- **up_category_default_group** — the budget group each Up child category's
+  spend counts toward by default, shared by every household.
+  - `category_id` (primary key, Up's category id; no foreign key, since the
+    taxonomy syncs at runtime), `line_group` (`budget_group`). A category with
+    no row counts toward no group.
+  - Seeded by its migration; `authenticated` can `select` every row and write
+    none.
+- **up_category_group** — a household's override of a category's group.
+  - `household_id`, `category_id` (together the primary key), `line_group`
+    (nullable: null counts the category toward no group), `updated_at`. No row
+    falls back to `up_category_default_group`.
+  - Household-wide RLS; members manage every row.
 - **up_webhook** — the Up webhook each connected member registered.
   - `member_id` (primary key, `on delete cascade` from `members`), `webhook_id`
     (Up's id, for replacing or deleting it), `created_at`. Its secret lives in
@@ -1376,6 +1388,13 @@ that live in Vault:
   `external_category` and, from `up_category`, its `external_parent_category`,
   restamping `external_category_since` only on a change; false when no Up row
   has the id. Both are SECURITY DEFINER and `service_role`-only.
+- `budget_actual_spend(p_start date, p_end date, p_include_pending boolean default false)`
+  → `(line_group, spent_cents)` — spend per budget group posted on
+  `p_start`..`p_end` in the household's timezone: categorised rows of any sign
+  but `transfer`, plus uncategorised `expense` rows, settled only unless
+  `p_include_pending`, grouped by the household's override else the default; a
+  null `line_group` is spend in no group. SECURITY INVOKER, so it sums only the
+  transactions the caller can see.
 - `reconcile_source_accounts(household_id, owner_member_id, source, present_external_ids text[])`
   — the `up-sync` / `redbark-sync` per-member account reconcile: over one
   member's individually-owned accounts of the given `source`, clears

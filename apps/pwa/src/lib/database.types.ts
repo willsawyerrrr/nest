@@ -2482,6 +2482,52 @@ export type Database = {
           },
         ]
       }
+      up_category_default_group: {
+        Row: {
+          category_id: string
+          line_group: Database['public']['Enums']['budget_group']
+        }
+        ComputedFields: never
+        Insert: {
+          category_id: string
+          line_group: Database['public']['Enums']['budget_group']
+        }
+        Update: {
+          category_id?: string
+          line_group?: Database['public']['Enums']['budget_group']
+        }
+        Relationships: []
+      }
+      up_category_group: {
+        Row: {
+          category_id: string
+          household_id: string
+          line_group: Database['public']['Enums']['budget_group'] | null
+          updated_at: string
+        }
+        ComputedFields: never
+        Insert: {
+          category_id: string
+          household_id: string
+          line_group?: Database['public']['Enums']['budget_group'] | null
+          updated_at?: string
+        }
+        Update: {
+          category_id?: string
+          household_id?: string
+          line_group?: Database['public']['Enums']['budget_group'] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'up_category_group_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       up_webhook: {
         Row: {
           created_at: string
@@ -2650,6 +2696,13 @@ export type Database = {
           key_id: string
           private_key: string
           team_id: string
+        }[]
+      }
+      budget_actual_spend: {
+        Args: { p_end: string; p_include_pending?: boolean; p_start: string }
+        Returns: {
+          line_group: Database['public']['Enums']['budget_group']
+          spent_cents: number
         }[]
       }
       budget_line_derived_fields: {

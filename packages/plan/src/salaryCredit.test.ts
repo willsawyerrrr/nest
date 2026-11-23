@@ -196,6 +196,70 @@ describe('corroborateNetPay', () => {
     expect(result.byMember.get(ALEX)!.credits.some((each) => each.cadenceDrift)).toBe(false)
   })
 
+  it('reads the cadence from the slips’ most common period length, the shorter on a tie', () => {
+    const fortnight = { periodStart: '2026-06-27', periodEnd: '2026-07-10' }
+    const week = { periodStart: '2026-07-11', periodEnd: '2026-07-17' }
+    const cadence = (periods: (typeof week)[]) =>
+      corroborateNetPay(
+        FY,
+        [ALEX],
+        periods.map((period, index) => slip({ id: `s${index}`, ...period })),
+        [],
+      ).byMember.get(ALEX)!.cadenceDays
+    expect(cadence([fortnight, week, fortnight])).toBe(14)
+    expect(cadence([fortnight, week])).toBe(7)
+    expect(cadence([week, fortnight])).toBe(7)
+  })
+
+  it('takes the middle of the two middle gaps for an even number of gaps', () => {
+    const result = corroborateNetPay(
+      FY,
+      [ALEX],
+      [],
+      ['2026-07-01', '2026-07-15', '2026-07-31'].map((postedOn, index) =>
+        credit({ id: `c${index}`, postedOn, transactionType: 'Salary' }),
+      ),
+    )
+    expect(result.byMember.get(ALEX)!.cadenceDays).toBe(15)
+  })
+
+  it('orders credits posted on the same day by id', () => {
+    const result = corroborateNetPay(
+      FY,
+      [ALEX],
+      [],
+      [
+        credit({ id: 'b', memberId: ALEX, transactionType: 'Salary' }),
+        credit({ id: 'a', memberId: ALEX, transactionType: 'Salary' }),
+      ],
+    )
+    expect(result.byMember.get(ALEX)!.credits.map((each) => each.id)).toEqual(['b', 'a'])
+  })
+
+  it('attributes a matched payer’s credit on the member’s own account', () => {
+    const result = corroborateNetPay(
+      FY,
+      [ALEX, SAM],
+      [slip({ id: 's1' })],
+      [credit({ id: 'c1' }), credit({ id: 'own', memberId: ALEX, postedOn: '2026-07-27' })],
+    )
+    expect(result.byMember.get(ALEX)!.credits.map((each) => each.id)).toEqual(['own', 'c1'])
+  })
+
+  it('lists unattributed credits most recent first, then by id', () => {
+    const result = corroborateNetPay(
+      FY,
+      [ALEX, SAM],
+      [],
+      [
+        credit({ id: 'j0', transactionType: 'Salary' }),
+        credit({ id: 'j2', transactionType: 'Salary', postedOn: '2026-07-27' }),
+        credit({ id: 'j1', transactionType: 'Salary', postedOn: '2026-07-27' }),
+      ],
+    )
+    expect(result.unattributed.map((each) => each.id)).toEqual(['j1', 'j2', 'j0'])
+  })
+
   it('matches across the year boundary but lists only credits posted in the year', () => {
     const result = corroborateNetPay(
       FY,

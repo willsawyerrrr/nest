@@ -528,6 +528,7 @@ Deno.test('transaction_review fires for the owner of an individual account', () 
       title: 'Myer · $42.10',
       body: 'Clothing & Accessories — right category?',
       url: '/transactions/review?id=tx-r',
+      native: { category: 'transaction_review', transactionId: 'tx-r' },
     },
   }])
 })

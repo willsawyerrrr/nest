@@ -1,20 +1,6 @@
 import Foundation
 import Observation
 
-/// What a review does to the transaction's Up category.
-enum ReviewCategory: Equatable, Sendable {
-    /// Leaves Up's category as it is.
-    case unchanged
-    /// Sets the child category, or clears it with nil.
-    case set(String?)
-}
-
-/// How a review ended: saved, or refused with the stable code that picks its copy.
-enum ReviewOutcome: Equatable, Sendable {
-    case saved
-    case failed(code: String?)
-}
-
 /// Loads the transactions awaiting the signed-in member's review, the focused
 /// one and Up's categories, and saves reviews through `NestData`, reloading
 /// after each.
@@ -72,7 +58,7 @@ final class TransactionReviewViewModel {
             do {
                 let _: SupabaseAPI.Ignored = try await data.invoke(
                     "up-categorise",
-                    body: CategoriseBody(transactionId: transactionID, categoryId: categoryID),
+                    body: UpCategoriseBody(transactionId: transactionID, categoryId: categoryID),
                     invalidating: ["transactions"])
             } catch {
                 return .failed(code: (error as? NestError)?.upstreamCode)
@@ -81,39 +67,12 @@ final class TransactionReviewViewModel {
         do {
             try await data.call(
                 "review_transaction",
-                params: ReviewParams(transactionId: transactionID, note: note),
+                params: ReviewTransactionParams(transactionId: transactionID, note: note),
                 invalidating: ["transactions"])
         } catch {
             return .failed(code: nil)
         }
         await load()
         return .saved
-    }
-
-    private struct CategoriseBody: Encodable, Sendable {
-        let transactionId: String
-        let categoryId: String?
-
-        enum CodingKeys: String, CodingKey {
-            case transactionId = "transaction_id"
-            case categoryId = "category_id"
-        }
-
-        /// Encodes a nil category as an explicit `null`, which clears it on Up.
-        func encode(to encoder: Encoder) throws {
-            var container = encoder.container(keyedBy: CodingKeys.self)
-            try container.encode(transactionId, forKey: .transactionId)
-            try container.encode(categoryId, forKey: .categoryId)
-        }
-    }
-
-    private struct ReviewParams: Encodable, Sendable {
-        let transactionId: String
-        let note: String
-
-        enum CodingKeys: String, CodingKey {
-            case transactionId = "p_transaction_id"
-            case note = "p_note"
-        }
     }
 }

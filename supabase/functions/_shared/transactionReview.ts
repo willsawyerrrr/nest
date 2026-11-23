@@ -138,7 +138,11 @@ export function isReviewable(transaction: ReviewTransactionRow, now: Date): bool
     firstSeen - Date.parse(transaction.posted_at) <= REVIEW_FRESH_HOURS * HOUR_MS
 }
 
-/** The notification for one transaction, e.g. "Myer · $42.10" / "Shopping — right category?". */
+/**
+ * The notification for one transaction, e.g. "Myer · $42.10" / "Shopping —
+ * right category?". Its `native` action lets the app mark it reviewed or pick
+ * another category from the notification.
+ */
 export function reviewPayload(
   transaction: ReviewTransactionRow,
   categories: readonly UpCategoryNameRow[],
@@ -155,6 +159,7 @@ export function reviewPayload(
     title: `${label} · ${amount}`,
     body: category == null ? 'Uncategorised — pick a category?' : `${category} — right category?`,
     url: `/transactions/review?id=${transaction.id}`,
+    native: { category: 'transaction_review', transactionId: transaction.id },
   }
 }
 

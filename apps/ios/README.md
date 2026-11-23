@@ -44,8 +44,8 @@ and Spotlight still work on both platforms.
     into the page and takes its sign-out request back.
   - `SessionBridge.swift` — builds the JavaScript the shell injects: the
     `window.__NEST_NATIVE_SHELL__` marker and the apply/clear-session calls.
-  - `Supabase.swift` — project URL + anon key, read from `Info.plist`, and the shared `AuthClient` (default
-    `KeychainLocalStorage`).
+  - `SupabaseConfig.swift` — project URL + anon key, read from `Info.plist`.
+  - `Supabase.swift` — the shared `AuthClient` (default `KeychainLocalStorage`).
   - `Auth.swift` — `@Observable` `AuthModel`: session state, native Google sign-in, and
     the `authStateChanges` observation behind the gate.
   - `PushNotifications.swift` — APNs token registration (`PushRegistrar`,
@@ -98,8 +98,12 @@ and Spotlight still work on both platforms.
   shared PDFs and images into the App Group inbox
   (`group.dev.willsawyerrrr.nest`); the app hands them to the PWA's deduction
   receipt queue. See [`docs/ios.md`](../../docs/ios.md#share-extension).
+- `NotificationContent/` — the notification content extension: expanding a
+  transaction review notification lists Up's categories, and picking one
+  recategorises and reviews the transaction over the app's shared Keychain
+  session. See [`docs/ios.md`](../../docs/ios.md#notification-content-extension).
 - `Shared/` — `ShareInbox.swift` and `ShareSummary.swift`, compiled into both the
-  app and the extension.
+  app and the share extension.
 - `NestTests/` — Swift Testing unit tests over the pieces each `perform()`
   delegates to: the phrasing (cents → spoken sentence), the service request
   shape and status handling, and the signed-out / failure-to-sentence mapping —
@@ -121,7 +125,7 @@ open Nest.xcodeproj
 ```
 
 `xcodegen generate` substitutes `SUPABASE_URL` / `SUPABASE_ANON_KEY` from the
-environment into `Info.plist`; `Supabase.swift` reads them at runtime and
+environment into `Info.plist`; `SupabaseConfig.swift` reads them at runtime and
 fails loudly (`fatalError`) if either is missing, rather than silently
 building against no project.
 

@@ -296,7 +296,7 @@ private struct ReviewForm: View {
         } label: {
             HStack {
                 Text(
-                    TransactionReviewPresentation.pickerLabel(
+                    UpCategories.pickerLabel(
                         groups.flatMap(\.items), categoryID)
                 )
                 .font(.system(size: 14))
@@ -317,8 +317,8 @@ private struct ReviewForm: View {
 
     private func failureView(_ code: String?) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            FormError(message: TransactionReviewPresentation.errorMessage(code))
-            if TransactionReviewPresentation.needsConnections(code) {
+            FormError(message: ReviewFailure.message(code))
+            if ReviewFailure.needsConnections(code) {
                 NavigationLink(value: Route.connections) {
                     Text("Open Connections").font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(NestColor.brand)

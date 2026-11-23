@@ -102,6 +102,7 @@ Deno.test('reviewPayload names the merchant, amount, and Up category', () => {
     title: 'Myer · $42.10',
     body: 'Clothing & Accessories — right category?',
     url: '/transactions/review?id=tx-1',
+    native: { category: 'transaction_review', transactionId: 'tx-1' },
   })
   assertEquals(
     reviewPayload(
@@ -112,6 +113,7 @@ Deno.test('reviewPayload names the merchant, amount, and Up category', () => {
       title: 'A transaction · +$5.00',
       body: 'Uncategorised — pick a category?',
       url: '/transactions/review?id=tx-1',
+      native: { category: 'transaction_review', transactionId: 'tx-1' },
     },
   )
 })

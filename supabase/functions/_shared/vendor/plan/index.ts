@@ -250,3 +250,25 @@ export interface SavingsGoal {
    */
   readonly annualInterestBps?: number | null
 }
+
+export {
+  AMOUNT_DRIFT_TOLERANCE,
+  AMOUNT_TOLERANCE,
+  CADENCE_TOLERANCE_DAYS,
+  corroborateNetPay,
+  modelledNetCents,
+  PAID_ON_DAYS_AFTER,
+  PAID_ON_DAYS_BEFORE,
+  PERIOD_END_DAYS_AFTER,
+  ROUNDING_TOLERANCE_CENTS,
+  UP_SALARY_TYPE,
+} from './salaryCredit.ts'
+export type {
+  CreditMatchStatus,
+  MemberNetPay,
+  MemberSalaryCredit,
+  NetPayCorroboration,
+  NetPaySlip,
+  PayslipCreditMatch,
+  SalaryCreditCandidate,
+} from './salaryCredit.ts'

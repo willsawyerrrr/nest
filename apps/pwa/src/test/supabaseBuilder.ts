@@ -19,6 +19,9 @@ export type BuilderMethod =
   | 'is'
   | 'in'
   | 'not'
+  | 'gt'
+  | 'gte'
+  | 'lt'
   | 'limit'
 
 /**

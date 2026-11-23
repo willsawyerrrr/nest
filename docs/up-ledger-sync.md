@@ -10,7 +10,8 @@ savers, super, and gifts, and breaks into four stages:
   review screen (below) and the accounts view are built; a transaction ledger
   is not.
 - [ ] Reconcile actual spend against the budget.
-- [ ] Track actual tax paid (PAYG withheld) vs the estimate.
+- [x] Track actual tax paid (PAYG withheld) vs the estimate: payslips supply
+  actual withholding, and Up salary credits corroborate each slip's net pay.
 
 Transaction sync is the foundation; a read-only ledger UI sits over it, then the
 two reconciliation layers that consume the synced data.
@@ -527,36 +528,52 @@ existing planned totals. Defer per-line mapping and rules.
 
 ## 4. Actual PAYG tax paid vs estimate
 
-Tax is **estimate-only** today (`@nest/tax`, per person, per FY). This layer
-derives *actual* PAYG withheld from real data to compare against the estimate,
-feeding a projected refund/bill.
+Actual PAYG withheld comes from payslips ([`payslips.md`](payslips.md)): each
+member's summed slip tax (`paygWithheldFromRows`) nets against the estimate's
+liability as a refund or bill on the Tax and EOFY screens. Up cannot supply it —
+it sees only the **net** pay credited; PAYG and super never touch the account.
 
-Two possible sources (the **payslip** source, [`payslips.md`](payslips.md), is
-the more accurate one):
+What Up does supply is **salary-credit corroboration**, shown on the Payslips
+screen: the credit that carried each slip, how its amount stands against the
+slip's net and the plan's net, and each member's pay as it landed, with drift
+from the pay cycle and from the previous pay. It is derived on read
+(`corroborateNetPay` in `@nest/plan`), nothing is stored, and it never feeds the
+tax figures.
 
-- **Salary-credit transactions.** A salary deposit lands as an `income`
-  transaction on a member's account. But Up sees only the **net** pay credited —
-  the PAYG withheld and super never touch the Up account, so withheld tax **cannot
-  be read directly** from a transaction. It could at best be *inferred*: net pay +
-  the modelled gross/withholding from `@nest/tax` for that member's inflow, which
-  is circular (it's the estimate, not the actual). Salary-credit transactions are
-  useful for confirming **actual net pay received** (and thus validating the gross
-  assumption), and for detecting pay-cadence/amount drift, but not for actual
-  withheld tax.
-- **Payslips (more accurate).** A payslip states gross, PAYG withheld, and super
-  per pay period directly. If payslip capture is built ([`payslips.md`](payslips.md)),
-  summing withheld across the FY gives true actual PAYG, and the refund/bill =
-  actual withheld − estimated liability. This is the real source for this
-  stage; the transaction path only corroborates net.
+### Which credits are salary
 
-Design decisions (open questions): whether this phase ships on **salary-credit
-inference** (approximate, needs only sync) or waits on a **payslip** source
-(accurate, more work); how withheld is attributed to a member (via the inflow's
-`member_id` and the account owner); and where the refund/bill estimate surfaces
-(the Tax tab, beside the existing per-member breakdown). Recommend: identify and
-tag salary-credit transactions now (cheap, corroborates net pay and the gross
-assumption), and gate the actual-withheld number on the payslip source rather than
-inferring it circularly from the estimate.
+The candidates are the household's visible `income` transactions with a positive
+amount, loaded from a day before the financial year to eight days past it. A
+credit is tagged as a member's salary in three ways, in order:
+
+1. **Matched to a payslip.** On the member's own account or a joint one (pay
+   commonly lands in the joint pay account, attributed to nobody), within the
+   slip's window — a day before to three days after `paid_on` (early processing,
+   weekends, public holidays), or the week after `period_end` for a slip stating
+   no payment date — and within 10% of the slip's net. Pairs are assigned closest
+   amount first, then closest day, each credit and slip once.
+2. **From the member's payer.** A credit whose description (case and whitespace
+   ignored) also paid one of the member's matched credits, on their own or a joint
+   account: the pays they entered no slip for. A payer whose credits matched both
+   members' slips is nobody's.
+3. **Up's `Salary` type.** A credit Up types as salary, on the member's own
+   account, or on a joint one in a one-member household. In a household of two a
+   joint salary credit matching no payer is unattributed, and the screen names its
+   payer and asks for one of the payee's slips, which links every credit from it.
+
+### What is measured
+
+- **Slip vs credit.** `matched` within $1 of the slip's net (rounding), `differs`
+  beyond it with the difference, `missing` where no credit qualifies. The plan's
+  net is the slip's expected gross less its expected withholding; the credit's
+  difference from it shows where the slip's variance has one.
+- **Cadence drift.** The pay cycle is the most common period length across the
+  member's slips, else the median gap between their credits (three or more). A
+  gap more than three days off it is flagged.
+- **Amount drift.** A credit more than 10% above or below the previous one is
+  flagged.
+
+The PWA hides all of it when the household has no credits (no Up connection).
 
 ## Cross-cutting risks
 
@@ -591,8 +608,5 @@ inferring it circularly from the estimate.
 4. **Pending spend** — does reconciliation count `HELD`/pending transactions or
    settled-only?
 5. **Reconciliation period** — fortnight (matches the plan) vs calendar month.
-6. **Actual PAYG source** — salary-credit inference (approximate, sync-only) vs a
-   dedicated payslip source (accurate, its own phase). Recommend gating actual
-   withheld on payslips; use transactions to corroborate net pay.
-7. **Ledger UI placement** — a new Ledger/Transactions tab vs extending Net
+6. **Ledger UI placement** — a new Ledger/Transactions tab vs extending Net
    worth / Household.

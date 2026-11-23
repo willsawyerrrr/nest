@@ -656,6 +656,16 @@ This sits naturally beside the Up ledger phase (which reconciles actual **tax
 paid** from the spend/transfer side): payslips give the withholding actuals from
 the income side, and the two converge on the same year-end position.
 
+## Net pay received in Up
+
+Each slip's `net_cents` is corroborated against the Up credit that carried it:
+the card's detail says when it landed and how it stands against the slip's net
+and the plan's net (expected gross less expected withholding), or that no credit
+was found. Above the list, each member's net pay received in Up lists their salary
+credits for the year with cadence and amount drift. Withholding stays the slips'
+own; Up sees only net pay. Matching rules are in
+[`up-ledger-sync.md`](up-ledger-sync.md#4-actual-payg-tax-paid-vs-estimate).
+
 ## Staging
 
 Smallest-useful-first, each stage independently shippable. **All three stages are
@@ -1065,7 +1075,3 @@ Deferred; not blocking.
 
 - **Period vs YTD as the source of truth.** Prefer summing per-period rows, or
   trust the latest slip's YTD figures (which self-correct for missed entries)?
-- **Interaction with Up ingestion.** Once the Up ledger lands, actual net pay
-  appears as a deposit transaction. Should payslip `net_cents` be reconciled
-  against that deposit, and does payslip withholding data merge with the ledger's
-  actual-tax-paid tracking or stay a separate income-side view?

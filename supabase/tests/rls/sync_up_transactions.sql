@@ -3,7 +3,7 @@
 --
 -- Both are SECURITY DEFINER and granted to service_role alone. The upsert lands
 -- rows on (source, external_id), reports which it inserted, never writes
--- `notes`, inserts Salary and Interest rows already reviewed (and never touches
+-- `notes`, inserts Salary, Interest and Transfer rows already reviewed (and never touches
 -- review state on an update), stamps `external_category_since` only when the category changes,
 -- holds a linked gift purchase to its transaction's amount, and leaves a
 -- conflicting row in another household alone. The delete removes the named Up
@@ -115,8 +115,9 @@ begin
     'every Up-side column lands';
   assert r.notes is null, 'the sync writes no notes';
 
-  assert (select kind from public.transactions where external_id = 'tx-transfer') = 'transfer',
-    'a transfer lands as the transfer kind';
+  assert (select kind = 'transfer' and reviewed_at is not null
+    from public.transactions where external_id = 'tx-transfer'),
+    'a transfer lands as the transfer kind, already reviewed';
 
   select * into r from public.transactions where external_id = 'tx-bob';
   assert r.household_id = current_setting('test.hid2')::uuid and r.description = 'Bob''s row',
@@ -194,7 +195,7 @@ begin
 end;
 $$;
 
--- ── Salary and Interest insert already reviewed ──────────────────────────────
+-- ── Salary, Interest and Transfer insert already reviewed ────────────────────
 
 set local role service_role;
 select * from public.sync_up_transactions(
@@ -242,8 +243,9 @@ begin
     'an Interest row inserts reviewed, by no member';
   assert (select reviewed_at is null from public.transactions where external_id = 'tx-credit'),
     'a Direct Credit row still awaits review';
-  assert (select reviewed_at is null from public.transactions where external_id = 'tx-ext-transfer'),
-    'an incoming transfer row still awaits review';
+  assert (select reviewed_at is not null and reviewed_by_member_id is null
+    from public.transactions where external_id = 'tx-ext-transfer'),
+    'an incoming Transfer row inserts reviewed, by no member';
 end;
 $$;
 

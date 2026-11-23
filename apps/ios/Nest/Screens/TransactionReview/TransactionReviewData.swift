@@ -15,13 +15,11 @@ struct TransactionReviewRows: Codable, Sendable, Equatable {
     /// The most unreviewed transactions read at once, newest first.
     static let pageSize = 100
 
-    /// The Up transactions awaiting review: unreviewed, and either categorisable or an
-    /// incoming transfer from outside the household's own accounts (income of type
-    /// Transfer), row-level security scoping them to the member's balance-visible
-    /// accounts.
+    /// The Up transactions awaiting review: unreviewed and categorisable, row-level
+    /// security scoping them to the member's balance-visible accounts.
     static let awaitingReview: [Filter] = [
         .eq("source", "up"),
-        .or("is_categorizable.eq.true,and(kind.eq.income,transaction_type.eq.Transfer)"),
+        .eq("is_categorizable", "true"),
         .isNull("reviewed_at"),
     ]
 

@@ -60,6 +60,7 @@ vi.mock('./routes/OAuthConsentSection', () => ({
   OAuthConsentSection: () => <div>OAuthConsentSection</div>,
 }))
 vi.mock('./routes/SummarySection', () => ({ SummarySection: () => <div>SummarySection</div> }))
+vi.mock('./routes/AccountsSection', () => ({ AccountsSection: () => <div>AccountsSection</div> }))
 vi.mock('./routes/NetWorthSection', () => ({ NetWorthSection: () => <div>NetWorthSection</div> }))
 vi.mock('./routes/InflowsSection', () => ({ InflowsSection: () => <div>InflowsSection</div> }))
 vi.mock('./routes/BudgetSection', () => ({ BudgetSection: () => <div>BudgetSection</div> }))
@@ -232,6 +233,7 @@ describe('App', () => {
   // text also exercises every route's dynamic-import factory.
   it.each([
     ['/net-worth', 'NetWorthSection'],
+    ['/accounts', 'AccountsSection'],
     ['/inflows', 'InflowsSection'],
     ['/budget', 'BudgetSection'],
     ['/splits', 'SplitsSection'],

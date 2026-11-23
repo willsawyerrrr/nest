@@ -50,6 +50,7 @@ export const NAV_SECTIONS: NavSection[] = [
     label: 'Grow',
     items: [
       { path: '/net-worth', label: 'Net worth' },
+      { path: '/accounts', label: 'Accounts' },
       { path: '/goals', label: 'Goals' },
       { path: '/wishlist', label: 'Wishlist' },
       { path: '/super', label: 'Super' },

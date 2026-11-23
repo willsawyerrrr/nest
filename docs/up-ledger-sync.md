@@ -7,7 +7,8 @@ savers, super, and gifts, and breaks into four stages:
 - [x] Account/transaction sync: per-member webhooks for real-time ingestion,
   backed by a scheduled poll, deduped on `external_id`.
 - [ ] Ledger UI (accounts + transactions) over synced data. The transaction
-  review screen (below) is built; an account and transaction ledger is not.
+  review screen (below) and the accounts view are built; a transaction ledger
+  is not.
 - [ ] Reconcile actual spend against the budget.
 - [x] Track actual tax paid (PAYG withheld) vs the estimate: payslips supply
   actual withholding, and Up salary credits corroborate each slip's net pay.
@@ -432,10 +433,19 @@ A read-only view over synced data — the first thing that makes ingestion visib
 Purely PostgREST + RLS (no new edge functions): the household already reads
 `accounts` and `transactions` under RLS.
 
-- **Accounts view** — list synced accounts (name, type, balance, owner/joint),
-  reusing the account rows the Up-savers slice already populates. Likely folds
-  into or extends the existing Net worth / Household surfaces rather than a wholly
-  new tab.
+- **Accounts view (built)** — `/accounts` ("Accounts", in the Grow nav group
+  after Net worth) lists every row of `accounts_with_balance` the member can see
+  — joint, their own, and the household's super; a co-member's own accounts are
+  hidden by RLS — grouped by type (Spending, Savings, Offset, Credit, Home loan,
+  Other) with each group's summed balance. Type groups rather than owner groups,
+  because RLS leaves a co-member's group holding only their super, while a
+  per-type total (cash on hand, debt owed) is a figure worth reading; the owner
+  is a per-row tag instead. Each account shows its Up icon and name, owner
+  (member or "Joint"), source (Up, Redbark or Manual), balance (red when
+  negative, as a credit card or home loan is) and badges for "Deleted at
+  source" and "Not in net worth". Mobile cards, desktop dense rows. Read-only:
+  net-worth inclusion is set on Net worth. Labels and grouping live in
+  `apps/pwa/src/lib/accounts.ts`.
 - **Transactions view** — a paginated, filterable list from `public.transactions`
   ordered by `posted_at` desc: filter by account, date range, kind, status
   (pending vs settled), and (once mirrored) category. Show signed amount with the
@@ -445,8 +455,7 @@ Purely PostgREST + RLS (no new edge functions): the household already reads
   `NAV_SECTIONS`-driven tab bar; mobile cards / desktop dense rows like Budget and
   Inflows.
 
-Staged: ship the transactions list first (the whole point of sync); layer
-filters/search and the accounts view after.
+Staged: the accounts view and the transactions list, then filters/search.
 
 ## 3. Reconcile actual spend vs budget
 

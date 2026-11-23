@@ -17,8 +17,10 @@ AppKit/SwiftUI macOS app). It is a SwiftUI app built on:
   after saving, its savings-goal progress, how much a named budget line is
   planned at, and its recommended pay split.
 
-Every route is native. The PWA stays in service in its own right, in the
-browser and installed via Safari.
+Nest is native iOS first: every feature is built here for iOS, with Mac
+alongside or next. Every route is native. The PWA stays in service in the
+browser and installed via Safari, but gets no new work; anything it needs is
+filed as a backlog issue.
 
 Nothing about how the PWA is built, deployed, or served changes because this
 app exists. `Nest`'s two destinations differ only by

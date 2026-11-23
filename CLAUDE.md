@@ -8,6 +8,11 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
 
 ## Fixed scope decisions
 
+- Platform priority: Nest is native iOS first. Every feature is built for the
+  native iOS app (`apps/ios`). Native Mac (Mac Catalyst and `NestMac`) ships
+  alongside iOS or as the next piece of work. The PWA gets no new work: any
+  change it would need is filed as a backlog issue in the Nest Linear project,
+  not built.
 - Platform: two clients over one backend. The native app (`apps/ios`: the `Nest`
   target is one codebase built for two destinations — iOS and Mac Catalyst, via
   `project.yml`'s `supportedDestinations: [iOS, macCatalyst]` — and `NestMac` is
@@ -116,15 +121,16 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   assumed: `.github/workflows/check-migration-drift.yml` compares the two every
   six hours, and the deploy workflow re-runs the same check straight after its
   push (see [`docs/operations.md`](docs/operations.md#deployment)).
-- Frontend: React PWA (TypeScript); one frontend for iOS + web.
+- Frontend: the native SwiftUI app is the primary client; the React PWA
+  (TypeScript) serves the web.
 - UI framework: Mantine (React components + theming) under a dark-first design
   system (custom brand/semantic colour scales, shared primitives, tokenised
-  charts — see [`docs/design-system.md`](docs/design-system.md)). The app is
-  designed mobile-first — the primary device is an installed iPhone PWA.
+  charts — see [`docs/design-system.md`](docs/design-system.md)). The primary
+  device is the native iPhone app.
 - Frontend hosting: Vercel (Root Directory `apps/pwa`, Vite preset); auto-deploy
   on merge to `main`, preview deploys per PR.
 - Auth: Supabase Auth via Google OAuth (consent screen published).
-- Language: TypeScript across PWA and edge functions; tax engine is a shared
+- Language: Swift for the native app; TypeScript across PWA and edge functions; tax engine is a shared
   package.
 - Household & money: the two partners share ONE household with money fully
   pooled — no multi-household UI (no picker or switcher), no per-person splitting

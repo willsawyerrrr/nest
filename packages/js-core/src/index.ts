@@ -48,7 +48,7 @@ export { summariseBreakdowns } from './breakdowns.ts'
 export { previewInflowDraft, summariseInflows } from './inflows.ts'
 export type { InflowDraftInput, InflowDraftPreview, InflowsInput } from './inflows.ts'
 export { payslipsOverview } from './payslips.ts'
-export type { PayslipsInput } from './payslips.ts'
+export type { NetPayOverview, PayslipsInput, SalaryCreditInputRow } from './payslips.ts'
 export type { BreakdownsInput } from './breakdowns.ts'
 export {
   cashFlowGraph,

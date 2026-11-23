@@ -438,6 +438,8 @@ struct PayslipsOverview: Codable, Equatable, Sendable {
     }
 
     var members: [Member]
+    /// Each slip's net corroborated against the household's Up credits; nil where it has none.
+    var netPay: NetPay?
 }
 
 /// The engine's `DeductionFiguresInput`: a figure whose input is absent is zero.
@@ -549,4 +551,67 @@ struct TradeFiguresInput: Encodable, Sendable, Equatable {
     let units: String
     let price: String
     let fee: String
+}
+
+/// Payslips' net pay corroborated against the Up credits that carried it
+/// (`@nest/plan`'s `corroborateNetPay`, in list form).
+struct NetPay: Codable, Equatable, Sendable {
+    /// How a slip's net stands against the credit that carried it.
+    struct CreditMatch: Codable, Equatable, Sendable {
+        enum Status: String, Codable, Sendable {
+            case matched, differs, missing
+        }
+
+        var status: Status
+        var creditId: String?
+        var postedOn: String?
+        var amountCents: Int64?
+        /// The credit less the slip's net; nil with no credit.
+        var netDifferenceCents: Int64?
+        /// The credit less the plan's net; nil with no credit or no model.
+        var modelledDifferenceCents: Int64?
+    }
+
+    struct SlipMatch: Codable, Equatable, Sendable {
+        var payslipId: String
+        var match: CreditMatch
+    }
+
+    /// One of a member's salary credits, against the pay before it.
+    struct Credit: Codable, Equatable, Sendable {
+        var id: String
+        var postedOn: String
+        var amountCents: Int64
+        var payer: String
+        /// The slip it carries; nil for a pay with no slip entered.
+        var payslipId: String?
+        var daysSincePrevious: Int?
+        var cadenceDrift: Bool
+        var previousDifferenceCents: Int64?
+        var amountDrift: Bool
+    }
+
+    /// A member's net pay received over the year, credits most recent first.
+    struct Member: Codable, Equatable, Sendable {
+        var memberId: String
+        var credits: [Credit]
+        var receivedCents: Int64
+        var payslipCount: Int
+        var matchedCount: Int
+        var cadenceDays: Int?
+    }
+
+    /// A salary credit attributable to no member.
+    struct Candidate: Codable, Equatable, Sendable {
+        var id: String
+        var postedOn: String
+        var amountCents: Int64
+        var memberId: String?
+        var payer: String
+        var transactionType: String?
+    }
+
+    var byPayslip: [SlipMatch]
+    var members: [Member]
+    var unattributed: [Candidate]
 }

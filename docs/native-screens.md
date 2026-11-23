@@ -598,23 +598,30 @@ payslips for the current financial year, most recent pay period first, laid out 
 PWA's `PayslipsScreen`: the page title and intro, then per member the name and slip
 count, the year-to-date grid (YTD gross, withheld, super, each with its variance and
 coverage note), the reported-year-to-date cross-check, the year's position on pay no
-period measures, the upload review, the slips and an **Add payslip** button. A slip is
+period measures, their net pay received in Up, the upload review, the slips and an
+**Add payslip** button, with a closing note on joint-account salary credits no member
+can be tied to. A slip is
 a collapsed card (a dense row on a wide screen) showing the period, pay date, gross
 and one headline variance pill; expanding it shows the gross / tax withheld / super /
-net quartet with variances, the per-inflow earnings groups, the per-component tax
+net quartet with variances, the Up credit that carried the net (or that none was
+found), the per-inflow earnings groups, the per-component tax
 groups, the part-cycle and unmeasured-gross notes, the note and a link to the stored
 document (a signed URL; a type that is not safe to show inline is saved, not rendered).
 Adding, editing and deleting happen on the screen.
 
 Rows are `members` and `inflows` (by name), `tax_profile`, `super_contribution` and
 `deduction` (scoped to the year), `help_debt`, `payslip` (scoped to the year, `period_end`
-descending) and `payslip_line`. The figures come from the engine's `payslipsOverview`
+descending), `payslip_line` and `transactions` (`kind = income`, positive, posted from a
+day before the year opens to a week past its close, in local time, as the PWA's
+`useSalaryCredits`; each credit is dated on its local day). The figures come from the engine's `payslipsOverview`
 (`packages/js-core/src/payslips.ts`): it runs the household tax estimate over the rows,
 measures each slip with `@nest/plan`'s `payslipVariance` against the member's annual
 liability, HELP repayment and concessional contributions, and returns each member's
-variances, year-to-date totals, reported totals, positions and unmeasured positions, the
+variances, year-to-date totals, reported totals, positions and unmeasured positions, and
+the household's net-pay corroboration (`corroborateNetPay`, null with no credits), the
 measurements `PayslipsScreen` renders. `PayslipsPresentation` only looks them up and
-words them (period and date labels, the headline pill, coverage and reported notes).
+words them (period and date labels, the headline pill, coverage and reported notes, the
+PWA's `NetPayReceived` copy).
 `apps/pwa/src/lib/payslipsParity.test.ts` computes them with the PWA's own
 `lib/payslips.ts` and snapshots rows and figures into
 `apps/ios/NestTests/Fixtures/payslips-parity.json`; `PayslipsParityTests` runs the same

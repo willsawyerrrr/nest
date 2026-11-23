@@ -2,7 +2,8 @@ import SwiftUI
 
 /// The native Payslips route: one list per household member, most recent pay period
 /// first, each slip's gross / withheld / super / net measured against what the plan
-/// projected, under the member's year to date measured the same way. Adding, editing
+/// projected, under the member's year to date measured the same way and their net pay
+/// as it landed in Up. Adding, editing
 /// and deleting (with extraction pre-fill, bulk upload and the shared 25 MiB rules) all
 /// happen here.
 struct PayslipsScreen: View {
@@ -28,6 +29,9 @@ struct PayslipsContentView: View {
         NestPageSection(title: presentation.title, intro: PayslipsPresentation.intro) {
             ForEach(presentation.members) { section in
                 MemberPayslipsSection(section: section, content: presentation.content, model: model)
+            }
+            if let note = presentation.unattributedNote {
+                Text(note).font(NestFont.caption).foregroundStyle(NestColor.dimmedText)
             }
         }
     }
@@ -85,6 +89,7 @@ private struct MemberPayslipsSection: View {
                 MemberTotalsView(
                     totals: totals, reportedNote: section.reportedNote, unmeasured: section.unmeasured)
             }
+            if let netPay = section.netPay { MemberNetPayView(model: netPay) }
             BulkUploadPanel(queue: queue) { item, controls in
                 PayslipFormView(
                     member: section.member, inflows: content.rows.inflows,
@@ -197,6 +202,98 @@ private struct MemberTotalsView: View {
     }
 }
 
+/// A signed difference against what it is measured against, coloured by sign.
+private struct DifferenceText: View {
+    let model: DifferenceModel
+
+    var body: some View {
+        Text(model.text).font(NestFont.caption)
+            .foregroundStyle(model.sign.color ?? NestColor.text)
+    }
+}
+
+/// A member's net pay as it landed in Up over the year: the total received, how many of
+/// their slips a credit was found for, and each salary credit most recent first with any
+/// drift from the pay cycle or the previous pay. Past six, the rest fold behind Show all.
+private struct MemberNetPayView: View {
+    let model: MemberNetPayModel
+
+    @State private var showAll = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            SectionLabel(text: MemberNetPayModel.title)
+            let received = Text(MoneyFormat.cents(Int(model.receivedCents))).fontWeight(.semibold)
+                .monospacedDigit()
+            let qualifiers = Text(model.qualifiers).foregroundStyle(NestColor.dimmedText)
+            Text("\(received) \(model.count)\(qualifiers)")
+                .font(NestFont.caption).foregroundStyle(NestColor.text)
+            ForEach(shown) { CreditRow(credit: $0) }
+            if model.credits.count > MemberNetPayModel.collapsedCount {
+                Button(showAll ? "Show fewer" : "Show all \(model.credits.count)") { showAll.toggle() }
+                    .font(NestFont.caption).foregroundStyle(NestColor.brand).buttonStyle(.plain)
+            }
+        }
+    }
+
+    private var shown: [NetPayCreditModel] {
+        showAll ? model.credits : Array(model.credits.prefix(MemberNetPayModel.collapsedCount))
+    }
+
+    private struct CreditRow: View {
+        let credit: NetPayCreditModel
+
+        var body: some View {
+            HStack(alignment: .top, spacing: NestSpacing.xs) {
+                VStack(alignment: .leading, spacing: 0) {
+                    let date = Text(credit.date).fontWeight(.medium)
+                    let payer = Text(" · \(credit.payer)").foregroundStyle(NestColor.dimmedText)
+                    Text("\(date)\(payer)").font(NestFont.caption).foregroundStyle(NestColor.text)
+                    if credit.noPayslip {
+                        Text("No payslip entered").font(NestFont.caption)
+                            .foregroundStyle(NestColor.dimmedText)
+                    }
+                    if let note = credit.cadenceNote {
+                        Text(note).font(NestFont.caption).foregroundStyle(NestColor.warning)
+                    }
+                    if let drift = credit.amountDrift { DifferenceText(model: drift) }
+                }
+                Spacer(minLength: NestSpacing.xs)
+                Text(MoneyFormat.cents(Int(credit.amountCents)))
+                    .font(.system(size: 12, weight: .semibold)).monospacedDigit()
+                    .foregroundStyle(NestColor.text)
+            }
+        }
+    }
+}
+
+/// The Up credit that carried a payslip, or that none was found.
+private struct CreditNoteView: View {
+    let note: CreditNoteModel
+
+    var body: some View {
+        switch note {
+        case .missing:
+            Text(CreditNoteModel.missingText).font(NestFont.caption).foregroundStyle(NestColor.warning)
+        case .landed(let landed, let net, let plan):
+            VStack(alignment: .leading, spacing: 0) {
+                Group {
+                    if let net {
+                        let difference = Text(net.text).foregroundStyle(net.sign.color ?? NestColor.text)
+                        Text("\(landed) — \(difference)")
+                    } else {
+                        let matched = Text(CreditNoteModel.matchedText)
+                            .foregroundStyle(NestColor.dimmedText)
+                        Text("\(landed)\(matched)")
+                    }
+                }
+                .font(NestFont.caption).foregroundStyle(NestColor.text)
+                if let plan { DifferenceText(model: plan) }
+            }
+        }
+    }
+}
+
 /// One payslip, collapsed to a single header and expandable to its full detail. The header
 /// names the pay period and the date the pay landed, the gross as an aligned figure and the
 /// slip's most notable variance as one pill. On a wide screen it is a dense row whose gross
@@ -303,7 +400,7 @@ private struct PayslipCardView: View {
 }
 
 /// A payslip's expanded body: the gross / withheld / super / net quartet each with its own
-/// variance, the per-inflow and per-component breakdowns of its lines, and its note and
+/// variance, the Up credit that carried the net, the per-inflow and per-component breakdowns of its lines, and its note and
 /// stored document.
 private struct PayslipDetailView: View {
     let detail: PayslipDetailModel
@@ -312,6 +409,7 @@ private struct PayslipDetailView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             AdaptiveGrid(items: detail.figures, compact: 2, regular: 4) { FigureCell(model: $0) }
+            if let note = detail.creditNote { CreditNoteView(note: note) }
             if !detail.earnings.isEmpty {
                 breakdown("Earnings lines", rows: detail.earnings, note: detail.earningsNote)
             }

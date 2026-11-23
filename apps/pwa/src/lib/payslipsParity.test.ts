@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { FY2027_CONFIG } from '@nest/tax'
 import type { Tables } from './database.types'
+import { netPayCorroboration } from './netPay'
 import {
   payslipReconciliation,
   payslipTotalsFromRows,
@@ -15,7 +16,8 @@ import { estimateHouseholdTaxFromRows } from './tax'
  * The household the native Payslips screen is held to. The rows are written in
  * full, as PostgREST returns them, and the figures are what the PWA computes from
  * them: each slip's variance against the household tax estimate, and each member's
- * year to date, reported running totals and position on pay no period measures
+ * year to date, reported running totals and position on pay no period measures,
+ * and the net-pay corroboration against the household's income credits
  * (`PayslipsSection` and `PayslipsScreen`). The fixture is committed beside the iOS
  * tests (`vitest -u` rewrites it); `PayslipsParityTests` decodes the same rows, runs
  * the bundled engine over the screen's own input assembly and must return identical
@@ -99,6 +101,34 @@ const line = (
   source_inflow_id: null,
   tax_component: null,
   attracts_super: true,
+  ...overrides,
+})
+
+const credit = (overrides: Partial<Tables<'transactions'>>): Tables<'transactions'> => ({
+  ...base,
+  id: 't',
+  account_id: 'joint',
+  amount_cents: 0,
+  category_id: null,
+  deep_link_url: null,
+  description: 'Acme Pty Ltd',
+  external_category: null,
+  external_category_since: STAMP,
+  external_id: null,
+  external_parent_category: null,
+  is_categorizable: false,
+  kind: 'income',
+  member_id: null,
+  notes: null,
+  performing_customer_name: null,
+  posted_at: '2026-07-22T02:00:00Z',
+  reviewed_at: null,
+  reviewed_by_member_id: null,
+  source: 'up',
+  status: 'settled',
+  transaction_type: 'Direct Credit',
+  up_message: null,
+  up_note: null,
   ...overrides,
 })
 
@@ -214,6 +244,32 @@ const lines = [
   line('l7', 'p2', { label: 'Salary', amount_cents: 5_000_00, source_inflow_id: 'salary' }),
 ]
 
+/**
+ * Ada's first and last slips land in the joint account to the cent, her second
+ * carries none, and a pay from her payer has no slip; Ben's slip lands short on his
+ * own account; and a joint Up salary credit matches no payer.
+ */
+const credits = [
+  credit({ id: 't1', amount_cents: 3_750_00 }),
+  credit({
+    id: 't2',
+    account_id: 'ben',
+    member_id: 'm2',
+    amount_cents: 2_400_00,
+    description: 'Wages Co',
+    posted_at: '2026-07-23T02:00:00Z',
+  }),
+  credit({ id: 't3', amount_cents: 3_750_00, posted_at: '2026-08-19T02:00:00Z' }),
+  credit({
+    id: 't4',
+    amount_cents: 2_100_00,
+    description: 'QVS',
+    transaction_type: 'Salary',
+    posted_at: '2026-09-01T02:00:00Z',
+  }),
+  credit({ id: 't5', amount_cents: 7_100_00, posted_at: '2026-10-21T02:00:00Z' }),
+]
+
 const config = FY2027_CONFIG
 const estimate = estimateHouseholdTaxFromRows(
   inflows,
@@ -227,24 +283,45 @@ const estimate = estimateHouseholdTaxFromRows(
 )
 const reconciliation = payslipReconciliation(inflows, lines)
 
-const expected = {
-  members: members.map(({ id }) => {
-    const own = payslips.filter((row) => row.member_id === id)
-    const variances = payslipVariancesById(
-      own,
+const variancesByMember = new Map(
+  members.map(({ id }) => [
+    id,
+    payslipVariancesById(
+      payslips.filter((row) => row.member_id === id),
       reconciliation,
       estimate.members.find((each) => each.memberId === id),
       config,
-    )
-    return {
-      memberId: id,
-      variances: own.map((row) => ({ payslipId: row.id, variance: variances.get(row.id)! })),
-      totals: payslipTotalsFromRows(own),
-      reported: reportedYearToDateFromRows(own),
-      positions: payslipYearPositionsFromRows(own, variances),
-      unmeasured: unmeasuredPositionsFor(own, variances, reconciliation, FINANCIAL_YEAR),
-    }
-  }),
+    ),
+  ]),
+)
+const corroboration = netPayCorroboration(
+  FINANCIAL_YEAR,
+  members.map(({ id }) => id),
+  payslips,
+  new Map([...variancesByMember.values()].flatMap((each) => [...each])),
+  credits,
+)
+
+const membersExpected = members.map(({ id }) => {
+  const own = payslips.filter((row) => row.member_id === id)
+  const variances = variancesByMember.get(id)!
+  return {
+    memberId: id,
+    variances: own.map((row) => ({ payslipId: row.id, variance: variances.get(row.id)! })),
+    totals: payslipTotalsFromRows(own),
+    reported: reportedYearToDateFromRows(own),
+    positions: payslipYearPositionsFromRows(own, variances),
+    unmeasured: unmeasuredPositionsFor(own, variances, reconciliation, FINANCIAL_YEAR),
+  }
+})
+
+const expected = {
+  members: membersExpected,
+  netPay: {
+    byPayslip: [...corroboration.byPayslip].map(([payslipId, match]) => ({ payslipId, match })),
+    members: [...corroboration.byMember.values()],
+    unattributed: corroboration.unattributed,
+  },
 }
 
 describe('the native Payslips parity fixture', () => {
@@ -262,8 +339,25 @@ describe('the native Payslips parity fixture', () => {
           deductions: [],
           payslips,
           lines,
+          credits,
         },
         expected,
+      },
+      {
+        name: 'no income credits',
+        financialYear: FINANCIAL_YEAR,
+        rows: {
+          members,
+          inflows,
+          taxProfiles,
+          contributions: [],
+          helpDebts,
+          deductions: [],
+          payslips,
+          lines,
+          credits: [],
+        },
+        expected: { members: membersExpected, netPay: null },
       },
     ],
     null,
@@ -279,5 +373,14 @@ describe('the native Payslips parity fixture', () => {
     expect(ada!.variances.some(({ variance }) => variance.lineGroups.length > 1)).toBe(true)
     expect(ada!.unmeasured.length).toBeGreaterThan(0)
     expect(ada!.reported).not.toBeNull()
+  })
+
+  it('exercises every net-pay reading', () => {
+    const statuses = expected.netPay.byPayslip.map(({ match }) => match.status)
+    expect(new Set(statuses)).toEqual(new Set(['matched', 'differs', 'missing']))
+    const ada = expected.netPay.members.find((each) => each.memberId === 'm1')!
+    expect(ada.credits.some((each) => each.payslipId === null)).toBe(true)
+    expect(ada.credits.some((each) => each.cadenceDrift || each.amountDrift)).toBe(true)
+    expect(expected.netPay.unattributed.map((each) => each.id)).toEqual(['t4'])
   })
 })

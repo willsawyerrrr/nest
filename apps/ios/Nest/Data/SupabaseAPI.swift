@@ -15,6 +15,12 @@ struct Filter: Equatable, Sendable {
     static func neq(_ column: String, _ value: String) -> Filter {
         .init(column: column, op: "neq", value: value)
     }
+    static func gt(_ column: String, _ value: String) -> Filter {
+        .init(column: column, op: "gt", value: value)
+    }
+    static func lt(_ column: String, _ value: String) -> Filter {
+        .init(column: column, op: "lt", value: value)
+    }
     static func gte(_ column: String, _ value: String) -> Filter {
         .init(column: column, op: "gte", value: value)
     }

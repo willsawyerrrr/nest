@@ -890,7 +890,7 @@ describe('PayslipsScreen', () => {
     function salaryCredit(overrides: Record<string, unknown> = {}) {
       return {
         id: 't1',
-        posted_at: '2026-07-15T09:00:00+10:00',
+        posted_at: '2026-07-15T21:00:00+10:00',
         amount_cents: 4_000_00,
         member_id: null,
         description: 'Acme Pty Ltd',
@@ -932,7 +932,7 @@ describe('PayslipsScreen', () => {
       renderScreen({
         credits: [
           salaryCredit(),
-          salaryCredit({ id: 't2', posted_at: '2026-08-05T09:00:00+10:00' }),
+          salaryCredit({ id: 't2', posted_at: '2026-08-05T21:00:00+10:00' }),
         ],
       })
 

@@ -4,7 +4,7 @@ import { netPayCorroboration, salaryCreditBounds, toSalaryCreditCandidate } from
 
 const row = {
   id: 't1',
-  posted_at: '2026-07-15T09:00:00+10:00',
+  posted_at: '2026-07-15T21:00:00+10:00',
   amount_cents: 4_000_00,
   member_id: null,
   description: 'Acme',

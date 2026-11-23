@@ -13,6 +13,7 @@ const hooks = vi.hoisted(() => ({
   useSuperContributions: vi.fn(),
   useHelpDebts: vi.fn(),
   useDeductions: vi.fn(),
+  useSalaryCredits: vi.fn(),
   screenProps: null as Record<string, unknown> | null,
 }))
 
@@ -29,6 +30,7 @@ vi.mock('../hooks/useSuperContributions', () => ({
 }))
 vi.mock('../hooks/useHelpDebts', () => ({ useHelpDebts: hooks.useHelpDebts }))
 vi.mock('../hooks/useDeductions', () => ({ useDeductions: hooks.useDeductions }))
+vi.mock('../hooks/useSalaryCredits', () => ({ useSalaryCredits: hooks.useSalaryCredits }))
 vi.mock('../components/PayslipsScreen', () => ({
   PayslipsScreen: (props: Record<string, unknown>) => {
     hooks.screenProps = props
@@ -49,6 +51,15 @@ const submission: PayslipSubmission = {
     },
   ],
   attachment: { payslipId: 'ps1', path: 'h1/ps1/slip.pdf' },
+}
+
+const credit = {
+  id: 't1',
+  posted_at: '2026-07-15T21:00:00+10:00',
+  amount_cents: 4_000_00,
+  member_id: null,
+  description: 'Acme',
+  transaction_type: 'Salary',
 }
 
 /** Stubs every hook as loaded, returning the payslip hook's own mocks. */
@@ -73,6 +84,7 @@ function stubHooks(payslips = [makePayslip()]) {
   hooks.useSuperContributions.mockReturnValue({ loading: false, contributions: [] })
   hooks.useHelpDebts.mockReturnValue({ loading: false, helpDebts: [] })
   hooks.useDeductions.mockReturnValue({ loading: false, deductions: [] })
+  hooks.useSalaryCredits.mockReturnValue({ loading: false, credits: [credit] })
   return { save, remove, signedUrl, attachments }
 }
 
@@ -84,6 +96,14 @@ describe('PayslipsSection', () => {
     expect(screen.getByTestId('loading')).toBeInTheDocument()
   })
 
+  it('waits for the salary credits before rendering', () => {
+    stubHooks()
+    hooks.useSalaryCredits.mockReturnValue({ loading: true, credits: null })
+    render(<PayslipsSection />)
+    expect(screen.getByTestId('loading')).toBeInTheDocument()
+    expect(hooks.useSalaryCredits).toHaveBeenCalledWith(2027)
+  })
+
   it('renders the screen with the members, payslips, inflows, and estimate', () => {
     const { signedUrl, attachments } = stubHooks()
     render(<PayslipsSection />)
@@ -92,6 +112,7 @@ describe('PayslipsSection', () => {
     expect(hooks.screenProps?.members).toEqual([{ id: 'm1', name: 'Will' }])
     expect(hooks.screenProps?.payslips).toEqual([makePayslip()])
     expect(hooks.screenProps?.lines).toEqual([makePayslipLine()])
+    expect(hooks.screenProps?.credits).toEqual([credit])
     expect(hooks.screenProps?.financialYear).toBe(2027)
     expect(hooks.screenProps?.signedUrl).toBe(signedUrl)
     expect(hooks.screenProps?.attachments).toBe(attachments)

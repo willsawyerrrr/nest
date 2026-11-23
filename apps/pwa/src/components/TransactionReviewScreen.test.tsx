@@ -342,5 +342,31 @@ describe('TransactionReviewScreen', () => {
 
       expect(await screen.findByRole('link', { name: 'Open Gifts' })).toBeInTheDocument()
     })
+
+    it('deselects a row', async () => {
+      renderScreen({ transactions: three })
+      const grocer = screen.getByRole('checkbox', { name: 'Select Grocer' })
+      await userEvent.click(grocer)
+      await userEvent.click(grocer)
+
+      expect(grocer).not.toBeChecked()
+      expect(screen.getByRole('checkbox', { name: 'Select all' })).not.toBeChecked()
+    })
+
+    it('names every selected row when the action itself fails, and closes the alert', async () => {
+      onReviewMany.mockRejectedValue(new Error('offline'))
+      renderScreen({ transactions: three })
+      await userEvent.click(screen.getByRole('checkbox', { name: 'Select Bakery' }))
+      await userEvent.click(screen.getByRole('button', { name: 'Mark reviewed' }))
+
+      expect(
+        await screen.findByText("1 couldn't be saved and is still waiting for review"),
+      ).toBeInTheDocument()
+      expect(screen.getByText('Bakery: Could not save this review. Try again.')).toBeInTheDocument()
+
+      const alert = screen.getByRole('alert')
+      await userEvent.click(within(alert).getByRole('button'))
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    })
   })
 })

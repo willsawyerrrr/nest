@@ -17,7 +17,7 @@ export interface TransactionDeductionDraft {
   description: string
   /** The deductible figure in cents: the transaction's absolute amount. */
   amountCents: number
-  /** The transaction's local posting date, `YYYY-MM-DD`. */
+  /** The transaction's local payment date, `YYYY-MM-DD`. */
   deductionDate: string
   /** The financial year `deductionDate` falls in. */
   financialYear: number
@@ -41,7 +41,7 @@ export function createDeductionPath(transactionId: string): string {
 /**
  * The deduction form's starting values for `transaction`: its description, its
  * absolute amount (transactions are signed, an outflow negative), its local
- * posting date, and the financial year that date falls in.
+ * payment date, and the financial year that date falls in.
  */
 export function deductionDraftFromTransaction(
   transaction: SourceTransaction,

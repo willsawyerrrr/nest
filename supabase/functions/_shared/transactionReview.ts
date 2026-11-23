@@ -41,7 +41,7 @@ export interface ReviewTransactionRow {
   account_id: string
   description: string
   amount_cents: number
-  /** Up's settlement instant, or its creation instant while the hold stands. */
+  /** When the payment was made (Up's `createdAt`). */
   posted_at: string
   /** When the ledger first saw the transaction. */
   created_at: string

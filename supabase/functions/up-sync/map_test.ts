@@ -98,7 +98,7 @@ Deno.test('mapTransaction maps a settled expense, attributed to the account owne
     up_message: null,
     up_note: null,
     performing_customer_name: 'Alex',
-    posted_at: '2026-01-02T09:00:00+11:00',
+    posted_at: '2026-01-02T08:00:00+11:00',
     amount_cents: -450,
     description: 'Coffee',
     kind: 'expense',
@@ -130,11 +130,13 @@ Deno.test('mapTransaction maps a HELD transaction to pending', () => {
   assertEquals(mapTransaction(transaction({ status: 'HELD' }), accounts)?.status, 'pending')
 })
 
-Deno.test('mapTransaction falls back to createdAt when settledAt is null', () => {
-  assertEquals(
-    mapTransaction(transaction({ settledAt: null }), accounts)?.posted_at,
-    '2026-01-02T08:00:00+11:00',
-  )
+Deno.test('mapTransaction dates a transaction when it was made, held or settled', () => {
+  for (const attrs of [{ status: 'HELD' as const, settledAt: null }, {}]) {
+    assertEquals(
+      mapTransaction(transaction(attrs), accounts)?.posted_at,
+      '2026-01-02T08:00:00+11:00',
+    )
+  }
 })
 
 Deno.test('mapTransaction skips a transaction whose account is not synced', () => {

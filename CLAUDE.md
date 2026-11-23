@@ -842,7 +842,7 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   transaction (see Ingestion) to link against a gift budget — picked as a recipient
   and then one of that recipient's occasions, two dependent selects that name the
   one budget for the pair; the
-  purchase takes the transaction's amount and its local posting date, with only the
+  purchase takes the transaction's amount and its local payment date, with only the
   description editable — or to set aside as "not a gift"
   (`gift_transaction_dismissal`), Up's category covering charity too. The inbox
   respects the spend privacy above from both directions: the pickers omit
@@ -1005,8 +1005,10 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   10-per-user cap by `up-connect`, or by `up-sync` for a connected member without
   one, and deleted by `up-disconnect`; its HMAC secret in Vault, its id in
   `up_webhook`) lands a created or settled transaction within seconds through
-  the same RPC and deletes a deleted one, the poll being the backstop. Each account
-  resumes 24 hours behind its latest synced non-gift `posted_at`, an account with none
+  the same RPC and deletes a deleted one, the poll being the backstop. Every row
+  is dated by when the payment was made (`posted_at` is Up's `createdAt`), never
+  by its settlement. Each account resumes 24 hours behind its latest synced
+  non-gift `posted_at`, an account with none, or with `ledger_resync_pending`,
   backfilling from the start of the prior financial year. `notes`,
   `reviewed_at` and `reviewed_by_member_id` are the household's own and the sync
   never writes them: a member annotates and confirms a transaction through

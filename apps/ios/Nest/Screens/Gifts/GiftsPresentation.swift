@@ -62,6 +62,7 @@ struct GiftCandidate: Codable, Equatable, Sendable, Identifiable {
     var transactionId: String
     var description: String
     var amountCents: Int
+    /// The local `yyyy-MM-dd` date the payment was made.
     var postedOn: String
     var pending: Bool
     /// The dismissal that undoes a set-aside candidate.

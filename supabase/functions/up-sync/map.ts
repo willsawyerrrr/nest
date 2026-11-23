@@ -77,8 +77,8 @@ export function mapAccount(account: UpAccount): AccountUpsert {
  * is skipped rather than failing the pass.
  *
  * Amounts stay exactly as Up signs them, a debit negative, so a `HELD` amount
- * revised on settlement carries through unchanged. `posted_at` is the settlement
- * instant once there is one and the creation instant while the hold stands. A
+ * revised on settlement carries through unchanged. `posted_at` is Up's
+ * `createdAt`, when the payment was made, which settlement never moves. A
  * transaction naming a `transferAccount` moved money between the owner's own
  * accounts and is a `transfer`; otherwise its sign makes it an expense or income.
  */
@@ -104,7 +104,7 @@ export function mapTransaction(
     up_message: attributes.message,
     up_note: attributes.note?.text ?? null,
     performing_customer_name: attributes.performingCustomer?.displayName ?? null,
-    posted_at: attributes.settledAt ?? attributes.createdAt,
+    posted_at: attributes.createdAt,
     amount_cents: amountCents,
     description: attributes.description,
     kind: relationships.transferAccount.data ? 'transfer' : amountCents < 0 ? 'expense' : 'income',

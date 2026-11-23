@@ -61,7 +61,7 @@ export const UNASSIGNED_GIFT_WINDOW_DAYS = 7
 export const NEW_GIFT_CANDIDATE_WINDOW_DAYS = 7
 
 /**
- * Only a purchase posted within this many days is announced as a candidate,
+ * Only a purchase made within this many days is announced as a candidate,
  * matching the window `up-sync` rescans the gift category over, so history the
  * ledger backfills in the gift category is never announced as new.
  */
@@ -395,7 +395,7 @@ function isRecentUnassignedGiftPurchase(purchase: GiftPurchaseRow, now: Date): b
  * A synced transaction that is still an unclaimed gift candidate — Up filed it
  * under the gift category, no purchase has linked it, and the household has
  * not dismissed it as "not a gift" — that entered the category within the
- * window and was posted within {@link GIFT_CANDIDATE_MAX_AGE_DAYS}.
+ * window and was made within {@link GIFT_CANDIDATE_MAX_AGE_DAYS}.
  *
  * `external_category_since` is when the sync first saw the row in its current
  * category: a later rescan that finds it unchanged leaves it alone, so it marks

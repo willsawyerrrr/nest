@@ -26,7 +26,7 @@ export interface GiftCandidate {
   description: string
   /** The transaction's magnitude in cents: Up signs a debit negative. */
   amountCents: number
-  /** The local calendar date the transaction posted (`YYYY-MM-DD`). */
+  /** The local calendar date the payment was made (`YYYY-MM-DD`). */
   postedOn: string
   /** The transaction is still held, so it may settle at a different amount. */
   pending: boolean

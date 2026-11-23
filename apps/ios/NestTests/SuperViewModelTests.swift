@@ -30,7 +30,7 @@ private enum SuperStub {
             """,
         "accounts": """
             [{"id":"a1","household_id":"h","name":"Ada Super","currency":"AUD",\
-            "deleted_from_source_at":null,"exclude_from_net_worth":false,"external_id":null,\
+            "deleted_from_source_at":null,"exclude_from_net_worth":false,"external_id":null,"ledger_resync_pending":false,\
             "owner_member_id":"m1","source":"manual","type":"savings",\
             "created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}]
             """,

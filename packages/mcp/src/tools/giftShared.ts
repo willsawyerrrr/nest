@@ -5,7 +5,7 @@ import { fixedError, ToolError } from '../errors.ts'
 /** The Up category the "From your card" inbox is built from. */
 export const GIFT_TRANSACTION_CATEGORY = 'gifts-and-charity'
 
-/** The zone a transaction's posting instant is read in to give the purchase date. */
+/** The zone a transaction's payment instant is read in to give the purchase date. */
 export const LOCAL_ZONE = 'Australia/Sydney'
 
 export interface RecipientRow {
@@ -112,7 +112,7 @@ export async function deleteRow(ctx: NestContext, table: string, id: string): Pr
   if (!data || data.length === 0) throw new ToolError('not_found', 'No such record to delete.')
 }
 
-/** A transaction's local calendar date (`YYYY-MM-DD`). */
+/** The local calendar date a transaction's payment was made (`YYYY-MM-DD`). */
 export function localDate(postedAt: string): string {
   return new Date(postedAt).toLocaleDateString('en-CA', { timeZone: LOCAL_ZONE })
 }

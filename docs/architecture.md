@@ -387,7 +387,7 @@ channel:
   - **gift_candidate_new** — a `transactions` row the hourly `up-sync` landed
     (`external_category = 'gifts-and-charity'`) that entered the category
     within the last 7 days (`external_category_since`: its insert, or the sync
-    that saw a recategorisation into gifts) and was posted within the last 365,
+    that saw a recategorisation into gifts) and was made within the last 365,
     that no `gift_purchase` links and no `gift_transaction_dismissal`
     sets aside — checked at evaluation time, so a candidate claimed or
     dismissed before the next daily run never fires. Dedupe: the transaction

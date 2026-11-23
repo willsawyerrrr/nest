@@ -43,9 +43,14 @@ export function useCategoryGroups(): CategoryGroups {
       supabase.from('up_category_default_group').select('category_id,line_group'),
       supabase.from('up_category_group').select('category_id,line_group'),
     ])
-    const error = categories.error ?? defaults.error ?? overrides.error
-    if (error) {
-      throw error
+    if (categories.error) {
+      throw categories.error
+    }
+    if (defaults.error) {
+      throw defaults.error
+    }
+    if (overrides.error) {
+      throw overrides.error
     }
     const names = new Map(categories.data.map((category) => [category.id, category.name]))
     const defaultGroups = new Map(defaults.data.map((row) => [row.category_id, row.line_group]))

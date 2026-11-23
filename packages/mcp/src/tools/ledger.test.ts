@@ -269,7 +269,7 @@ describe('listTransactions', () => {
     expect(await ids({ note: 'sam', unreviewed: true })).toEqual(['t1'])
   })
 
-  it('counts an incoming outside transfer, not an internal one, as awaiting review', async () => {
+  it('counts only a categorisable transaction as awaiting review', async () => {
     const rows = [
       row('internal', '2026-09-01T00:00:00Z', {
         kind: 'transfer',
@@ -281,6 +281,7 @@ describe('listTransactions', () => {
         transaction_type: 'Transfer',
         is_categorizable: false,
       }),
+      row('purchase', '2026-09-03T00:00:00Z', { is_categorizable: true }),
       row('salary', '2026-09-03T00:00:00Z', {
         kind: 'income',
         transaction_type: 'Salary',
@@ -289,7 +290,7 @@ describe('listTransactions', () => {
     ]
     const { ctx } = fakeContext({ tables: { ...tables, transactions: rows } })
     const result = await listTransactions(ctx, { unreviewed: true })
-    expect(result.transactions.map((t) => t.id)).toEqual(['external'])
+    expect(result.transactions.map((t) => t.id)).toEqual(['purchase'])
   })
 })
 

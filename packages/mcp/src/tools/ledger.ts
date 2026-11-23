@@ -243,17 +243,11 @@ interface TransactionRow {
 const MAX_TRANSACTIONS = 200
 
 /**
- * Whether a transaction awaits review: unreviewed, and either categorisable or
- * an incoming transfer from outside the household's own accounts (income of
- * type Transfer). Pay and interest arrive reviewed, and an internal transfer
- * never awaits review.
+ * Whether a transaction awaits review: unreviewed and categorisable. Pay,
+ * interest and transfers arrive reviewed.
  */
 function awaitsReview(row: TransactionRow): boolean {
-  return (
-    row.reviewed_at === null &&
-    (row.is_categorizable === true ||
-      (row.kind === 'income' && row.transaction_type === 'Transfer'))
-  )
+  return row.reviewed_at === null && row.is_categorizable === true
 }
 
 export const listTransactionsInput = z.object({

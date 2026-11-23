@@ -1044,9 +1044,8 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   a transaction Up marks uncategorisable) and records it on the row at once, so
   a move into gifts reaches the inbox without waiting for a sync. The review
   screen (`/transactions/review`, no nav entry, `?id=` focusing one
-  transaction) lists a member's unreviewed Up transactions (categorisable, or an
-  incoming transfer from outside the household; pay and interest arrive
-  reviewed) to
+  transaction) lists a member's unreviewed, categorisable Up transactions (pay,
+  interest, transfers and covers arrive reviewed) to
   confirm ("Looks right"), recategorise and annotate ("Save"), or file as a gift
   ("It's a gift", pointing on to Gifts), or turn an outflow into a tax deduction
   ("Create deduction", opening the Deductions form prefilled and linked through

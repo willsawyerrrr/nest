@@ -1090,14 +1090,12 @@ null; Up's own taxonomy is mirrored in `up_category`.
     `kind = 'transfer'`.
   - `notes`, `reviewed_at`, and `reviewed_by_member_id` are the household's own:
     the sync never writes them on update, and on insert sets only `reviewed_at`
-    (to now, for Up `Salary` and `Interest` transactions, leaving
+    (to now, for Up `Salary`, `Interest` and `Transfer` transactions, leaving
     `reviewed_by_member_id` null). A member sets the note and confirms the
     transaction through `review_transaction` (see **RPCs**); `reviewed_at` null
-    means the transaction awaits review when it is categorisable or an incoming
-    transfer from outside the household's accounts (`kind = 'income'`,
-    `transaction_type = 'Transfer'`). A joint-account transaction is one shared
-    row, so its note and review are shared with both partners, the last write
-    winning.
+    means the transaction awaits review when it is categorisable. A
+    joint-account transaction is one shared row, so its note and review are
+    shared with both partners, the last write winning.
   - RLS gates each transaction to the balance-visible account set, so a member
     reads and writes transactions only on accounts whose balance they can see: a
     co-member's spending account is outside that set, so their gift-category spend

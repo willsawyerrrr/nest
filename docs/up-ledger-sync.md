@@ -498,7 +498,7 @@ Purely PostgREST + RLS (no new edge functions): the household already reads
 
 ## 3. Reconcile actual spend vs budget
 
-The Budget tab shows each group's actual spend for a fortnight beside its planned
+The native Budget screen shows each group's actual spend for a fortnight beside its planned
 fortnightly subtotal: what was spent, and what is left or by how much it went
 over. The plan stays plan-only — nothing about a line or the buffer moves with
 spend.
@@ -522,7 +522,7 @@ spend.
   salary and wage inflows, else from the calendar feed's `2020-07-01` epoch
   (`payCycleAnchor`, `spendFortnight` in `@nest/plan`). A fortnight therefore
   opens on a payday. Planning mode never moves the grid: it reads the real
-  inflows. The tab opens on the fortnight holding today and steps back through
+  inflows. The screen opens on the fortnight holding today and steps back through
   earlier ones.
 - **Days are local.** A transaction counts on its `posted_at` date in the
   household's `timezone`, so a purchase at 11pm counts that day.
@@ -537,7 +537,7 @@ spend.
   Up's `transferAccount` and lands as a transfer. Uncategorised income (pay, a
   transfer in from someone else) never counts.
 - **Spend in no group is shown, not hidden.** Spend in a category mapped to
-  none, and uncategorised spend, total to one "in no group" figure on the tab,
+  none, and uncategorised spend, total to one "in no group" figure on the screen,
   so remapping a category never makes money silently disappear.
 - **Privacy.** `budget_actual_spend` is SECURITY INVOKER, so the
   `transactions` policies apply: the figure covers the accounts the member can
@@ -550,11 +550,24 @@ spend.
 - `budget_actual_spend(p_start date, p_end date, p_include_pending boolean
   default false)` returns `(line_group, spent_cents)`, one row per group with
   spend and a null `line_group` row for spend in no group.
-- The PWA reads it through `useActualSpend` (keyed under
-  `budget_actual_spend`), folds the rows with `actualSpendByGroup`, and renders
-  `ActualSpendBar` (the fortnight, its steppers, the pending switch and the
-  in-no-group total) above the groups, each `GroupSection` showing spent and
-  left or over beneath its subtotal.
+- The native Budget screen (`apps/ios/Nest/Screens/Budget`) reads it.
+  `ActualSpendViewModel` reads the household's stored `inflows` (never the
+  planning sandbox), asks the engine's `spendFortnight` entry
+  (`payCycleAnchor` + `spendFortnight`) for the fortnight at the chosen offset,
+  then calls the RPC through `NestData.rpcRows` (cached first under
+  `budget_actual_spend`, keyed by its arguments) and folds the rows with the
+  engine's `actualSpend` entry (`actualSpendByGroup`). `ActualSpendBar` renders
+  the fortnight, its steppers, the "Include pending" switch, the in-no-group
+  total and the Category groups button above the groups; each group card shows
+  spent and left or over beneath its subtotal (`GroupSpendLine`, copy in
+  `ActualSpendPresentation`).
+- `CategoryGroupsSheet` (`CategoryGroupsViewModel`) lists `up_category`'s child
+  categories under their parents with `up_category_default_group` and the
+  household's `up_category_group` rows. Picking a group or "No group" upserts
+  the override (a null `line_group` for none); picking "Default (…)" deletes it.
+  Each write drops the cached `budget_actual_spend` results, and closing the
+  sheet reloads the spend.
+- The PWA does not show actual spend.
 
 ## 4. Actual PAYG tax paid vs estimate
 

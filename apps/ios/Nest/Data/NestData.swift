@@ -45,17 +45,38 @@ struct NestData: Sendable {
         _ type: T.Type, filters: [Filter] = [], order: [Order] = [], limit: Int? = nil,
         offset: Int? = nil, cached: Bool = true
     ) -> AsyncThrowingStream<Snapshot<T>, Error> {
+        cachedStream(
+            key: QueryKey(
+                table: T.table, filters: filters, order: order, limit: limit, offset: offset),
+            cached: cached
+        ) {
+            try await api.select(T.self, filters: filters, order: order, limit: limit, offset: offset)
+        }
+    }
+
+    /// Calls the read-only Postgres function `name` and yields its result rows
+    /// as `rows` does: cached first, then fetched. They are cached under `name`,
+    /// keyed by `params`, so a write naming `name` among the tables it
+    /// invalidates drops them.
+    func rpcRows<T: Codable & Sendable>(
+        _ name: String, params: some Encodable & Sendable, as _: T.Type = T.self
+    ) -> AsyncThrowingStream<Snapshot<T>, Error> {
+        cachedStream(key: QueryKey(function: name, params: params), cached: true) {
+            try await api.rpc(name, params: params, as: [T].self)
+        }
+    }
+
+    private func cachedStream<T: Codable & Sendable>(
+        key: QueryKey, cached: Bool, fetch: @escaping @Sendable () async throws -> [T]
+    ) -> AsyncThrowingStream<Snapshot<T>, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 do {
                     let user = try await scope()
-                    let key = QueryKey(
-                        table: T.table, filters: filters, order: order, limit: limit, offset: offset)
                     if cached, let rows = await cache.read(T.self, key: key, user: user) {
                         continuation.yield(Snapshot(rows: rows, isCached: true))
                     }
-                    let fresh = try await api.select(
-                        T.self, filters: filters, order: order, limit: limit, offset: offset)
+                    let fresh = try await fetch()
                     if cached { await cache.write(fresh, key: key, user: user) }
                     continuation.yield(Snapshot(rows: fresh, isCached: false))
                     continuation.finish()

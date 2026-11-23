@@ -221,6 +221,27 @@ columns it writes, and runs `normaliseManagementUrl` and `annualCents` over a se
 inputs, into `apps/ios/NestTests/Fixtures/budget-form-parity.json`;
 `BudgetFormParityTests` opens the native form state on the same rows and must agree.
 
+Between the add form and the search box sits the actual-spend bar
+(`ActualSpendBar`): "Spent this fortnight"
+(or "Spent that fortnight") over the reconciled pay-cycle fortnight
+(`12 Nov 2026 – 25 Nov 2026`), outlined back and forward steppers (forward
+disabled on the current fortnight), an "Include pending" switch, the "$… in no
+group" total when non-zero, and a Category groups button. Each group card shows
+"$… spent" and "$… left" (positive colour) or "$… over" (negative) beneath its
+subtotal once the spend has loaded (`GroupSpendLine`); the Temporary card shows
+none. `ActualSpendViewModel` loads independently of `BudgetViewModel`, so a
+failed spend read shows `NestError`'s fixed copy in the bar and leaves the plan
+in place. The fortnight comes from the engine's `spendFortnight` entry over the
+stored `inflows` (planning mode cannot move it) and the spend from
+`budget_actual_spend` via `NestData.rpcRows`, folded by the engine's
+`actualSpend` entry; see
+[`up-ledger-sync.md`](up-ledger-sync.md#3-reconcile-actual-spend-vs-budget).
+Category groups opens `CategoryGroupsSheet`: each Up child category under its
+parent with a picker of "Default (<group>)", the five groups and "No group",
+writing `up_category_group` (an upsert, or a delete for the default) and showing
+"Couldn’t change <category>’s group. Try again." on failure. Closing it reloads
+the spend.
+
 `Route.allowance` is outside the nav, so it is reached by `NavigationLink(value:)`
 from Budget; the sidebar's detail pane is a `NavigationStack` for the push.
 

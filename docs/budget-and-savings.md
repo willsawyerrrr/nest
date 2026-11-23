@@ -4,8 +4,8 @@ The plan-only, fortnightly budget: how money in (inflows) is classified for tax,
 how it is allocated across grouped budget lines, how savings goals project
 toward a target, and how short-lived temporary items run until a target date. It
 replaces the
-household's spreadsheet. The plan is projections only; the Budget tab sets each
-group's actual spend from synced Up transactions beside it.
+household's spreadsheet. The plan is projections only; the native Budget screen
+sets each group's actual spend from synced Up transactions beside it.
 
 Amounts are integer minor units (cents). The fortnight is the primary period; the
 household is a single shared container with money fully pooled.
@@ -82,8 +82,8 @@ it either (see [`payslips.md`](payslips.md#money-that-lands-once)).
 
 A budget line allocates a recurring amount to a named purpose within one of six
 fixed groups. There is one living budget per household — no per-period
-versioning. Each group shows the fortnight's actual spend from synced Up
-transactions beside its planned subtotal (see
+versioning. On the native Budget screen each group shows the fortnight's actual
+spend from synced Up transactions beside its planned subtotal (see
 [Actual spend](#actual-spend)). The UI labels a budget line a
 **budget item** (Add item, Delete budget item, and so on); "line" persists only
 in the schema (the `budget_line` table and its `line_group` column).
@@ -104,16 +104,18 @@ the unit read from the frequency.
 
 ### Actual spend
 
-Above the groups, the Budget tab names a fortnight on the household's pay cycle
-— the one holding today, with steppers back through earlier ones — and each
-group shows what was spent in it, and what is left or by how much it went over
-its fortnightly subtotal. Spend reaches a group through its Up category: a
-seeded default map every household shares, which a household can override per
-category, including to no group. Only settled spend counts unless "Include
-pending" is on; transfers between the household's own accounts and
-uncategorised income never count; refunds net off their category. Spend in no
-group shows as its own total. It covers the accounts the signed-in member can
-see. The decisions behind each rule are in
+Above the groups, the native Budget screen names a fortnight on the household's
+pay cycle — the one holding today, with steppers back through earlier ones and
+forward again, never past today's — and each group shows what was spent in it,
+and what is left or by how much it went over its fortnightly subtotal. Spend
+reaches a group through its Up category: a seeded default map every household
+shares, which a household can override per category, including to no group, in
+the screen's Category groups sheet (each child category picks its default, a
+group, or no group). Only settled spend counts unless "Include pending" is on;
+transfers between the household's own accounts and uncategorised income never
+count; refunds net off their category. Spend in no group shows as its own total.
+It covers the accounts the signed-in member can see. The PWA's Budget tab shows
+the plan alone. The decisions behind each rule are in
 [`up-ledger-sync.md`](up-ledger-sync.md#3-reconcile-actual-spend-vs-budget).
 
 ### Member spending allowances

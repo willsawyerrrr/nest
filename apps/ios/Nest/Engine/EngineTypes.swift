@@ -115,6 +115,18 @@ struct BreakdownRollups: Codable, Equatable, Sendable {
 
 /// The Budget screen's figures at an instant. `lines` and `temporaryActive`
 /// follow the input's order.
+/// An inclusive span of local calendar dates (`YYYY-MM-DD`), as `@nest/plan`'s `PayPeriod`.
+struct SpendPeriod: Codable, Equatable, Sendable {
+    var periodStart: String
+    var periodEnd: String
+}
+
+/// A period's spend per budget group, plus the spend that counts toward none.
+struct ActualSpend: Codable, Equatable, Sendable {
+    var groups: BudgetOverview.Groups
+    var unbudgeted: Int64
+}
+
 struct BudgetOverview: Codable, Equatable, Sendable {
     /// Fortnightly subtotals; a line drawn from an allowance counts inside the
     /// allowance, which joins Discretionary in full.

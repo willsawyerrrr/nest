@@ -73,6 +73,8 @@ import Testing
         check(AccountWithBalance.self)
         check(AccountBalance.self)
         check(Breakdown.self)
+        check(CategoryGroupDefault.self)
+        check(CategoryGroupOverride.self)
         check(BreakdownItem.self)
         check(WishlistItem.self)
         check(Trade.self)

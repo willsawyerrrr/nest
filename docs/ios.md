@@ -247,7 +247,9 @@ cap summary, HELP payoff, projected interest and payslip count), `salarySacrific
 `mlsWhatIf` and `householdYear` (the what-if and household year summary the PWA runs
 in its components) and `paySplitRoutes` (`@nest/plan`'s `assignmentsByAccount`: each
 routed account's exact fortnightly total with the lines behind it, and what is routed
-nowhere) and `summariseEquity` (each equity grant's vested, exercised, sold and
+nowhere), `spendFortnight` (`@nest/plan`'s `payCycleAnchor` and `spendFortnight`:
+the pay-cycle fortnight the Budget screen reconciles) and `actualSpend`
+(`actualSpendByGroup` over `budget_actual_spend`'s rows) and `summariseEquity` (each equity grant's vested, exercised, sold and
 held units and gross, exercise-cost and net values, from `@nest/plan`'s equity
 functions). The inputs are the
 rows those functions already take (see `packages/js-core/src/index.ts`).
@@ -627,7 +629,10 @@ the anon key.
 - **`NestData`** — `rows(_:filters:order:limit:)` returns a stream that yields the
   cached rows first (`Snapshot.isCached == true`), then the fetched rows, which
   replace the cache. A failed fetch ends the stream with a `NestError` after any
-  cached snapshot. Every write (`insert`, `update`, `delete`, `call`) drops the
+  cached snapshot. `rpcRows` does the same for a read-only Postgres function
+  (`budget_actual_spend`), caching its rows under the function's name keyed by
+  its arguments, so a write naming the function among the tables it invalidates
+  drops them. Every write (`insert`, `update`, `delete`, `call`) drops the
   cached queries of its own table plus any `also` / `invalidating` tables it
   affects — even when the write fails, since the server may have applied it.
 - **`NestError`** — every failure surfaces as a `NestError` with a stable `code`

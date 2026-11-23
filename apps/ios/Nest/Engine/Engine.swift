@@ -19,6 +19,8 @@ actor Engine {
         case projectGoalQueue
         case summariseBreakdowns
         case budgetOverview
+        case spendFortnight
+        case actualSpend
         case summariseSuper
         case projectSuper
         case summariseInflows
@@ -123,6 +125,16 @@ actor Engine {
     /// each allowance reconciled and which temporary items are active.
     func budgetOverview(_ input: some Encodable) throws -> BudgetOverview {
         try call(.budgetOverview, input)
+    }
+
+    /// The pay-cycle fortnight the Budget screen reconciles.
+    func spendFortnight(_ input: some Encodable) throws -> SpendPeriod {
+        try call(.spendFortnight, input)
+    }
+
+    /// The `budget_actual_spend` rows folded into each group's spend and the spend in no group.
+    func actualSpend(_ input: some Encodable) throws -> ActualSpend {
+        try call(.actualSpend, input)
     }
 
     /// The Tax estimate and EOFY screens' figures.

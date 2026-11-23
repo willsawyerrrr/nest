@@ -31,6 +31,14 @@ enum ScreenEngine {
         }
     }
 
+    static func spendFortnight(_ input: SpendFortnightInput) async throws -> SpendPeriod {
+        do { return try await shared.value.spendFortnight(input) } catch { throw NestError(.unknown) }
+    }
+
+    static func actualSpend(_ input: ActualSpendInput) async throws -> ActualSpend {
+        do { return try await shared.value.actualSpend(input) } catch { throw NestError(.unknown) }
+    }
+
     static func projectGoalQueue(_ input: GoalQueueInput) async throws -> GoalQueueProjection {
         do { return try await shared.value.projectGoalQueue(input) } catch {
             throw NestError(.unknown)

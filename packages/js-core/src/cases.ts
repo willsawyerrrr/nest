@@ -23,6 +23,8 @@ export type ParityEntry =
   | 'summariseBreakdowns'
   | 'summariseEquity'
   | 'budgetOverview'
+  | 'spendFortnight'
+  | 'actualSpend'
 
 export interface ParityCase {
   name: string
@@ -235,6 +237,34 @@ const budgetOverviewCase = {
   now: '2026-12-01T00:00:00Z',
 }
 
+/** A salary with a confirmed payday, a later one, a one-off and a bonus: only the earliest salary payday anchors. */
+const payCycleInflows = [
+  { type: 'salary', paid_on: null, pay_anchor_date: '2026-07-09' },
+  { type: 'wage', paid_on: null, pay_anchor_date: '2026-07-16' },
+  { type: 'salary', paid_on: '2026-07-02', pay_anchor_date: '2026-07-02' },
+  { type: 'bonus', paid_on: null, pay_anchor_date: '2026-07-01' },
+]
+
+const spendFortnightCases = [
+  {
+    name: 'the current fortnight from a payday',
+    inflows: payCycleInflows,
+    today: '2026-11-23',
+    offset: 0,
+  },
+  { name: 'two fortnights back', inflows: payCycleInflows, today: '2026-11-23', offset: -2 },
+  { name: 'no confirmed payday', inflows: [], today: '2026-11-23', offset: 0 },
+]
+
+const actualSpendCase = {
+  rows: [
+    { line_group: 'needs', spent_cents: 412_50 },
+    { line_group: 'wants', spent_cents: 88_20 },
+    { line_group: 'discretionary', spent_cents: -12_00 },
+    { line_group: null, spent_cents: 45_10 },
+  ],
+}
+
 export const parityCases: ParityCase[] = [
   ...taxParityCases.map((parityCase) => ({
     name: `tax estimate: ${parityCase.label}`,
@@ -267,4 +297,14 @@ export const parityCases: ParityCase[] = [
     input: equityCase,
   },
   { name: 'budget overview: allowance draw', entry: 'budgetOverview', input: budgetOverviewCase },
+  ...spendFortnightCases.map(({ name, ...input }) => ({
+    name: `spend fortnight: ${name}`,
+    entry: 'spendFortnight' as const,
+    input,
+  })),
+  {
+    name: 'actual spend: groups, a refund and no group',
+    entry: 'actualSpend',
+    input: actualSpendCase,
+  },
 ]

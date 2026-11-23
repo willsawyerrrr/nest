@@ -29,6 +29,14 @@ export type { AllowanceSummary, MemberAllowance } from './allowance.ts'
 export { budgetOverview } from './budgetOverview.ts'
 export type { BudgetOverview } from './budgetOverview.ts'
 
+export {
+  actualSpendByGroup,
+  PAY_CYCLE_EPOCH,
+  payCycleAnchor,
+  spendFortnight,
+} from './actualSpend.ts'
+export type { ActualSpend, ActualSpendRow, PayCycleInflow } from './actualSpend.ts'
+
 export { isActiveOn, isTemporaryActive, summarise } from './summary.ts'
 export type {
   Amounts,

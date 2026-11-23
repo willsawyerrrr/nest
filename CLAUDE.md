@@ -799,12 +799,15 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   each active recurring inflow (taxes and salary sacrifice attributed across
   taxable inflows pro rata to gross; non-taxable bear none), draws a
   negative buffer as a Shortfall source, scales every node and ribbon
-  by one value-to-pixel factor, and can drill into budget lines. The Budget tab
-  shows each group's actual spend for a fortnight on the household's pay cycle
-  (stepped from the earliest confirmed salary/wage payday, else 2020-07-01)
-  beside its planned subtotal: each Up child category counts toward a group
-  through a seeded shared default (`up_category_default_group`) a household can
-  override per category, to no group included (`up_category_group`), and
+  by one value-to-pixel factor, and can drill into budget lines. The native
+  Budget screen shows each group's actual spend for a fortnight on the
+  household's pay cycle (stepped from the earliest confirmed salary/wage payday,
+  else 2020-07-01, from the stored inflows so planning mode never moves it;
+  steppers back and forward to today's, and an "Include pending" switch) beside
+  its planned subtotal, as spent and left or over: each Up child category counts
+  toward a group through a seeded shared default (`up_category_default_group`) a
+  household can override per category in the screen's Category groups sheet, to
+  no group included (`up_category_group`), and
   `budget_actual_spend` (SECURITY INVOKER, so only the member's visible
   accounts) sums settled spend by default, nets refunds, never counts transfers
   or uncategorised income, and reports spend in no group on its own; see

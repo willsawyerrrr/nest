@@ -1502,5 +1502,6 @@ described under [Gift tables](#gift-tables).
 - Tax estimate: the tax engine over each member's `tax_profile`, `help_debt`,
   `deduction` rows, concessional `super_contribution` rows, and taxable inflows
   for a financial year.
-- Actual spend vs plan (reconciliation over the ledger tables) is a future
-  phase, pending transaction ingestion beyond the gift category.
+- Actual spend vs plan: `budget_actual_spend` over `transactions`, each Up
+  category's spend grouped by `up_category_group` else `up_category_default_group`,
+  for one pay-cycle fortnight (`payCycleAnchor` / `spendFortnight` in `@nest/plan`).

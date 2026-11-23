@@ -35,13 +35,15 @@ liability, plan spending, and track savings goals.
 A pitch-level summary; the full locked list is canonical in
 [`CLAUDE.md`](CLAUDE.md#fixed-scope-decisions).
 
-- **Platform:** a single React PWA serving both iOS (installed via Safari) and
-  web, with Supabase Auth via Google OAuth.
+- **Platform:** native iOS first. Every feature is built for the native SwiftUI
+  app (`apps/ios`), with native Mac alongside or next. The React PWA serves the
+  web and gets no new work; anything it needs is filed as a backlog issue.
+  Supabase Auth via Google OAuth.
 - **Backend:** [Supabase](https://supabase.com/) (Sydney region, Pro) — managed
   Postgres, Auth, PostgREST, Edge Functions, Vault. Clients use direct PostgREST
   with Row-Level Security for CRUD; edge functions handle the tax engine and Up
   sync. See [`docs/architecture.md`](docs/architecture.md).
-- **Language:** TypeScript across the PWA and edge functions; the tax engine is a
+- **Language:** Swift for the native app; TypeScript across the PWA and edge functions; the tax engine is a
   shared package used by both.
 - **Transaction sources:** [Up Bank API](https://developer.up.com.au/) feeds +
   manual entry. Import layer designed to accept other sources later.
@@ -79,8 +81,8 @@ A pitch-level summary; the full locked list is canonical in
   deltas, and the `/planning` summary screen.
 - [`docs/calendar-feed.md`](docs/calendar-feed.md) — the read-only iCalendar
   (`.ics`) feed of the household's money dates.
-- [`docs/ios.md`](docs/ios.md) — the native iOS app (`apps/ios`): the embedded
-  PWA plus Siri / App Intents access to key figures.
+- [`docs/ios.md`](docs/ios.md) — the native iOS and macOS app (`apps/ios`):
+  native screens plus Siri / App Intents access to key figures.
 - [`docs/mcp.md`](docs/mcp.md) — the MCP server (`packages/mcp`, stdio or a remote Claude connector) that gives an
   agent member-scoped access to budget, goals, wishlist, and deductions.
 
@@ -90,8 +92,8 @@ Planned and in-progress work is tracked in the
 ## Repository layout
 
 ```
-apps/pwa        React PWA (Vite, TypeScript) — iOS + web
-apps/ios        Native iOS app — embedded PWA + Siri / App Intents (see docs/ios.md)
+apps/ios        Native iOS and macOS app — the primary client (see docs/ios.md)
+apps/pwa        React PWA (Vite, TypeScript) — web; backlog-only changes
 packages/tax    Shared, pure tax engine (used by the PWA and edge functions)
 packages/plan   Shared, pure budget / summary / goal math
 packages/mcp    MCP server for agent access to household data (see docs/mcp.md)

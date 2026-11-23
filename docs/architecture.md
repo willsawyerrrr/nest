@@ -6,10 +6,11 @@
   Auth, auto-generated REST API (PostgREST), Edge Functions (Deno/TypeScript),
   Vault (secrets), and Storage. Hosted in the **Sydney (AU)** region on the
   **Pro** tier (no project pausing; daily backups).
-- **Clients:** a **React PWA** (TypeScript) serving both iOS (installed via
-  Safari → Add to Home Screen) and web, and a **native SwiftUI app**
-  (`apps/ios`: iOS, Mac Catalyst and macOS) that renders every screen natively,
-  on the same backend and RLS. See
+- **Clients:** native iOS first. The **native SwiftUI app** (`apps/ios`: iOS,
+  Mac Catalyst and macOS) is the primary client and renders every screen
+  natively; every feature is built for iOS, with Mac alongside or next. A
+  **React PWA** (TypeScript) serves the web on the same backend and RLS; it gets
+  no new work, and anything it needs is filed as a backlog issue. See
   [`ios.md`](ios.md).
 - **Frontend hosting:** [Vercel](https://vercel.com/) — the PWA's static build is
   deployed from the repo (Root Directory `apps/pwa`, Vite preset). Merges to

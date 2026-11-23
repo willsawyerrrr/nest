@@ -6,9 +6,8 @@ savers, super, and gifts, and breaks into four stages:
 
 - [x] Account/transaction sync: per-member webhooks for real-time ingestion,
   backed by a scheduled poll, deduped on `external_id`.
-- [ ] Ledger UI (accounts + transactions) over synced data. The transaction
-  review screen (below) and the accounts view are built; a transaction ledger
-  is not.
+- [x] Ledger UI (accounts + transactions) over synced data: the transactions
+  list and review screen (below) and the accounts view.
 - [x] Reconcile actual spend against the budget.
 - [x] Track actual tax paid (PAYG withheld) vs the estimate: payslips supply
   actual withholding, and Up salary credits corroborate each slip's net pay.
@@ -257,6 +256,33 @@ up to three times. Once a failure that holds for the whole token is seen —
 report it without another call to Up. Any other failure is that transaction's
 alone.
 
+### Transactions list (`/transactions`)
+
+The PWA's **Transactions** screen (Review nav group; `routes/TransactionsSection.tsx`,
+`components/TransactionListScreen.tsx`, `hooks/useTransactionList.ts`,
+`lib/transactionList.ts`) lists every transaction the signed-in member can see —
+any source, status, kind, or review state — newest first (`posted_at`, then
+`id`), 50 at a time through `.range()` with a **Load more** button. RLS limits
+it to the member's balance-visible accounts, so a co-member's own spending
+account never appears.
+
+Filters run server-side and live in the URL's search params, so a filtered view
+is linkable: `account` (an `account_directory` id), `from` and `to` (local
+dates, `to` inclusive — compared against `posted_at` from local midnight),
+`kind` (`income` / `expense` / `transfer`), `status` (`pending` / `settled`),
+and `category` (an Up category id: a parent matches its children through
+`external_parent_category`; `none` matches uncategorised rows). A malformed
+value is ignored. **Clear filters** resets them all.
+
+Rows are the review screen's rows, plus a tag naming whose transaction it is:
+the account owner's name (`member_id`), or `Joint` for a joint account, naming
+Up's `performing_customer_name` where present (`Joint · $alex`). Expanding a row
+opens the same review form — category, Nest note, **Looks right**, **Save**,
+**It's a gift**, **Create deduction** — for any transaction: `review_transaction`
+takes any visible row, and the category picker is disabled where the row is not
+categorisable (a transfer, a non-Up row). A review refreshes the list. Wide
+screens show dense rows, narrow ones compact cards.
+
 ### Reviewing transactions (`/transactions/review`)
 
 The PWA's review screen (`routes/TransactionReviewSection.tsx`,
@@ -269,12 +295,14 @@ so no transfer or cover awaits review: between the household's own accounts, a
 cover or forward from a saver, or from someone else (e.g. `Transfer from
 $friend`, which lands as `kind = 'income'`). Other incoming payments
 (`Direct Credit`, `Osko Payment Received`) await review. RLS already limits them to the member's
-balance-visible accounts. It has no nav entry or Summary card: it is reached by
-URL, and `?id=<transaction id>` leads with that transaction, expanded and
-scrolled to, even once it is reviewed (what a notification opens).
+balance-visible accounts. It sits under To review in the nav's Review group, and `?id=<transaction id>` leads with that transaction, expanded and
+scrolled to, even once it is reviewed (what a notification opens). The same
+rows and review form appear on the [transactions list](#transactions-list-transactions),
+which shows every transaction rather than only those awaiting review.
 
-Each row shows the description, signed amount, account, date, a `Pending` pill
-while Up holds it, its Up category (`Parent › Child` from `up_category`), and
+Each row (`components/TransactionRow.tsx`, shared with the transactions list)
+shows the description, signed amount, account, date, a `Pending` pill while Up
+holds it, a `Transfer` pill for a transfer, its Up category (`Parent › Child` from `up_category`), and
 Up's own note and message, read-only — Up's API cannot write either. Expanding
 a row offers a category picker (Up's child categories grouped by parent) and
 the household's own note, prefilled from `notes`, with three actions:
@@ -487,7 +515,7 @@ Purely PostgREST + RLS (no new edge functions): the household already reads
   `apps/pwa/src/lib/accounts.ts`, mirrored natively by `AccountsPresentation`
   (see [`native-screens.md`](native-screens.md#accounts)).
 - **Transactions view (built natively)** — the native app's `/transactions`
-  ("Transactions", in the Review nav group): a paginated list from
+  ("Transactions", in the Plan nav group): a paginated list from
   `public.transactions` ordered by `posted_at` desc, filtered by account, date
   range, kind, status (pending vs settled) and Up category, each row showing the
   signed amount in the app's green/red money semantics, description, account,

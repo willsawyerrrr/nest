@@ -1,23 +1,26 @@
 import type { Tables } from './database.types'
 import { GIFT_TRANSACTION_CATEGORY } from './giftCandidates'
 
-/** The columns the review screen reads from a transaction. */
+/** The columns the review and transaction list screens read from a transaction. */
 export const REVIEW_TRANSACTION_COLUMNS =
-  'id,account_id,amount_cents,description,posted_at,status,external_category,external_parent_category,deep_link_url,is_categorizable,up_message,up_note,notes,reviewed_at'
+  'id,account_id,member_id,amount_cents,description,posted_at,kind,status,external_category,external_parent_category,deep_link_url,is_categorizable,performing_customer_name,up_message,up_note,notes,reviewed_at'
 
-/** A transaction as the review screen reads it. */
+/** A transaction as the review and transaction list screens read it. */
 export type ReviewTransaction = Pick<
   Tables<'transactions'>,
   | 'id'
   | 'account_id'
+  | 'member_id'
   | 'amount_cents'
   | 'description'
   | 'posted_at'
+  | 'kind'
   | 'status'
   | 'external_category'
   | 'external_parent_category'
   | 'deep_link_url'
   | 'is_categorizable'
+  | 'performing_customer_name'
   | 'up_message'
   | 'up_note'
   | 'notes'
@@ -117,4 +120,9 @@ export function reviewErrorMessage(code: string | null): string {
 /** Whether a failure is fixed in Connections, so its message offers a link there. */
 export function reviewErrorNeedsConnections(code: string | null): boolean {
   return code !== null && CONNECTIONS_CODES.has(code)
+}
+
+/** A transaction's own words, falling back to a generic label for an unnamed one. */
+export function transactionLabel(transaction: ReviewTransaction): string {
+  return transaction.description || 'Card purchase'
 }

@@ -17,6 +17,7 @@ import {
   type GiftTransaction,
   type GiftTransactionDismissal,
 } from '../lib/giftCandidates'
+import type { ReviewTransaction } from '../lib/transactionReview'
 
 /** Builds a household member row, overriding any field a test cares about. */
 export function makeMember(overrides: Partial<Member> = {}): Member {
@@ -363,6 +364,32 @@ export function makeWishlistItem(overrides: Partial<WishlistItem> = {}): Wishlis
     note: null,
     created_at: '',
     updated_at: '',
+    ...overrides,
+  }
+}
+
+/** Builds a transaction as the review and transaction list screens read it. */
+export function makeReviewTransaction(
+  overrides: Partial<ReviewTransaction> = {},
+): ReviewTransaction {
+  return {
+    id: 't1',
+    account_id: 'a1',
+    member_id: 'm1',
+    amount_cents: -42_50,
+    description: 'Cafe Lune',
+    posted_at: '2026-11-20T02:30:00+00:00',
+    kind: 'expense',
+    status: 'settled',
+    external_category: 'restaurants-and-cafes',
+    external_parent_category: 'good-life',
+    deep_link_url: 'up://transaction/up-t1',
+    is_categorizable: true,
+    performing_customer_name: null,
+    up_message: null,
+    up_note: null,
+    notes: null,
+    reviewed_at: null,
     ...overrides,
   }
 }

@@ -218,8 +218,8 @@ describe('TabBar', () => {
 
     expect(groupHeader('Grow')).toHaveAttribute('aria-expanded', 'false')
 
-    // Eighth in flattened order: Summary, Plan's five, To review, then Net worth.
-    await user.keyboard('{Control>}8{/Control}')
+    // Ninth in flattened order: Summary, Plan's five, the Review group's two, then Net worth.
+    await user.keyboard('{Control>}9{/Control}')
 
     expect(pathname()).toBe('/net-worth')
     expect(groupHeader('Grow')).toHaveAttribute('aria-expanded', 'true')
@@ -390,6 +390,7 @@ describe('flattenNavItems', () => {
       '/gifts',
       '/splits',
       '/transactions/review',
+      '/transactions',
       '/net-worth',
       '/accounts',
       '/goals',

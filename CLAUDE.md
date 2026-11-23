@@ -1051,8 +1051,14 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   writes the category back to Up with their own token (only a child category
   from `up_category`, Up's taxonomy that `up-sync` refreshes each run, and never
   a transaction Up marks uncategorisable) and records it on the row at once, so
-  a move into gifts reaches the inbox without waiting for a sync. The review
-  screen (`/transactions/review`, To review in the nav's Review group, `?id=` focusing one
+  a move into gifts reaches the inbox without waiting for a sync. The PWA's
+  Transactions screen (`/transactions`, in the Review nav group) lists every
+  transaction the member can see, newest first and paged 50 at a time, filtered
+  server-side by account, date range, kind, status, and Up category (filters in
+  the URL), each row tagged with its owner's name or `Joint` and expanding to
+  the review form; see
+  [`docs/up-ledger-sync.md`](docs/up-ledger-sync.md#transactions-list-transactions).
+  The review screen (`/transactions/review`, To review in the nav's Review group, `?id=` focusing one
   transaction) lists a member's unreviewed, categorisable Up transactions (pay,
   interest, transfers and covers arrive reviewed) to
   confirm ("Looks right"), recategorise and annotate ("Save"), or file as a gift

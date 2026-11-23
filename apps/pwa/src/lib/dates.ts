@@ -50,3 +50,12 @@ export function isoDaysBefore(iso: string, days: number): string {
   const [year, month, day] = iso.split('-').map(Number) as [number, number, number]
   return isoDate(new Date(year, month - 1, day - days))
 }
+
+/**
+ * The instant a local ISO date (`YYYY-MM-DD`) begins, as a UTC timestamp — the
+ * bound a `timestamptz` column is compared against for that local day.
+ */
+export function localDayStart(iso: string): string {
+  const [year, month, day] = iso.split('-').map(Number) as [number, number, number]
+  return new Date(year, month - 1, day).toISOString()
+}

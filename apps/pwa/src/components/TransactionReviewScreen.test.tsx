@@ -1,7 +1,8 @@
 import { MemoryRouter } from 'react-router-dom'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { ReviewError, type ReviewTransaction, type UpCategory } from '../lib/transactionReview'
+import { ReviewError, type UpCategory } from '../lib/transactionReview'
+import { makeReviewTransaction } from '../test/fixtures'
 import { render, screen, setWideViewport, waitFor, within } from '../test/render'
 import { TransactionReviewScreen } from './TransactionReviewScreen'
 
@@ -13,26 +14,6 @@ const categories: UpCategory[] = [
   { id: 'groceries', name: 'Groceries', parent_id: 'home' },
 ]
 
-function makeTransaction(overrides: Partial<ReviewTransaction> = {}): ReviewTransaction {
-  return {
-    id: 't1',
-    account_id: 'a1',
-    amount_cents: -42_50,
-    description: 'Cafe Lune',
-    posted_at: '2026-11-20T02:30:00+00:00',
-    status: 'settled',
-    external_category: 'restaurants-and-cafes',
-    external_parent_category: 'good-life',
-    deep_link_url: 'up://transaction/up-t1',
-    is_categorizable: true,
-    up_message: null,
-    up_note: null,
-    notes: null,
-    reviewed_at: null,
-    ...overrides,
-  }
-}
-
 const onReview = vi.fn()
 const onReviewMany = vi.fn()
 const onCategoriseMany = vi.fn()
@@ -41,7 +22,7 @@ function renderScreen(props: Partial<Parameters<typeof TransactionReviewScreen>[
   return render(
     <MemoryRouter>
       <TransactionReviewScreen
-        transactions={[makeTransaction()]}
+        transactions={[makeReviewTransaction()]}
         focused={null}
         categories={categories}
         accountNames={{ a1: 'Spending' }}
@@ -74,10 +55,14 @@ describe('TransactionReviewScreen', () => {
   it('summarises each row: amount, account, date, category, pending, and Up words', () => {
     renderScreen({
       transactions: [
-        makeTransaction({ status: 'pending', up_note: 'Split with Sam', up_message: 'Thanks!' }),
+        makeReviewTransaction({
+          status: 'pending',
+          up_note: 'Split with Sam',
+          up_message: 'Thanks!',
+        }),
       ],
     })
-    const row = screen.getByTestId('transaction-review-row')
+    const row = screen.getByTestId('transaction-row')
     expect(within(row).getByText('Cafe Lune')).toBeInTheDocument()
     expect(within(row).getByText('-$42.50')).toBeInTheDocument()
     expect(within(row).getByText('Spending · 20 Nov 2026')).toBeInTheDocument()
@@ -91,10 +76,15 @@ describe('TransactionReviewScreen', () => {
     )
   })
 
+  it('marks a transfer', () => {
+    renderScreen({ transactions: [makeReviewTransaction({ kind: 'transfer' })] })
+    expect(within(screen.getByTestId('transaction-row')).getByText('Transfer')).toBeInTheDocument()
+  })
+
   it('renders the dense row on wide screens', () => {
     setWideViewport()
     renderScreen()
-    expect(screen.getByTestId('transaction-review-row')).toBeInTheDocument()
+    expect(screen.getByTestId('transaction-row')).toBeInTheDocument()
   })
 
   it('starts collapsed and expands to the review form', async () => {
@@ -105,7 +95,7 @@ describe('TransactionReviewScreen', () => {
   })
 
   it('confirms with the note it was given', async () => {
-    renderScreen({ transactions: [makeTransaction({ notes: 'Old' })] })
+    renderScreen({ transactions: [makeReviewTransaction({ notes: 'Old' })] })
     await expand()
     const note = screen.getByLabelText('Nest note')
     expect(note).toHaveValue('Old')
@@ -158,7 +148,7 @@ describe('TransactionReviewScreen', () => {
   })
 
   it('offers no deduction from an inflow', async () => {
-    renderScreen({ transactions: [makeTransaction({ amount_cents: 42_50 })] })
+    renderScreen({ transactions: [makeReviewTransaction({ amount_cents: 42_50 })] })
     await expand()
     expect(screen.queryByRole('link', { name: 'Create deduction' })).not.toBeInTheDocument()
   })
@@ -171,7 +161,9 @@ describe('TransactionReviewScreen', () => {
   })
 
   it('offers no gift action on a transaction already filed as one', async () => {
-    renderScreen({ transactions: [makeTransaction({ external_category: 'gifts-and-charity' })] })
+    renderScreen({
+      transactions: [makeReviewTransaction({ external_category: 'gifts-and-charity' })],
+    })
     await expand()
     expect(screen.queryByRole('button', { name: "It's a gift" })).not.toBeInTheDocument()
   })
@@ -203,13 +195,13 @@ describe('TransactionReviewScreen', () => {
 
   it('leads with the focused transaction, expanded, even once reviewed', () => {
     renderScreen({
-      focused: makeTransaction({
+      focused: makeReviewTransaction({
         id: 't2',
         description: 'Bookshop',
         reviewed_at: '2026-11-21T00:00:00Z',
       }),
     })
-    const rows = screen.getAllByTestId('transaction-review-row')
+    const rows = screen.getAllByTestId('transaction-row')
     expect(within(rows[0]!).getByText('Bookshop')).toBeInTheDocument()
     expect(within(rows[0]!).getByText('Reviewed')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Bookshop/ })).toHaveAttribute(
@@ -223,13 +215,13 @@ describe('TransactionReviewScreen', () => {
   })
 
   it('does not repeat a focused transaction already in the list', () => {
-    renderScreen({ focused: makeTransaction() })
-    expect(screen.getAllByTestId('transaction-review-row')).toHaveLength(1)
+    renderScreen({ focused: makeReviewTransaction() })
+    expect(screen.getAllByTestId('transaction-row')).toHaveLength(1)
   })
 
   it('disables the picker and gift action for an uncategorisable transaction', async () => {
     renderScreen({
-      transactions: [makeTransaction({ is_categorizable: false, external_category: null })],
+      transactions: [makeReviewTransaction({ is_categorizable: false, external_category: null })],
     })
     expect(screen.getByText('Uncategorised')).toBeInTheDocument()
     await expand()
@@ -240,7 +232,7 @@ describe('TransactionReviewScreen', () => {
   it('omits Open in Up when Up gave no link, and says when the list is capped', () => {
     renderScreen({
       transactions: Array.from({ length: 100 }, (_, index) =>
-        makeTransaction({ id: `t${index}`, deep_link_url: null }),
+        makeReviewTransaction({ id: `t${index}`, deep_link_url: null }),
       ),
     })
     expect(screen.queryByRole('link', { name: 'Open in Up' })).not.toBeInTheDocument()
@@ -261,9 +253,9 @@ describe('TransactionReviewScreen', () => {
 
   describe('bulk review', () => {
     const three = [
-      makeTransaction({ id: 't1', description: 'Cafe Lune' }),
-      makeTransaction({ id: 't2', description: 'Grocer' }),
-      makeTransaction({ id: 't3', description: 'Bakery' }),
+      makeReviewTransaction({ id: 't1', description: 'Cafe Lune' }),
+      makeReviewTransaction({ id: 't2', description: 'Grocer' }),
+      makeReviewTransaction({ id: 't3', description: 'Bakery' }),
     ]
 
     it('selects rows one by one and counts them', async () => {
@@ -278,7 +270,11 @@ describe('TransactionReviewScreen', () => {
     })
 
     it('selects every unreviewed row, leaving a reviewed focused one out', async () => {
-      const focused = makeTransaction({ id: 'f', description: 'Done', reviewed_at: '2026-11-21' })
+      const focused = makeReviewTransaction({
+        id: 'f',
+        description: 'Done',
+        reviewed_at: '2026-11-21',
+      })
       renderScreen({ transactions: three, focused })
       expect(screen.queryByRole('checkbox', { name: 'Select Done' })).not.toBeInTheDocument()
 

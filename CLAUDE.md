@@ -29,7 +29,11 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   pay-split accounts are named inline in the Siri phrase and indexed in Spotlight,
   and App Shortcuts open the Gifts, Summary, Goals, Budget and transaction-review
   screens. A gift-candidate notification offers Link to a gift and Not a gift
-  actions. The native app is the single session owner: one Google OAuth at
+  actions; a transaction review notification offers Looks right, and expanding
+  it on iOS (a notification content extension, `apps/ios/NotificationContent`,
+  reading and refreshing the app's Keychain session through a shared keychain
+  access group, never deleting it) picks another Up category without opening
+  the app. The native app is the single session owner: one Google OAuth at
   launch (`supabase-swift`, Keychain-stored), so an in-process App Shortcut can
   answer with the app closed, and it mirrors that session into its `WKWebView`
   of the PWA (`WebRouteView`, kept for a `.web` route though none uses one; a `.atDocumentStart` `window.__NEST_NATIVE_SHELL__` marker, `setSession` on
@@ -1105,7 +1109,9 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   for Goals or Budget or the `id` of the transaction to review; the app ignores
   anything else); a gift-candidate payload also carries a `native` action
   (category and transaction id, sent to APNs only) whose notification actions
-  open Gifts or set the candidate aside. The native app's web view reports its device as on
+  open Gifts or set the candidate aside; a transaction-review payload carries one
+  too, whose Looks right action marks it reviewed and whose expanded view picks
+  another Up category. The native app's web view reports its device as on
   in the Notifications settings (status `native`, gated on
   `__NEST_NATIVE_SHELL__`), with no web opt-in; the native Notifications screen
   shows the same state, reads and upserts `notification_preference` on

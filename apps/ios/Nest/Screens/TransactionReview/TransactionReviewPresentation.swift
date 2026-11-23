@@ -1,12 +1,5 @@
 import Foundation
 
-/// One category picker group: a parent and its assignable children.
-struct UpCategoryGroup: Equatable, Sendable, Identifiable {
-    let name: String
-    let items: [UpCategory]
-    var id: String { name }
-}
-
 /// One transaction as the review screen lists it.
 struct ReviewRow: Equatable, Sendable, Identifiable {
     let transaction: LedgerTransaction
@@ -66,7 +59,7 @@ struct TransactionReviewPresentation: Equatable, Sendable {
                 hasDeduction: deducted.contains($0.id), calendar: calendar)
         }
         focusedID = focused?.id
-        groups = Self.groups(source.categories)
+        groups = UpCategories.groups(source.categories)
         isCapped = source.transactions.count >= TransactionReviewRows.pageSize
     }
 
@@ -80,7 +73,7 @@ struct TransactionReviewPresentation: Equatable, Sendable {
             transaction: transaction,
             title: transaction.description.isEmpty ? "Card purchase" : transaction.description,
             meta: [accountName, date].compactMap { $0 }.joined(separator: " · "),
-            category: label(categories, transaction.externalCategory) ?? "Uncategorised",
+            category: UpCategories.label(categories, transaction.externalCategory) ?? "Uncategorised",
             pending: transaction.status == "pending",
             reviewed: transaction.reviewedAt != nil,
             categorisable: transaction.isCategorizable == true,
@@ -89,60 +82,5 @@ struct TransactionReviewPresentation: Equatable, Sendable {
             upMessage: transaction.upMessage.flatMap { $0.isEmpty ? nil : $0 },
             deepLink: transaction.deepLinkUrl.flatMap(URL.init(string:)),
             hasDeduction: hasDeduction)
-    }
-
-    /// Up's child categories grouped under their parents, both alphabetical,
-    /// leaving out a parent with no children.
-    static func groups(_ categories: [UpCategory]) -> [UpCategoryGroup] {
-        let byName: (UpCategory, UpCategory) -> Bool = {
-            $0.name.localizedStandardCompare($1.name) == .orderedAscending
-        }
-        return categories.filter { $0.parentId == nil }.sorted(by: byName).compactMap { parent in
-            let items = categories.filter { $0.parentId == parent.id }.sorted(by: byName)
-            return items.isEmpty ? nil : UpCategoryGroup(name: parent.name, items: items)
-        }
-    }
-
-    /// `Parent › Child`, the child alone where its parent is unknown, the id
-    /// where the category is unknown, or nil when uncategorised.
-    static func label(_ categories: [UpCategory], _ id: String?) -> String? {
-        guard let id else { return nil }
-        guard let child = categories.first(where: { $0.id == id }) else { return id }
-        guard let parent = categories.first(where: { $0.id == child.parentId }) else {
-            return child.name
-        }
-        return "\(parent.name) › \(child.name)"
-    }
-
-    /// The picker's label for a chosen category: the child's name.
-    static func pickerLabel(_ categories: [UpCategory], _ id: String?) -> String {
-        guard let id else { return "Uncategorised" }
-        return categories.first { $0.id == id }?.name ?? id
-    }
-
-    /// Nest's own copy for a failed review, per code; never the upstream text.
-    static func errorMessage(_ code: String?) -> String {
-        switch code {
-        case "invalid_request": "Nest could not send that change. Try again."
-        case "transaction_not_found": "Nest can no longer find this transaction."
-        case "not_up_transaction": "Only an Up transaction can be recategorised."
-        case "not_categorisable": "Up does not let this transaction be categorised."
-        case "unknown_category": "Up does not have that category. Pick another."
-        case "parent_category": "Pick a subcategory: Up assigns only those to a transaction."
-        case "server_error": "Something went wrong. Try again."
-        case "up_not_connected": "Connect Up in Connections to change a category."
-        case "up_auth_failed": "Up rejected your token. Reconnect Up in Connections."
-        case "up_rate_limited": "Up is busy right now. Try again in a minute."
-        case "up_transaction_not_found": "Up has no such transaction for your token."
-        case "up_rejected": "Up would not accept that category for this transaction."
-        case "up_unavailable": "Up is unavailable right now. Try again shortly."
-        case "save_failed": "Saved in Up, but Nest couldn't update its copy. Try again."
-        default: "Could not save this review. Try again."
-        }
-    }
-
-    /// Whether a failure is fixed in Connections, so its message links there.
-    static func needsConnections(_ code: String?) -> Bool {
-        code == "up_not_connected" || code == "up_auth_failed"
     }
 }

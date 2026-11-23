@@ -171,12 +171,12 @@ view's session.
   plain `URLSession` + bearer token, so the `Functions` product is not pulled
   in.
 - **`Supabase.swift`** constructs a shared `AuthClient` against the project's
-  `auth/v1` endpoint. The project URL and anon key are public client
+  `auth/v1` endpoint, from the coordinates `SupabaseConfig.swift` reads. The project URL and anon key are public client
   credentials, shipped the same way the PWA ships them — but external to the
   build rather than hardcoded, so a fork can point at its own Supabase project
   without editing source: `xcodegen generate` substitutes `SUPABASE_URL` /
   `SUPABASE_ANON_KEY` from the environment into `Info.plist`
-  (`project.yml`'s `info.properties`), and `Supabase.swift` reads them via
+  (`project.yml`'s `info.properties`), and `SupabaseConfig.swift` reads them via
   `Bundle.main`, failing loudly (`fatalError`) if either is missing rather than
   building against no project. Local dev runs `xcodegen generate` after
   loading the [local env files](operations.md#1password-environments); CI (`ci.yml`'s `build-ios` / `build-catalyst` /
@@ -198,9 +198,13 @@ view's session.
   (`com.googleusercontent.apps.<id>`), declared as `CFBundleURLTypes` in
   `project.yml`. Google Sign-In returns through it, and `NestApp.swift` forwards
   `onOpenURL` to `GIDSignIn.sharedInstance.handle`.
-- **Session storage** is `supabase-swift`'s default `KeychainLocalStorage` — no
-  Keychain access group, and the App Group carries only shared files. The Intent runs in the app's own process
-  (see below), so it reads the stored session directly. The session is
+- **Session storage** is `supabase-swift`'s default `KeychainLocalStorage` with
+  no explicit access group, so the item lands in the app's default group, the
+  first `keychain-access-groups` entry (`$(AppIdentifierPrefix)dev.willsawyerrrr.nest`
+  on iOS); the App Group carries only shared files. The Intent runs in the app's own process
+  (see below), so it reads the stored session directly; the
+  [notification content extension](#notification-content-extension) holds the
+  same keychain group and reads the same item. The session is
   `kSecAttrAccessibleAfterFirstUnlock`, so a background-launched Intent can read
   it any time after the first unlock following a reboot.
 
@@ -476,9 +480,17 @@ with Web Push (see [`architecture.md`](architecture.md#push-notifications)).
   withholds one the member cannot see, which writes nothing) and inserts the
   `gift_transaction_dismissal` the Gifts screen writes, then completes. A tap or
   action the payload cannot route (no `url`, or an empty `transactionId` for the
-  dismiss action) is ignored. `NotificationResponse` maps an action identifier
-  and payload to what the delegate does. Mac Catalyst and `NestMac` register no
-  categories.
+  dismiss action) is ignored. `transaction_review` (sent for
+  `transaction_review`, with the transaction's id as `transactionId`) offers
+  **Looks right**, which also needs the device unlocked and runs without opening
+  the app: `TransactionReviewMarker` calls `review_transaction` with no note,
+  the review screen's Looks right write, leaving the note and category.
+  Expanding the notification shows the
+  [notification content extension](#notification-content-extension)'s category
+  picker, and a plain tap still opens the review screen on the transaction. A
+  Looks right without a uuid `transactionId` is ignored. `NotificationResponse`
+  maps an action identifier and payload to what the delegate does. Mac Catalyst
+  receives no APNs pushes to act on, and `NestMac` registers no categories.
   Notifications that arrive in the foreground are shown as banners. The delegate
   uses the completion-handler forms of `didReceive` and `willPresent` and calls
   the completion handler on the main thread: UserNotifications calls them on a
@@ -492,6 +504,60 @@ with Web Push (see [`architecture.md`](architecture.md#push-notifications)).
   APNs. Backend credentials are set up in
   [`operations.md`](operations.md#apns-auth-key-setup).
 
+## Notification content extension
+
+`NotificationContent/` (bundle `dev.willsawyerrrr.nest.notification-content`,
+iOS only — Mac Catalyst receives no APNs pushes, so `Nest` embeds it under a
+`destinationFilters: [iOS]` dependency) is a Notification Content Extension for
+the `transaction_review` category. Expanding a review notification shows the
+transaction's current category and Up's categories grouped by parent, the same
+`UpCategories.groups` list the review screen's picker uses, with the current
+one checked. Picking one runs `NotificationRecategoriser.review`, the review
+screen's writes: `up-categorise` with the new category (Uncategorised clears
+it), then `review_transaction` with no note. Picking the current category only
+marks the transaction reviewed. Any failure, `save_failed` included, leaves the
+transaction unreviewed and shows the review screen's copy for its code
+(`ReviewFailure.message`), with **Try again** (back to the list) and **Open in
+Nest** (`performNotificationDefaultAction`, opening the review screen). A pick
+that saved shows its done state in place, and a Looks right tapped afterwards
+just dismisses; before a pick, Looks right is forwarded to the app.
+`RecategoriseModel` holds that state and is compiled into the app too, so
+`NestTests` covers it; the extension compiles only the data-layer files it needs
+(`SupabaseConfig`, `Data/Models`, `Data/TaxModels`, `Data/NestError`,
+`Data/SupabaseAPI`) and the review files, listed in `project.yml`.
+
+**Session.** The app stays the single session owner. The extension's only
+entitlement is `keychain-access-groups` holding the app's default group
+(`$(AppIdentifierPrefix)dev.willsawyerrrr.nest`), so its default
+`KeychainLocalStorage` reads, and updates in place, the item the app writes; it
+needs no App Group. Its `AuthClient` (`NotificationContent/SharedSession.swift`)
+runs no auto-refresh loop and refreshes only when a request finds the access
+token expired. Its storage, `SharedSessionStorage`, passes reads and writes
+through and drops deletes. Why this shape:
+
+- **A read-only extension would sign the app out.** Supabase Auth refresh
+  tokens are single-use: redeeming one rotates it, and presenting a redeemed
+  token after the reuse interval (10 s) is treated as theft and revokes the
+  whole session. An extension that refreshed without writing back would leave
+  the app holding the redeemed token, so the app's next refresh would end the
+  session. Never refreshing would avoid that, but the access token lasts an hour
+  and the app does not run in the background to keep it fresh, so the picker
+  would fail for almost every notification. The extension therefore writes the
+  rotated tokens back to the one shared item.
+- **A race with the app cannot lose the session.** Neither process keeps the
+  session in memory: `supabase-swift` reads the item for every request and
+  immediately before a refresh, and after the refresh it discards the result
+  (`refreshDiscarded`) if the item changed meanwhile, so the extension never
+  overwrites tokens the app rotated in between. Two refreshes of the same token
+  at once land within the reuse interval, where Supabase Auth answers both with
+  valid tokens.
+- **The extension never clears the session.** A refresh failure can make
+  `supabase-swift` delete the stored session; `SharedSessionStorage.remove` is a
+  no-op, so only the app signs out. A signed-out or missing session shows **Open
+  Nest to sign in, then try again**.
+- The item is `kSecAttrAccessibleAfterFirstUnlock`, so the extension reads it
+  while the device is locked.
+
 ## Apple Developer Program
 
 A paid Apple Developer Program membership is **not** required to build, run, or
@@ -500,7 +566,9 @@ use this app on either platform. Per Apple's App Intents documentation, an
 compile, Simulator, on-device install (7-day provisioning), a local Mac
 Catalyst build, and the App Shortcut reaching the Shortcuts app and Spotlight
 on both platforms. (The share extension is the exception: its App Group
-needs the paid team to register, so sharing into Nest runs on TestFlight builds.)
+needs the paid team to register, so sharing into Nest runs on TestFlight builds.
+The notification content extension needs no App Group: its only entitlement is
+the keychain access group the app already holds.)
 `com.apple.developer.siri` is the legacy SiriKit /
 Apple-Intelligence-schema entitlement, which this app uses neither of.
 
@@ -582,7 +650,7 @@ the anon key.
   not committed.
 - `Nest/` — Swift sources: `NestApp.swift`, `ContentView.swift`, `Navigation/`,
   `DesignSystem/`, `Screens/` (the [native screens](native-screens.md)), `WebView.swift`,
-  `SessionBridge.swift`, `Supabase.swift`, `Auth.swift`,
+  `SessionBridge.swift`, `SupabaseConfig.swift`, `Supabase.swift`, `Auth.swift`,
   `PushNotifications.swift`, `NotificationActions.swift`, `Data/` (the [native data layer](#native-data-layer)),
   `NestAppDelegate+iOS.swift` /
   `NestAppDelegate+macOS.swift`, and `Intents/`. The iOS/macOS divergence in
@@ -593,6 +661,9 @@ the anon key.
   result types, and the bundled `nest-engines.js`.
 - `ShareExtension/` — the share extension (`ShareViewController.swift`, its
   entitlements; `Info.plist` is generated).
+- `NotificationContent/` — the notification content extension
+  (`NotificationViewController.swift`, `SharedSession.swift`, its entitlements;
+  `Info.plist` is generated).
 - `Shared/` — `ShareInbox.swift` and `ShareSummary.swift`, compiled into both
   `Nest` and `ShareExtension`.
 - `NestTests/` — Swift Testing unit tests for the Intent logic (each service's
@@ -600,7 +671,9 @@ the anon key.
   mapping), for `SessionBridge`'s injected JavaScript and string escaping, for
   the share inbox (storing, limits, ordering, cleanup), and for
   push registration (token encoding, notification destinations, the register/unregister
-  requests, and the registrar's retry behaviour), money formatting and sign
+  requests, and the registrar's retry behaviour), notification actions and the
+  review notification's category picker (payload parsing, request shapes, and
+  its saved and failed states), money formatting and sign
   colour, the route table and route-to-URL mapping, for the data layer (request
   shapes, error mapping, the row cache and its invalidation, and the model-vs-schema
   drift guard), and for `Engine` (the parity fixtures in `NestTests/Fixtures/`).
@@ -634,4 +707,4 @@ as a pass rather than waiting forever on a check that never ran. See
 
 ## Deployment
 
-`.github/workflows/deploy-ios.yml` archives the `Nest` scheme unsigned, signs it at export with the team's cloud-managed distribution certificate, and uploads it to TestFlight on every merge to `main` that touches `apps/ios/**`. The archive embeds the share extension, so the export's automatic signing (`-allowProvisioningUpdates`, with the App Store Connect API key) also registers the extension's App ID, the `group.dev.willsawyerrrr.nest` App Group, and their profiles. See [`operations.md`](operations.md#deployment).
+`.github/workflows/deploy-ios.yml` archives the `Nest` scheme unsigned, signs it at export with the team's cloud-managed distribution certificate, and uploads it to TestFlight on every merge to `main` that touches `apps/ios/**`. The archive embeds the share extension and the notification content extension, so the export's automatic signing (`-allowProvisioningUpdates`, with the App Store Connect API key) also registers their App IDs, the `group.dev.willsawyerrrr.nest` App Group, and their profiles. See [`operations.md`](operations.md#deployment).

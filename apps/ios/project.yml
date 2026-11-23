@@ -41,6 +41,9 @@ targets:
       - package: GoogleSignIn
         product: GoogleSignIn
       - target: ShareExtension
+      # iOS only: Mac Catalyst receives no APNs pushes to expand.
+      - target: NotificationContent
+        destinationFilters: [iOS]
     info:
       path: Nest/Info.plist
       properties:
@@ -115,6 +118,55 @@ targets:
         CODE_SIGN_ENTITLEMENTS: ShareExtension/ShareExtension.entitlements
         DEVELOPMENT_TEAM: 8558CXPT9G
         # Extensions must not use app-only APIs.
+        APPLICATION_EXTENSION_API_ONLY: true
+
+  # The expanded transaction review notification: Up's categories to move the
+  # transaction to, saved over the app's session without opening the app.
+  NotificationContent:
+    type: app-extension
+    supportedDestinations: [iOS]
+    deploymentTarget:
+      iOS: '17.0'
+    sources:
+      - path: NotificationContent
+        excludes:
+          - NotificationContent.entitlements
+      - path: Nest/SupabaseConfig.swift
+      - path: Nest/Data/Models.swift
+      - path: Nest/Data/TaxModels.swift
+      - path: Nest/Data/NestError.swift
+      - path: Nest/Data/SupabaseAPI.swift
+      - path: Nest/Screens/TransactionReview/UpCategories.swift
+      - path: Nest/Screens/TransactionReview/ReviewWrites.swift
+      - path: Nest/Screens/TransactionReview/NotificationRecategoriser.swift
+      - path: Nest/Screens/TransactionReview/RecategoriseModel.swift
+    dependencies:
+      - package: Supabase
+        product: Auth
+    info:
+      path: NotificationContent/Info.plist
+      properties:
+        CFBundleDisplayName: Nest
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.usernotifications.content-extension
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).NotificationViewController
+          NSExtensionAttributes:
+            UNNotificationExtensionCategory: transaction_review
+            UNNotificationExtensionInitialContentSizeRatio: 1
+            # The view shows the notification's title itself.
+            UNNotificationExtensionDefaultContentHidden: true
+            UNNotificationExtensionUserInteractionEnabled: true
+        SupabaseURL: ${SUPABASE_URL}
+        SupabaseAnonKey: ${SUPABASE_ANON_KEY}
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.willsawyerrrr.nest.notification-content
+        PRODUCT_NAME: NotificationContent
+        # Holds only the app's keychain group, to read and update its session.
+        CODE_SIGN_ENTITLEMENTS: NotificationContent/NotificationContent.entitlements
+        DEVELOPMENT_TEAM: 8558CXPT9G
         APPLICATION_EXTENSION_API_ONLY: true
 
   NestTests:

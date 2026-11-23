@@ -1013,6 +1013,12 @@ reads that transaction and leads with it, expanded and scrolled to, even once
 reviewed. A category change calls `up-categorise` before `review_transaction`;
 any failure, `save_failed` included (Up took the category, Nest's copy did
 not), leaves the transaction unreviewed and shows
-`TransactionReviewPresentation`'s fixed copy for the function's `code` (with a
+`ReviewFailure`'s fixed copy for the function's `code` (with a
 link to Connections for `up_not_connected` and `up_auth_failed`), keeping the
 picker's choice so saving again retries. Rows reload after each review.
+`UpCategories` (the picker's groups and labels), `ReviewFailure` (the failure
+copy) and `ReviewWrites.swift`'s request bodies are shared with the review
+notification: its **Looks right** action makes the screen's Looks right write
+without opening the app, and its expanded view (the notification content
+extension) picks a category with the screen's writes and failure copy (see
+[`ios.md`](ios.md#notification-content-extension)).

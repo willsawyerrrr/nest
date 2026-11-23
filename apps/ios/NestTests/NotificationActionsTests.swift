@@ -11,15 +11,59 @@ import UserNotifications
     ]
 
     @Test func registersTheGiftCandidateCategoryWithItsTwoActions() throws {
-        let category = try #require(NotificationActions.categories.first)
-        #expect(NotificationActions.categories.count == 1)
-        #expect(category.identifier == "gift_candidate")
+        let category = try #require(
+            NotificationActions.categories.first { $0.identifier == "gift_candidate" })
+        #expect(NotificationActions.categories.count == 2)
         #expect(
             category.actions.map(\.identifier)
                 == [NotificationActions.linkGift, NotificationActions.dismissGiftCandidate])
         #expect(category.actions[0].options.contains(.foreground))
         #expect(!category.actions[1].options.contains(.foreground))
         #expect(category.actions[1].options.contains(.authenticationRequired))
+    }
+
+    @Test func registersTheTransactionReviewCategoryWithLooksRight() throws {
+        let category = try #require(
+            NotificationActions.categories.first { $0.identifier == "transaction_review" })
+        let action = try #require(category.actions.first)
+        #expect(category.actions.count == 1)
+        #expect(action.identifier == NotificationActions.markReviewed)
+        #expect(action.title == "Looks right")
+        #expect(!action.options.contains(.foreground))
+        #expect(action.options.contains(.authenticationRequired))
+    }
+
+    private static let reviewID = "6f1c2a4e-1111-4222-8333-944455556666"
+
+    private let review: [AnyHashable: Any] = [
+        "url": "/transactions/review?id=\(reviewID)", "transactionId": reviewID,
+        "aps": ["category": "transaction_review"],
+    ]
+
+    @Test func looksRightNamesTheTransaction() {
+        #expect(
+            NotificationResponse(actionIdentifier: NotificationActions.markReviewed, userInfo: review)
+                == .markReviewed(transactionID: Self.reviewID))
+    }
+
+    @Test func looksRightNeedsAUUIDTransactionID() {
+        for id: Any in ["", "tx-1", 3] {
+            #expect(
+                NotificationResponse(
+                    actionIdentifier: NotificationActions.markReviewed,
+                    userInfo: ["url": "/transactions/review", "transactionId": id]) == .ignore)
+        }
+    }
+
+    @Test func tappingAReviewNotificationOpensTheReviewScreen() {
+        guard
+            case .open(let destination) = NotificationResponse(
+                actionIdentifier: UNNotificationDefaultActionIdentifier, userInfo: review)
+        else {
+            Issue.record("a tap does not open the review screen")
+            return
+        }
+        #expect(destination.route == .transactionReview)
     }
 
     @Test(arguments: [UNNotificationDefaultActionIdentifier, NotificationActions.linkGift])
@@ -140,5 +184,33 @@ import UserNotifications
         let done = try await dismisser(requests, transactions: "[]").dismiss(transactionID: "tx-1")
         #expect(!done)
         #expect(requests.all.allSatisfy { $0.method == "GET" })
+    }
+
+    // MARK: Marking reviewed
+
+    @Test func looksRightMarksTheTransactionReviewedLeavingItsNote() async throws {
+        let requests = Requests()
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("NotificationActionsTests-\(UUID().uuidString)", isDirectory: true)
+        let marker = TransactionReviewMarker(
+            data: NestData(
+                api: SupabaseAPI(
+                    baseURL: URL(string: "https://example.supabase.co")!, anonKey: "a",
+                    accessToken: { "t" },
+                    send: { request in
+                        requests.record(request)
+                        return (
+                            Data("{}".utf8),
+                            HTTPURLResponse(
+                                url: request.url!, statusCode: 200, httpVersion: nil,
+                                headerFields: nil)!)
+                    }),
+                cache: RowCache(directory: directory), userID: { "u" }))
+        try await marker.markReviewed(transactionID: Self.reviewID)
+        let write = try #require(requests.all.last)
+        #expect(write.method == "POST")
+        #expect(write.path.hasSuffix("/rpc/review_transaction"))
+        #expect(write.body["p_transaction_id"] as? String == Self.reviewID)
+        #expect(write.body["p_note"] == nil)
     }
 }

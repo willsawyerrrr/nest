@@ -18,20 +18,20 @@ import Testing
     }
 
     @Test func groupsChildCategoriesUnderTheirParentsAlphabetically() {
-        let groups = TransactionReviewPresentation.groups(categories)
+        let groups = UpCategories.groups(categories)
         #expect(groups.map(\.name) == ["Good Life", "Home"])
         #expect(groups[0].items.map(\.id) == ["gifts-and-charity", "restaurants-and-cafes"])
     }
 
     @Test func labelsACategoryParentFirst() {
-        #expect(TransactionReviewPresentation.label(categories, "groceries") == "Home › Groceries")
-        #expect(TransactionReviewPresentation.label(categories, nil) == nil)
-        #expect(TransactionReviewPresentation.label(categories, "mystery") == "mystery")
+        #expect(UpCategories.label(categories, "groceries") == "Home › Groceries")
+        #expect(UpCategories.label(categories, nil) == nil)
+        #expect(UpCategories.label(categories, "mystery") == "mystery")
         #expect(
-            TransactionReviewPresentation.label(
+            UpCategories.label(
                 [UpCategory(id: "c", name: "Child", parentId: "gone")], "c") == "Child")
-        #expect(TransactionReviewPresentation.pickerLabel(categories, "groceries") == "Groceries")
-        #expect(TransactionReviewPresentation.pickerLabel(categories, nil) == "Uncategorised")
+        #expect(UpCategories.pickerLabel(categories, "groceries") == "Groceries")
+        #expect(UpCategories.pickerLabel(categories, nil) == "Uncategorised")
     }
 
     @Test func summarisesARow() throws {
@@ -71,18 +71,18 @@ import Testing
 
     @Test func rendersOurOwnCopyPerCode() {
         #expect(
-            TransactionReviewPresentation.errorMessage("up_rate_limited")
+            ReviewFailure.message("up_rate_limited")
                 == "Up is busy right now. Try again in a minute.")
         #expect(
-            TransactionReviewPresentation.errorMessage("up_not_connected")
+            ReviewFailure.message("up_not_connected")
                 == "Connect Up in Connections to change a category.")
         #expect(
-            TransactionReviewPresentation.errorMessage("save_failed")
+            ReviewFailure.message("save_failed")
                 == "Saved in Up, but Nest couldn't update its copy. Try again.")
         #expect(
-            TransactionReviewPresentation.errorMessage(nil) == "Could not save this review. Try again.")
-        #expect(TransactionReviewPresentation.needsConnections("up_auth_failed"))
-        #expect(!TransactionReviewPresentation.needsConnections("up_rejected"))
+            ReviewFailure.message(nil) == "Could not save this review. Try again.")
+        #expect(ReviewFailure.needsConnections("up_auth_failed"))
+        #expect(!ReviewFailure.needsConnections("up_rejected"))
     }
 
     @Test func acceptsOnlyAUUIDAsTheFocus() {

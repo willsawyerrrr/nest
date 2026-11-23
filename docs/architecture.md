@@ -327,7 +327,9 @@ channel:
   transaction it acts on), which `_shared/apns.ts` sends as `aps.category` and
   `transactionId` and Web Push omits; `gift_candidate_new` carries the
   `gift_candidate` category, whose actions link the candidate (opening Gifts) or
-  set it aside as not a gift. Like a
+  set it aside as not a gift, and `transaction_review` the `transaction_review`
+  category, whose Looks right action marks the transaction reviewed and whose
+  expanded view picks another Up category. Like a
   subscription, a token is readable and deletable only by its member.
 - `push-key` returns the VAPID public key for
   `pushManager.subscribe({ applicationServerKey })`. Serving it beats baking it
@@ -417,7 +419,12 @@ channel:
   skip is logged. A transaction a gift purchase links is never prompted. The
   trigger is opt-in: an absent preference row means off, and the same toggle
   shows the Summary's "N to review" card. The payload is `<merchant> · <amount>`
-  / `<Up category> — right category?`, opening `/transactions/review?id=<id>`.
+  / `<Up category> — right category?`, opening `/transactions/review?id=<id>`,
+  with the `transaction_review` native action, so on iOS the member answers
+  from the notification: **Looks right** marks it reviewed, and expanding it
+  lists Up's categories, a pick calling `up-categorise` then
+  `review_transaction` as the review screen does (see
+  [`ios.md`](ios.md#notification-content-extension)).
 - VAPID setup and rotation, and the iOS install/version requirements, are in
   [`operations.md`](operations.md#web-push-vapid-keypair-setup); the APNs auth key
   setup is in [`operations.md`](operations.md#apns-auth-key-setup).

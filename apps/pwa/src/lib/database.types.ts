@@ -97,6 +97,7 @@ export type Database = {
           external_id: string | null
           household_id: string
           id: string
+          ledger_resync_pending: boolean
           name: string
           owner_member_id: string | null
           source: Database['public']['Enums']['ledger_source']
@@ -112,6 +113,7 @@ export type Database = {
           external_id?: string | null
           household_id: string
           id?: string
+          ledger_resync_pending?: boolean
           name: string
           owner_member_id?: string | null
           source?: Database['public']['Enums']['ledger_source']
@@ -126,6 +128,7 @@ export type Database = {
           external_id?: string | null
           household_id?: string
           id?: string
+          ledger_resync_pending?: boolean
           name?: string
           owner_member_id?: string | null
           source?: Database['public']['Enums']['ledger_source']

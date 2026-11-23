@@ -73,7 +73,7 @@ struct TransactionDeductionDraft: Hashable, Sendable {
     let transactionID: String
     let description: String
     let amountCents: Int
-    /// The local `yyyy-MM-dd` date the transaction posted.
+    /// The local `yyyy-MM-dd` date the payment was made.
     let date: String
 
     init(transactionID: String, description: String, amountCents: Int, date: String) {

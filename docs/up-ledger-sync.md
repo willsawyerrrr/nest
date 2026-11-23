@@ -109,7 +109,7 @@ transaction's category and tags and for webhooks:
 
 - **List:** `GET /transactions` and `GET /accounts/{id}/transactions`, newest
   first. Params: `page[size]`, `filter[since]` / `filter[until]` (RFC-3339, both
-  bounding `createdAt` — not `settledAt`, so not `posted_at`),
+  bounding `createdAt`, which `posted_at` holds),
   `filter[status]` (`HELD`/`SETTLED`), `filter[category]`, `filter[tag]`.
   Pagination is opaque cursors in `links.next` — follow until `null`, never
   construct URLs.
@@ -173,6 +173,10 @@ through both partners' tokens is read once per run, through the first.
   read, and a bound on the first run's volume. Because the mark is per account,
   an account newly visible to a member backfills even when their others are
   current, and an empty account costs one empty page.
+- An account with `ledger_resync_pending` re-reads from that same backfill start
+  instead of its mark, re-landing every row it holds, and the flag clears once
+  the rows land. A migration sets it to rewrite stored rows after a mapping
+  change, without manual SQL.
 
 **Gift rescan.** The per-account mark never revisits a transaction behind it, and
 a transaction's category is not part of any cursor Up offers — no `updatedAt`, no
@@ -286,7 +290,7 @@ the household's own note, prefilled from `notes`, with three actions:
 An outflow (negative `amount_cents`) with no deduction yet also offers **Create
 deduction**, opening `/deductions?transaction=<id>` on the Deductions screen:
 the signed-in member's add form, prefilled with the transaction's description
-(or `Card purchase` when unnamed), its absolute amount, its local posting date,
+(or `Card purchase` when unnamed), its absolute amount, its local payment date,
 and the financial year that date falls in. The member picks the category,
 basis, and work use as usual; a donation still files into the Donations group,
 and a receipt can still be attached. Saving stores `deduction.transaction_id`.
@@ -387,7 +391,7 @@ lookup it takes is resolved in the sync layer, so the mapper stays I/O-free:
 | `household_id` | from the resolved account |
 | `member_id` | the resolved account's `owner_member_id` (null for joint — attribution mirrors the account) |
 | `amount_cents` | `tx.attributes.amount.valueInBaseUnits` (already signed) |
-| `posted_at` | `settledAt ?? createdAt` |
+| `posted_at` | `createdAt` — when the payment was made; settlement never moves it |
 | `description` | `tx.attributes.description` |
 | `status` | `SETTLED`→`settled`, `HELD`→`pending` |
 | `kind` | `transferAccount` set → `transfer`; else `amount < 0` → `expense`, else `income` |
@@ -416,8 +420,9 @@ labels, max 6) have no column; the gift use case is served by the category
 instead, so tags stay unmapped.
 
 **Pending vs settled.** Both are persisted. A `HELD` transaction lands as
-`pending` with `posted_at = createdAt`; when it settles, the next poll upserts it
-to `settled` with `posted_at = settledAt`. A hold Up drops without settling
+`pending`; when it settles, the webhook or the next poll upserts it to
+`settled`. `posted_at` is `createdAt` throughout, so a transaction is always
+dated by when the payment was made. A hold Up drops without settling
 (`TRANSACTION_DELETED`) is deleted by its webhook delivery, or by the gift rescan
 in the gift category; one whose delivery never arrives stays `pending`. The UI
 and reconciliation can then choose whether to count pending spend (an open

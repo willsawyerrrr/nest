@@ -265,7 +265,7 @@ Owned by a breakdown; every breakdown is generic.
   (`From your card (n)`, dropping the count where every row has been set aside), which
   is the signal that there is anything to act on. Each row is a compact list row:
   the transaction's description (or "Card purchase" where Up gives none) over its
-  posting date, the amount as an aligned figure, and two icon actions (**Link to a
+  payment date, the amount as an aligned figure, and two icon actions (**Link to a
   gift**, **Not a gift**). While the transaction is still `HELD` and its amount can
   change on settlement, the row carries a `Pending` pill and a caption saying so.
   - **Link to a gift** opens an inline form under the row: a **Recipient** picker, then an

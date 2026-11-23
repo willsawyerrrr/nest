@@ -53,7 +53,7 @@ export function DeductionsSection() {
       : null
   }, [transactionId, requestedSource.transactions, deducted.ids])
 
-  // The form saves on the year its transaction was posted in, so the screen moves
+  // The form saves on the year its payment was made in, so the screen moves
   // there once when the transaction arrives and leaves the year alone after.
   const draftYear = fromTransaction?.financialYear
   const [arrivedYear, setArrivedYear] = useState<number | undefined>(undefined)

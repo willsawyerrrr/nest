@@ -28,7 +28,7 @@ describe('giftCandidates', () => {
     ])
   })
 
-  it('dates a candidate by the local calendar day the transaction posted', () => {
+  it('dates a candidate by the local calendar day the payment was made', () => {
     // Built from local noon, so the local date holds in every timezone.
     const posted = makeGiftTransaction({ posted_at: new Date(2026, 10, 20, 12).toISOString() })
     expect(giftCandidates([posted], [], [])[0]?.postedOn).toBe('2026-11-20')

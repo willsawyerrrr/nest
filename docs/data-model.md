@@ -997,7 +997,10 @@ null; Up's own taxonomy is mirrored in `up_category`.
     `deleted_from_source_at` (nullable — set by `up-sync` or `redbark-sync`
     when the source stops
     reporting a still-referenced account, cleared if it reappears; the PWA shows
-    such an account as "Deleted at source"), `created_at`, `updated_at`.
+    such an account as "Deleted at source"), `ledger_resync_pending` (default
+    `false` — when set, `up-sync`'s next ledger pass for the account re-reads
+    from the backfill start, re-landing every row, then clears it),
+    `created_at`, `updated_at`.
   - `unique (source, external_id)` is the sync's dedupe key — global rather than
     household-scoped, since an Up account id is globally unique and a joint
     account seen by both partners must collapse to the one shared row.
@@ -1060,7 +1063,8 @@ null; Up's own taxonomy is mirrored in `up_category`.
 - **transactions** — a single ledger entry.
   - `id`, `household_id`, `account_id`, `member_id` (nullable, attribution),
     `category_id` (nullable), `external_category` (nullable),
-    `external_category_since`, `external_parent_category`, `posted_at`,
+    `external_category_since`, `external_parent_category`, `posted_at` (when
+    the payment was made — Up's `createdAt`, unmoved by settlement),
     `amount_cents` (signed, negative = outflow), `description`,
     `kind` (`income` | `expense` | `transfer`),
     `status` (`pending` | `settled`), `source` (`up` | `manual`),

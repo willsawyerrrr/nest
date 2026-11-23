@@ -129,11 +129,18 @@ Deno.serve(async (request) => {
     listSyncedAccounts: async (externalIds: string[]) => {
       const { data, error } = await supabase
         .from('accounts')
-        .select('id, external_id, household_id, owner_member_id')
+        .select('id, external_id, household_id, owner_member_id, ledger_resync_pending')
         .eq('source', 'up')
         .in('external_id', externalIds)
       if (error) throw new Error(`Failed to resolve synced accounts: ${error.message}`)
       return data ?? []
+    },
+    clearLedgerResync: async (accountId: string) => {
+      const { error } = await supabase
+        .from('accounts')
+        .update({ ledger_resync_pending: false })
+        .eq('id', accountId)
+      if (error) throw new Error(`Failed to clear the ledger resync: ${error.message}`)
     },
     latestPostedAt: async (accountId: string) => {
       const { data, error } = await supabase

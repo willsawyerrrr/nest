@@ -92,7 +92,7 @@ Deno.test('isReviewable takes a fresh, categorisable, unreviewed first sight, pe
     ),
     false,
   )
-  // A hold that settled after it was first seen.
+  // Up's clock a little ahead of the ledger's.
   assertEquals(isReviewable(tx({ posted_at: '2026-11-21T08:50:00Z' }), NOW), true)
 })
 

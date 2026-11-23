@@ -139,7 +139,9 @@ function deps(overrides: Partial<SyncDeps> = {}): SyncDeps {
         id: `local-${externalId}`,
         household_id: 'h-1',
         owner_member_id: 'm-1',
+        ledger_resync_pending: false,
       }))),
+    clearLedgerResync: () => Promise.resolve(),
     latestPostedAt: () => Promise.resolve(null),
     listAccountTransactions: () => Promise.resolve([]),
     listGiftTransactions: () => Promise.resolve([]),
@@ -428,6 +430,59 @@ Deno.test('runSync lands each account from its own high-water mark', async () =>
   assertEquals(result.transactions, 2)
 })
 
+Deno.test('runSync re-reads an account pending a resync from the backfill start', async () => {
+  const polled: { accountId: string; since: string }[] = []
+  const cleared: string[] = []
+  await runSync(deps({
+    listAccounts: () => Promise.resolve([account({}, 'acc-1'), account({}, 'acc-2')]),
+    listSyncedAccounts: (externalIds) =>
+      Promise.resolve(externalIds.map((externalId) => ({
+        external_id: externalId,
+        id: `local-${externalId}`,
+        household_id: 'h-1',
+        owner_member_id: 'm-1',
+        ledger_resync_pending: externalId === 'acc-1',
+      }))),
+    latestPostedAt: () => Promise.resolve('2026-11-19T12:00:00Z'),
+    listAccountTransactions: (_token, accountId, since) => {
+      polled.push({ accountId, since: since.toISOString() })
+      return Promise.resolve([])
+    },
+    clearLedgerResync: (accountId) => {
+      cleared.push(accountId)
+      return Promise.resolve()
+    },
+  }))
+
+  assertEquals(polled, [
+    { accountId: 'acc-1', since: backfillStart().toISOString() },
+    { accountId: 'acc-2', since: '2026-11-18T12:00:00.000Z' },
+  ])
+  assertEquals(cleared, ['local-acc-1'])
+})
+
+Deno.test('runSync keeps a resync pending when its rows fail to land', async () => {
+  const cleared: string[] = []
+  await runSync(deps({
+    listSyncedAccounts: (externalIds) =>
+      Promise.resolve(externalIds.map((externalId) => ({
+        external_id: externalId,
+        id: `local-${externalId}`,
+        household_id: 'h-1',
+        owner_member_id: 'm-1',
+        ledger_resync_pending: true,
+      }))),
+    listAccountTransactions: () => Promise.resolve([transaction('tx-1', 'acc-1', 'groceries')]),
+    syncTransactions: () => Promise.reject(new Error('db down')),
+    clearLedgerResync: (accountId) => {
+      cleared.push(accountId)
+      return Promise.resolve()
+    },
+  }))
+
+  assertEquals(cleared, [])
+})
+
 Deno.test('runSync lands a joint account once, through the first token that sees it', async () => {
   const sam: ConnectedMember = { memberId: 'm-2', householdId: 'h-1', name: 'Sam' }
   const joint = account({ ownershipType: 'JOINT', displayName: '2Up' }, 'joint-1')
@@ -461,7 +516,7 @@ Deno.test('runSync lands an account oldest first, so a failed batch leaves a saf
   const newer = { ...transaction('tx-newer') }
   const older = {
     ...transaction('tx-older'),
-    attributes: { ...transaction('tx-older').attributes, settledAt: '2026-05-01T09:00:00+10:00' },
+    attributes: { ...transaction('tx-older').attributes, createdAt: '2026-05-01T08:00:00+10:00' },
   }
   await runSync(deps({
     // Up lists newest first.
@@ -481,6 +536,7 @@ Deno.test('runSync skips a transaction on an account the pass did not sync', asy
         id: 'local-acc-1',
         household_id: 'h-1',
         owner_member_id: 'm-1',
+        ledger_resync_pending: false,
       }]),
     listAccountTransactions: () =>
       Promise.resolve([transaction('tx-1'), transaction('tx-2', 'acc-unsynced')]),

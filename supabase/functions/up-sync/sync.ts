@@ -117,6 +117,15 @@ export function ledgerSince(latestPostedAt: string | null, now: Date = new Date(
     : new Date(Date.parse(latestPostedAt) - LEDGER_OVERLAP_HOURS * MILLISECONDS_PER_HOUR)
 }
 
+/** A synced account as the ledger pass reads it. */
+export interface LedgerAccount extends SyncedAccount {
+  /**
+   * Whether the account's next ledger pass re-reads from {@link backfillStart}
+   * rather than its high-water mark, re-landing every row it holds.
+   */
+  ledger_resync_pending: boolean
+}
+
 /** A connected member and the household its accounts belong to. */
 export interface ConnectedMember {
   memberId: string
@@ -193,7 +202,9 @@ export interface SyncDeps {
    */
   reconcileJointAccounts: (reconcile: JointAccountReconcile) => Promise<void>
   /** Resolves the local ledger rows for the given Up account ids. */
-  listSyncedAccounts: (externalIds: string[]) => Promise<SyncedAccount[]>
+  listSyncedAccounts: (externalIds: string[]) => Promise<LedgerAccount[]>
+  /** Clears an account's `ledger_resync_pending` once its re-read has landed. */
+  clearLedgerResync: (accountId: string) => Promise<void>
   /**
    * The latest `posted_at` of a local account's synced Up transactions outside
    * the gift category, or null when it has none. Gift-category rows are left
@@ -336,7 +347,9 @@ function mapTransactions(
  * high-water mark ({@link ledgerSince}), returning how many it carried. Each
  * account resumes from its own mark, so an account newly visible to the member
  * is backfilled even when their others are current, and an account with no
- * transactions costs one empty page. An account already settled this run
+ * transactions costs one empty page. An account with `ledger_resync_pending`
+ * re-reads from {@link backfillStart} instead, refreshing every row it holds,
+ * and the flag clears once those rows have landed. An account already settled this run
  * (`settled`, a joint account seen through a partner's token) is skipped, and
  * one joins `settled` only once its rows have landed.
  */
@@ -344,7 +357,7 @@ async function syncLedger(
   deps: SyncDeps,
   member: ConnectedMember,
   token: string,
-  accounts: ReadonlyMap<string, SyncedAccount>,
+  accounts: ReadonlyMap<string, LedgerAccount>,
   settled: Set<string>,
   now: Date,
   inserted: string[],
@@ -352,13 +365,16 @@ async function syncLedger(
   let landed = 0
   for (const account of accounts.values()) {
     if (settled.has(account.id)) continue
-    const since = ledgerSince(await deps.latestPostedAt(account.id), now)
+    const since = account.ledger_resync_pending
+      ? backfillStart(now)
+      : ledgerSince(await deps.latestPostedAt(account.id), now)
     const transactions = await deps.listAccountTransactions(token, account.external_id, since)
     // Oldest first, so a run that fails between batches leaves the mark at the
     // newest row it landed and the next run re-reads everything after it.
     const rows = mapTransactions(transactions, accounts)
       .sort((a, b) => Date.parse(a.posted_at) - Date.parse(b.posted_at))
     landed += await landTransactions(deps, member.householdId, rows, inserted)
+    if (account.ledger_resync_pending) await deps.clearLedgerResync(account.id)
     settled.add(account.id)
   }
   return landed
@@ -565,7 +581,7 @@ export async function runSync(
       console.error(`Account reconcile failed for member ${member.memberId}:`, error)
     }
 
-    let synced: Map<string, SyncedAccount>
+    let synced: Map<string, LedgerAccount>
     try {
       const rows = await deps.listSyncedAccounts(externalIds)
       synced = new Map(rows.map((account) => [account.external_id, account]))

@@ -151,8 +151,11 @@ documentation, and `ExtractionEval facts` run on macOS 27.2.1 (Xcode 27.2).
 `haiku.ts <dir>` runs the production extractors' prompts, tools and field
 readers on Haiku 4.5, Haiku 5.5, Sonnet 5.5, Opus 5.5 and Fable 5.2. Opus 5.5,
 Sonnet 5.5 and Fable 5.2 reject a forced `tool_choice`, so every arm, Haiku 4.5
-included, gets a `strict` tool, `tool_choice: auto` and a system instruction
-naming the tool. No `temperature`, `top_p` or `top_k` is sent. Haiku 5.5, Sonnet
+included, gets a tool, `tool_choice: auto` and a system instruction naming the
+tool. The receipt and trade tools are `strict`; the payslip tool is not, as its
+schema has more union-typed parameters (19) than the API allows in a strict
+tool (16). Validators are unchanged, and each result file's `meta.strict` records
+which extractors were sent `strict`. No `temperature`, `top_p` or `top_k` is sent. Haiku 5.5, Sonnet
 5.5 and Opus 5.5 send adaptive thinking; Fable thinks always and takes no
 `thinking` parameter; every 5.x arm sets `output_config.effort` explicitly.
 Thinking arms get 8,000 output tokens beyond the production cap.

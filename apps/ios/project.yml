@@ -172,6 +172,35 @@ targets:
         DEVELOPMENT_TEAM: 8558CXPT9G
         APPLICATION_EXTENSION_API_ONLY: true
 
+  # Runs the Foundation Models extraction harness (`evals/foundation-models`) on
+  # device, signed so the on-device and Private Cloud Compute arms can run.
+  # Shares the harness sources with the command-line tool, minus its entry point.
+  NestEval:
+    type: application
+    platform: iOS
+    deploymentTarget: '27.0'
+    sources:
+      - path: NestEval
+      - path: ../../evals/foundation-models/Sources/ExtractionEval
+        excludes:
+          - main.swift
+    info:
+      path: NestEval/Info.plist
+      properties:
+        CFBundleDisplayName: Nest Eval
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        ITSAppUsesNonExemptEncryption: false
+        UILaunchScreen: {}
+        # Shows Documents (the corpus in, `results/` out) in the Files app.
+        UIFileSharingEnabled: true
+        LSSupportsOpeningDocumentsInPlace: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.willsawyerrrr.nest-eval
+        PRODUCT_NAME: Nest Eval
+        DEVELOPMENT_TEAM: 8558CXPT9G
+
   NestTests:
     type: bundle.unit-test
     platform: iOS
@@ -287,6 +316,12 @@ targets:
         BUNDLE_LOADER: $(TEST_HOST)
 
 schemes:
+  NestEval:
+    build:
+      targets:
+        NestEval: all
+    run:
+      config: Debug
   Nest:
     build:
       targets:

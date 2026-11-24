@@ -453,7 +453,7 @@ before spending.
 | Arm              | Blocker                                                                                                                                                           |
 | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | On-device Mac    | None; runs on macOS 27.2 today                                                                                                                                    |
-| On-device iPhone | A host app (test target) to run the harness on device; eligible device on iOS 27 and iOS 26.4; Apple Intelligence on; eligibility list is unconfirmed             |
+| On-device iPhone | The `Nest Eval` host app exists; eligible device on iOS 27 and iOS 26.4; Apple Intelligence on; eligibility list is unconfirmed             |
 | PCC              | Managed entitlement (the unsigned command-line tool fails with `ModelManagerError` 1046, untested as the cause); a signed host app; per-user quotas bound repeats |
 | Haiku 4.5, 5.5   | An Anthropic API key (none was available for the first run); Haiku 5.5 behaviour with the production tool schema unverified                                       |
 | Sonnet, Opus     | API key                                                                                                                                                           |

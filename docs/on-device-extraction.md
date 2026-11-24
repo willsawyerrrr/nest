@@ -110,6 +110,25 @@ warm-up, else `warm`), `thermalState`, `lowPowerMode`, `osBuild`, `osVersion`,
 The Vision OCR model downloads on first use, taking about 80 seconds, so a
 first `ocr` run looks hung.
 
+### Eval host app
+
+`Nest Eval` (`apps/ios/NestEval`, bundle id `dev.willsawyerrrr.nest-eval`, the
+`NestEval` scheme) is a signed iOS 27 app that compiles the command-line
+tool's sources (everything but `main.swift`) and runs the same harness on
+device, which the unsigned tool cannot do for Private Cloud Compute (`ModelManagerError`
+1046). Its Documents folder is the run directory: import the rendered corpus
+folder (`corpus.json`, `strata.json`, `manifest.json`, `files/`) with the
+app's Import button or by copying it into Nest Eval in the Files app. The app
+runs the selected models, input paths and sampling modes with `--repeats`,
+`--only` and `--cross` equivalents, and writes `results/fm-<model>-<path>.json`
+in the same format, plus `results/run-<time>.json` recording hardware, OS,
+corpus hash and every arm's outcome. Share a result from the app's list, or
+collect `results/` from the Files app.
+
+The PCC arm checks `PrivateCloudComputeLanguageModel().availability` first;
+until the managed entitlement is granted it writes the results file with an
+`armError` and no documents, so the failure is recorded.
+
 ## Confirmed against the SDK
 
 Source: the iOS 27.2 SDK's `FoundationModels` module interface, the Xcode

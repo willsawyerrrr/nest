@@ -53,12 +53,15 @@ struct RunResult {
   var error: String?
   var ms: Int
   var promptTokens: Int?
+  /// `corrupt` or `encrypted` when the PDF could not be opened, so no model ran.
+  var unreadable: String?
 
   var json: [String: Any] {
     var out: [String: Any] = ["ms": ms]
     if let raw { out["raw"] = raw }
     if let error { out["error"] = error }
     if let promptTokens { out["promptTokens"] = promptTokens }
+    if let unreadable { out["unreadable"] = unreadable }
     return out
   }
 }

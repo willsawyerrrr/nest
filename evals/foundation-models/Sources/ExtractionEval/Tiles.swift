@@ -8,6 +8,11 @@ enum Tiles {
   /// Fraction of a band's height shared with its neighbour, so a row on a seam is whole in one.
   static let overlap: CGFloat = 0.1
 
+  /// The bands of every page, in page order.
+  static func bands(ofPages urls: [URL]) throws -> [CGImage] {
+    try urls.flatMap { try bands(of: $0) }
+  }
+
   /// Overlapping full-width horizontal bands, top to bottom.
   static func bands(of url: URL) throws -> [CGImage] {
     guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),

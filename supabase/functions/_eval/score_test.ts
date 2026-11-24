@@ -346,3 +346,32 @@ Deno.test('the variant report slices by profile and two-up, and is empty without
   assertEquals(table.includes('| stub | deduction | two-up |'), true)
   assertEquals(variantReport(corpus, [{ engine: 'stub', results }]), '')
 })
+
+Deno.test('an unreadable file is a correct decline of a non-document and a miss on a real one', () => {
+  const other = find('other-letter')
+  const unreadable = { unreadable: 'encrypted', ms: 1 }
+  assertEquals(scoreRun(other, 'payslip', unreadable).correct, 1)
+  assertEquals(outcomeOf(other, 'payslip', unreadable).status, 'declined')
+  const doc = receipt('receipt-1')
+  assertEquals(scoreRun(doc, 'deduction', unreadable).correct, 0)
+  const real = outcomeOf(doc, 'deduction', { unreadable: 'corrupt', ms: 1 })
+  assertEquals(real.status, 'declined')
+  assertEquals(real.fields.every((u) => u.cls === 'missing' && !u.filled), true)
+  assertEquals(
+    declineStats([
+      outcomeOf(other, 'payslip', unreadable),
+      real,
+      outcomeOf(doc, 'deduction', { error: 'x', ms: 1 }),
+    ]),
+    { negatives: 1, declinedNegatives: 1, positives: 1, declinedPositives: 1 },
+  )
+})
+
+Deno.test('the report does not count an unreadable file as a failed run', () => {
+  const other = find('other-letter')
+  const engine = {
+    engine: 'e',
+    results: { [resultKey(other.id, 'payslip')]: { unreadable: 'corrupt', ms: 1 } },
+  }
+  assertEquals(report([other], [engine]).includes('| 0/1 |'), true)
+})

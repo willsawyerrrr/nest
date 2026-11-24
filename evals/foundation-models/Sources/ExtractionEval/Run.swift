@@ -40,6 +40,7 @@ enum Run {
     dir: URL, path: InputPath, model: ModelChoice, sampling: Sampling, repeats: Int, only: Set<String>, cross: Bool = false
   ) async throws {
     let corpus = try CorpusDoc.loadAll(from: dir)
+    let files = dir.appending(path: "files")
     let device = await Device.snapshot(model)
     var results: [String: [String: Any]] = [:]
     for doc in corpus where only.isEmpty || only.contains(doc.id) {
@@ -55,10 +56,14 @@ enum Run {
           let started = ContinuousClock.now
           var result = RunResult(ms: 0)
           do {
-            let (raw, tokens) = try await extract(
-              doc, kind: kind, path: path, model: model, sampling: sampling, dir: dir)
-            result.raw = raw
-            result.promptTokens = tokens
+            if let reason = Pages.unreadable(files.appending(path: "\(doc.id).pdf")) {
+              result.unreadable = reason
+            } else {
+              let (raw, tokens) = try await extract(
+                doc, kind: kind, path: path, model: model, sampling: sampling, dir: dir)
+              result.raw = raw
+              result.promptTokens = tokens
+            }
           } catch {
             result.error = describe(error)
           }
@@ -73,7 +78,7 @@ enum Run {
           json.merge(device) { $1 }
           runs.append(json)
           print(
-            "\(doc.id):\(kind)#\(repeatIndex)", result.error ?? "ok", "\(result.ms)ms", timing, thermal,
+            "\(doc.id):\(kind)#\(repeatIndex)", result.error ?? result.unreadable.map { "unreadable(\($0))" } ?? "ok", "\(result.ms)ms", timing, thermal,
             result.promptTokens.map { "\($0) tokens" } ?? "")
         }
         // The first repeat is the result the scorer reads; `runs` holds every repeat.
@@ -102,28 +107,30 @@ enum Run {
   ) async throws -> (Any, Int?) {
     let files = dir.appending(path: "files")
     let ask = Instructions.ask(for: kind)
+    let pages = Pages.images(of: doc.id, in: files)
+    let shown = pages.count == 1 ? "The document is one page." : "The document has \(pages.count) pages, shown in order."
     let prompt: Prompt
     switch path {
     case .pdftext:
       prompt = Prompt("\(ask)\n\nDocument text:\n\(try DocumentText.pdfText(files.appending(path: "\(doc.id).pdf")))")
     case .ocr:
-      prompt = Prompt("\(ask)\n\nDocument text:\n\(try await DocumentText.ocr(files.appending(path: "\(doc.id).png")))")
+      prompt = Prompt("\(ask)\n\nDocument text:\n\(try await DocumentText.ocr(pages: pages))")
     case .image:
       prompt = Prompt {
-        ask
-        Attachment(imageURL: files.appending(path: "\(doc.id).png"))
+        "\(ask)\n\n\(shown)"
+        for page in pages { Attachment(imageURL: page) }
       }
     case .imageHires:
-      let tiles = try Tiles.bands(of: files.appending(path: "\(doc.id).png"))
+      let tiles = try Tiles.bands(ofPages: pages)
       prompt = Prompt {
-        "\(ask)\n\nThe page is shown as \(tiles.count) overlapping bands from top to bottom."
+        "\(ask)\n\n\(shown) Each page is shown as \(Tiles.count) overlapping bands from top to bottom, \(tiles.count) images in all."
         for tile in tiles { Attachment(tile) }
       }
     case .ocrImage:
-      let transcript = try await DocumentText.ocr(files.appending(path: "\(doc.id).png"))
+      let transcript = try await DocumentText.ocr(pages: pages)
       prompt = Prompt {
-        "\(ask)\n\nDocument text:\n\(transcript)"
-        Attachment(imageURL: files.appending(path: "\(doc.id).png"))
+        "\(ask)\n\n\(shown)\n\nDocument text:\n\(transcript)"
+        for page in pages { Attachment(imageURL: page) }
       }
     }
     let instructions = Instructions.text(for: kind, financialYear: doc.financialYear)
@@ -141,6 +148,11 @@ enum Run {
   ) async throws -> (Any, Int?) {
     let session = LanguageModelSession(model: model, instructions: instructions)
     let tokens = try? await tokenCount(model, kind, instructions, prompt)
+    if let tokens, let system = model as? SystemLanguageModel,
+      let message = Pages.overflow(tokens: tokens, contextSize: system.contextSize)
+    {
+      throw EvalError(message)
+    }
     switch kind {
     case "payslip":
       return (try await JSONEncoder.snake.jsonObject(session.respond(to: prompt, generating: PayslipFields.self, options: sampling.options).content), tokens)

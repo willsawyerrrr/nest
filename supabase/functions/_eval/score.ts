@@ -30,6 +30,11 @@ export interface RunResult {
   raw?: unknown
   /** Why the run failed, when it did. */
   error?: string
+  /**
+   * Set when the file could not be opened (`corrupt` or `encrypted`), so no
+   * model ran. The app rejects such a file, so it scores as a decline.
+   */
+  unreadable?: string
   ms: number
   /** Tokens in the model's prompt, where the engine reports them. */
   promptTokens?: number
@@ -186,7 +191,8 @@ function claimsKind(extractor: DocKind, raw: unknown): boolean {
 
 /**
  * Scores one run. A document of another kind is one unit: right when the engine
- * declines it. A failed run scores none of its units.
+ * declines it, as it does an unreadable file. A failed run scores none of its
+ * units.
  */
 export function scoreRun(
   doc: CorpusDoc,
@@ -198,7 +204,8 @@ export function scoreRun(
     run = { ...run, raw: acceptPrintedDates(run.raw) }
   }
   if (doc.kind !== extractor) {
-    const declined = run.raw !== undefined && !claimsKind(extractor, run.raw)
+    const declined = run.unreadable !== undefined ||
+      (run.raw !== undefined && !claimsKind(extractor, run.raw))
     return { units: 1, correct: declined ? 1 : 0, spurious: 0 }
   }
   return doc.kind === 'other' ? ZERO : scoreExpected(doc, run.raw)
@@ -517,8 +524,8 @@ function unanswered(doc: Exclude<CorpusDoc, { kind: 'other' }>): FieldOutcome[] 
 
 /**
  * Scores one run field by field. A run the app would reject as not the
- * extractor's kind (`declined`) and a run that failed or could not be read
- * (`failed`) answer none of a document's units, so each is missing.
+ * extractor's kind or whose file could not be opened (`declined`) and a run
+ * that failed or could not be read (`failed`) answer none of a document's units, so each is missing.
  */
 export function outcomeOf(
   doc: CorpusDoc & { source?: string },
@@ -538,6 +545,9 @@ export function outcomeOf(
     ...(run.confidence === undefined ? {} : { confidence: run.confidence }),
   }
   const target = doc.kind === extractor && doc.kind !== 'other' ? doc : null
+  if (run.unreadable !== undefined) {
+    return { ...base, status: 'declined', fields: target ? unanswered(target) : [] }
+  }
   const read = run.raw === undefined ? null : readAnswer(extractor, run.raw)
   if (read === null) {
     return { ...base, status: 'failed', fields: target ? unanswered(target) : [] }

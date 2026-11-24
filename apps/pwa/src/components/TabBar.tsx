@@ -47,6 +47,10 @@ export const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
+    label: 'Review',
+    items: [{ path: '/transactions/review', label: 'To review' }],
+  },
+  {
     label: 'Grow',
     items: [
       { path: '/net-worth', label: 'Net worth' },

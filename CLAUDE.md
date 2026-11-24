@@ -1043,7 +1043,7 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   from `up_category`, Up's taxonomy that `up-sync` refreshes each run, and never
   a transaction Up marks uncategorisable) and records it on the row at once, so
   a move into gifts reaches the inbox without waiting for a sync. The review
-  screen (`/transactions/review`, no nav entry, `?id=` focusing one
+  screen (`/transactions/review`, To review in the nav's Review group, `?id=` focusing one
   transaction) lists a member's unreviewed, categorisable Up transactions (pay,
   interest, transfers and covers arrive reviewed) to
   confirm ("Looks right"), recategorise and annotate ("Save"), or file as a gift

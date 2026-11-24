@@ -90,7 +90,13 @@ describe('TabBar', () => {
     for (const group of NAV_GROUPS) {
       expect(groupHeader(group.label)).toBeVisible()
     }
-    expect(NAV_GROUPS.map((group) => group.label)).toEqual(['Plan', 'Grow', 'Tax', 'Settings'])
+    expect(NAV_GROUPS.map((group) => group.label)).toEqual([
+      'Plan',
+      'Review',
+      'Grow',
+      'Tax',
+      'Settings',
+    ])
 
     // Summary is a link in its own right, never folded into a group's list.
     const summary = screen.getByRole('link', { name: 'Summary' })
@@ -106,7 +112,7 @@ describe('TabBar', () => {
     expect(groupHeader('Plan')).toHaveAttribute('aria-expanded', 'true')
     expect(screen.getByRole('link', { name: 'Budget' })).toBeVisible()
 
-    for (const label of ['Grow', 'Tax', 'Settings']) {
+    for (const label of ['Review', 'Grow', 'Tax', 'Settings']) {
       expect(groupHeader(label)).toHaveAttribute('aria-expanded', 'false')
     }
     expect(screen.getByText('Net worth')).not.toBeVisible()
@@ -212,12 +218,12 @@ describe('TabBar', () => {
 
     expect(groupHeader('Grow')).toHaveAttribute('aria-expanded', 'false')
 
-    // Ninth in flattened order: Summary, then Plan's five, then Net worth, Accounts, Goals.
-    await user.keyboard('{Control>}9{/Control}')
+    // Eighth in flattened order: Summary, Plan's five, To review, then Net worth.
+    await user.keyboard('{Control>}8{/Control}')
 
-    expect(pathname()).toBe('/goals')
+    expect(pathname()).toBe('/net-worth')
     expect(groupHeader('Grow')).toHaveAttribute('aria-expanded', 'true')
-    expect(screen.getByRole('link', { name: 'Goals' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('link', { name: 'Net worth' })).toHaveAttribute('aria-current', 'page')
   })
 
   it('cycles to the next tab on mod+shift+ArrowRight', async () => {
@@ -235,8 +241,8 @@ describe('TabBar', () => {
 
     await user.keyboard('{Control>}{Shift>}{ArrowRight}{/Shift}{/Control}')
 
-    expect(pathname()).toBe('/net-worth')
-    expect(groupHeader('Grow')).toHaveAttribute('aria-expanded', 'true')
+    expect(pathname()).toBe('/transactions/review')
+    expect(groupHeader('Review')).toHaveAttribute('aria-expanded', 'true')
     expect(groupHeader('Plan')).toHaveAttribute('aria-expanded', 'false')
   })
 
@@ -383,6 +389,7 @@ describe('flattenNavItems', () => {
       '/breakdowns',
       '/gifts',
       '/splits',
+      '/transactions/review',
       '/net-worth',
       '/accounts',
       '/goals',

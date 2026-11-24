@@ -47,8 +47,7 @@ route and `⇧⌘←` / `⇧⌘→` cycle through them.
 
 `Route` (`Route.swift`) is the single route registry: it enumerates every PWA
 path, its `NavSection` groups (Summary, Plan, Review, Grow, Tax, Settings) mirror the
-PWA's `NAV_SECTIONS` plus Review, which holds the native-only Transactions and
-To review entries (the PWA has neither in its nav), and `planning`, `allowance` and `whatsNew` sit outside the
+PWA's `NAV_SECTIONS`, Review holding Transactions and To review, and `planning`, `allowance` and `whatsNew` sit outside the
 nav (Planning is reached from the planning banner and the Planning mode settings
 screen; What's new from the header button). A screen is registered by adding or
 editing its `Route` case and `content`; the chrome reads the registry and never

@@ -1,6 +1,8 @@
+import type { ReactElement } from 'react'
+import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { setBudgetDraft, takeBudgetDraft } from '../lib/promoteDraft'
-import { act, render, screen } from '../test/render'
+import { act, render, screen, waitFor } from '../test/render'
 import { BudgetSection } from './BudgetSection'
 
 const hooks = vi.hoisted(() => ({
@@ -18,6 +20,14 @@ const hooks = vi.hoisted(() => ({
     member: { id: 'm1' } as { id: string } | null,
   })),
   usePlanningMode: vi.fn(() => ({ active: false })),
+  useInflows: vi.fn(() => ({
+    loading: false,
+    baselineInflows: [
+      { type: 'salary', paid_on: null, pay_anchor_date: '2026-11-12' },
+    ] as unknown[],
+  })),
+  useActualSpend: vi.fn(),
+  categoryGroups: { categories: [], setGroup: vi.fn(), resetGroup: vi.fn() },
   derivedEditor: vi.fn(),
   screenProps: null as Record<string, unknown> | null,
 }))
@@ -42,6 +52,10 @@ vi.mock('../hooks/useMemberAllowances', () => ({
 vi.mock('../hooks/useDerivedLineEditor', () => ({
   useDerivedLineEditor: () => hooks.derivedEditor,
 }))
+vi.mock('../hooks/useNow', () => ({ useNow: () => new Date(2026, 10, 20) }))
+vi.mock('../hooks/useInflows', () => ({ useInflows: hooks.useInflows }))
+vi.mock('../hooks/useActualSpend', () => ({ useActualSpend: hooks.useActualSpend }))
+vi.mock('../hooks/useCategoryGroups', () => ({ useCategoryGroups: () => hooks.categoryGroups }))
 vi.mock('../components/PlanningModeProvider', () => ({ usePlanningMode: hooks.usePlanningMode }))
 vi.mock('../components/BudgetScreen', () => ({
   BudgetScreen: (props: Record<string, unknown>) => {
@@ -165,5 +179,65 @@ describe('BudgetSection', () => {
     expect(hooks.screenProps?.allowances).toEqual([{ id: 'al1', member_id: 'm1' }])
     expect(hooks.screenProps?.currentMemberId).toBe('m1')
     expect(hooks.screenProps?.onUpdateAllowance).toBe(update)
+  })
+
+  it('reconciles the pay-cycle fortnight holding today and steps through earlier ones', async () => {
+    const user = userEvent.setup()
+    loadedHooks()
+    const groups = { needs: 1_00, wants: 0, discretionary: 0, savings: 0, investments: 0 }
+    hooks.useActualSpend.mockReturnValue({ groups, unbudgeted: 5_00 })
+    render(<BudgetSection />)
+
+    expect(hooks.useActualSpend).toHaveBeenLastCalledWith(
+      { periodStart: '2026-11-12', periodEnd: '2026-11-25' },
+      false,
+    )
+    expect(hooks.screenProps?.actualByGroup).toBe(groups)
+
+    render(hooks.screenProps!.actualSpendBar as ReactElement)
+    await user.click(screen.getByRole('button', { name: 'Previous fortnight' }))
+    expect(hooks.useActualSpend).toHaveBeenLastCalledWith(
+      { periodStart: '2026-10-29', periodEnd: '2026-11-11' },
+      false,
+    )
+
+    const bar = hooks.screenProps!.actualSpendBar as ReactElement<{ onNext: () => void }>
+    act(() => bar.props.onNext())
+    expect(hooks.useActualSpend).toHaveBeenLastCalledWith(
+      { periodStart: '2026-11-12', periodEnd: '2026-11-25' },
+      false,
+    )
+  })
+
+  it('counts pending spend once asked', async () => {
+    const user = userEvent.setup()
+    loadedHooks()
+    hooks.useActualSpend.mockReturnValue(null)
+    render(<BudgetSection />)
+
+    const { unmount } = render(hooks.screenProps!.actualSpendBar as ReactElement)
+    await user.click(screen.getByRole('switch', { name: 'Include pending' }))
+    expect(hooks.useActualSpend).toHaveBeenLastCalledWith(
+      { periodStart: '2026-11-12', periodEnd: '2026-11-25' },
+      true,
+    )
+    unmount()
+    expect(hooks.screenProps?.actualByGroup).toBeUndefined()
+  })
+
+  it('opens the category groups map', async () => {
+    const user = userEvent.setup()
+    loadedHooks()
+    hooks.useActualSpend.mockReturnValue(null)
+    render(<BudgetSection />)
+
+    expect(screen.queryByRole('dialog', { name: 'Category groups' })).not.toBeInTheDocument()
+    render(hooks.screenProps!.actualSpendBar as ReactElement)
+    await user.click(screen.getByRole('button', { name: 'Category groups' }))
+    expect(await screen.findByRole('dialog', { name: 'Category groups' })).toBeInTheDocument()
+    await user.keyboard('{Escape}')
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Category groups' })).not.toBeInTheDocument(),
+    )
   })
 })

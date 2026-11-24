@@ -37,6 +37,8 @@ interface BudgetLineListProps {
   ownAllowanceMemberId?: string | null
   /** Rendered at the top of the Discretionary group, above its lines. */
   discretionaryHeader?: ReactNode
+  /** Each group's actual spend this fortnight, shown against its subtotal; omitted while loading. */
+  actualByGroup?: Record<BudgetGroup, number> | undefined
   /** The household's generic breakdowns; a line sourced from one links through to it and seeds its editor. */
   breakdowns?: { id: string; name: string; line_group: BudgetGroup }[]
   onCreate: (input: BudgetLineInput) => Promise<void>
@@ -78,6 +80,7 @@ export function BudgetLineList({
   allowances = [],
   ownAllowanceMemberId = null,
   discretionaryHeader,
+  actualByGroup,
   breakdowns = [],
   onCreate,
   onUpdate,
@@ -262,7 +265,12 @@ export function BudgetLineList({
           return null
         }
         return (
-          <GroupSection key={group} title={label} subtotalCents={subtotal}>
+          <GroupSection
+            key={group}
+            title={label}
+            subtotalCents={subtotal}
+            actualCents={actualByGroup?.[group]}
+          >
             {group === 'discretionary' && !searching && discretionaryHeader}
             {!searching && groupLines.length === 0 && addingGroup !== group && (
               <EmptyState>No {label.toLowerCase()} items yet.</EmptyState>

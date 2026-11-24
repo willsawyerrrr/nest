@@ -34,6 +34,15 @@ function renderScreen(overrides: Partial<Parameters<typeof BudgetScreen>[0]> = {
 }
 
 describe('BudgetScreen', () => {
+  it('renders the actual-spend bar and each group’s spend against its subtotal', () => {
+    renderScreen({
+      actualSpendBar: <div>Spend bar</div>,
+      actualByGroup: { needs: 12_00, wants: 0, discretionary: 0, savings: 0, investments: 0 },
+    })
+    expect(screen.getByText('Spend bar')).toBeInTheDocument()
+    expect(screen.getByLabelText('Needs actual spend')).toHaveTextContent('$12.00 spent')
+  })
+
   it('renders the budget-line list and the temporary-item list', () => {
     renderScreen()
     expect(screen.getByRole('heading', { name: 'Budget' })).toBeInTheDocument()

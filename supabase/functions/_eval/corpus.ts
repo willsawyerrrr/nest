@@ -10,9 +10,12 @@
  *
  * `deno run --allow-write corpus.ts <dir>` writes `<dir>/corpus.json` (the clean
  * tier T0) and `<dir>/manifest.json` (the seeded noisy variants, see `noise.ts`).
+ * With `--strata` it also writes `<dir>/strata.json`, the layout, locale,
+ * long-statement and adversarial strata of tier T1 (see `strata.ts`).
  */
 
 import { buildManifest } from './noise.ts'
+import { buildStrata } from './strata.ts'
 import type { RawDeductionFields } from '../deduction-extract/fields.ts'
 import type { RawPayslipFields, RawPayslipTaxLine } from '../payslip-extract/fields.ts'
 import type { RawTrade, RawTradeDocument } from '../trade-extract/fields.ts'
@@ -27,6 +30,16 @@ interface BaseDoc {
   /** The financial year the extractor is told the document is being added to. */
   financialYear: number
   rows: Row[]
+  /** Row indices where a new page starts; absent for a one-page document. */
+  pageBreaks?: number[]
+  /** Spoils the rendered file: no text layer, a truncated PDF or a password. */
+  fault?: 'imageOnly' | 'corrupt' | 'encrypted'
+  /** The stratum, as `<type>/<layout>`; strata documents only. */
+  stratum?: string
+  /** The locale the dates and amounts are printed in; strata documents only. */
+  locale?: string
+  /** The source layout instance the document varies; clusters the bootstrap. */
+  source?: string
 }
 
 export type CorpusDoc =
@@ -366,10 +379,13 @@ export function buildCorpus(): CorpusDoc[] {
 }
 
 if (import.meta.main) {
-  const dir = Deno.args[0]
-  if (!dir) throw new Error('usage: corpus.ts <output dir>')
+  const dir = Deno.args.find((arg) => !arg.startsWith('--'))
+  if (!dir) throw new Error('usage: corpus.ts <output dir> [--strata]')
   await Deno.mkdir(dir, { recursive: true })
   const corpus = buildCorpus()
   await Deno.writeTextFile(`${dir}/corpus.json`, JSON.stringify(corpus, null, 2))
   await Deno.writeTextFile(`${dir}/manifest.json`, JSON.stringify(buildManifest(corpus), null, 2))
+  if (Deno.args.includes('--strata')) {
+    await Deno.writeTextFile(`${dir}/strata.json`, JSON.stringify(buildStrata(), null, 2))
+  }
 }

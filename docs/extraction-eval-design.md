@@ -81,6 +81,39 @@ Variants within each type: dates as `DD/MM/YYYY`, `5 Mar 2025`, `05-03-25` and
 US order; `$`, `AUD` and foreign symbols; thousands separators; locales that
 print `1.234,56`.
 
+### Generated strata
+
+`supabase/functions/_eval/strata.ts` generates the strata above as `strata.json`
+(`corpus.ts <dir> --strata`), deterministic from seed 830, the document id and
+nothing else. Each type is a set of sources, one source being a layout instance;
+a source yields five or six documents that differ in values and locale, share a
+`source`, and so cluster the bootstrap. Sources match the real-source targets
+above.
+
+| Type         | Documents | Sources | A source is                                                                                       |
+| ------------ | --------- | ------- | ------------------------------------------------------------------------------------------------- |
+| Receipt      | 200       | 40      | One of 10 layouts (thermal, A4 invoice, e-receipt, DGR, tax agent, GST lines, cash and change, tip, foreign currency, no merchant) by 4 merchants |
+| Payslip      | 100       | 20      | An employer on one of 8 layouts of 1 to 4 pages, ytd-first and no-ytd columns; documents add overtime, leave loading, STSL, salary sacrifice, back pay, a negative line, a ytd-only row; super sits on a later page of multi-page layouts |
+| Trade        | 80        | 15      | An account at CommSec, SelfWealth, Stake, Pearler or Interactive Brokers (USD at Stake and IBKR); documents of 1, 10, 40 and 100 trades, with sub-cent prices and per-trade dates, paginated with the header repeated |
+| Non-document | 120       | 20      | One of letter (3), bank statement (2), utility bill (3), menu (2), blank page, prompt injection (4), image-only PDF (2), corrupt PDF, password-protected PDF, ticket |
+
+The five locales (`DD/MM/YYYY`, `5 Mar 2025`, `05-03-25`, US order, and
+`DD.MM.YYYY` with `1.234,56`) rotate across each source's documents. Printed
+dates have a day of 13 or later so no order is ambiguous. Labels are the raw
+printed text, dates excepted (ISO). Where the shaping refuses a printed amount
+(`1.234,56`, a foreign currency), the label is still the printed text, so those
+documents measure whether the extractor reports what is printed and does not
+invent a conversion.
+
+The cross-type matrix is `run --cross`, which feeds every document to all three
+extractors; the scorer already counts a document of another kind as one unit,
+right when the engine declines it.
+
+Not generated: handwritten receipts and photographs of screens or people, which
+need real imagery (T2 and T3 carry them). The image path sees only the first
+page of a multi-page document. Corrupt and password-protected PDFs score as
+failed runs, not as declines.
+
 ### Noise
 
 Applied by a seeded pipeline (`supabase/functions/_eval/noise.ts`, applied by

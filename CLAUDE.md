@@ -757,7 +757,10 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   seeded clustered bootstrap with Holm correction. A seeded noise pipeline
   (`_eval/noise.ts`, `manifest.json`) renders photographed, scanned and
   screen-captured variants of the clean documents; only born-digital variants
-  keep a PDF text layer. Real documents stay git-ignored under `evals/local/`.
+  keep a PDF text layer. `_eval/strata.ts` (`corpus.ts --strata`) generates 500
+  seeded documents of receipt, payslip, trade and non-document layouts, locales,
+  statement lengths and adversarial pages, each with a `source` for the
+  bootstrap clusters. Real documents stay git-ignored under `evals/local/`.
 - On-device receipts: the native apps read deduction receipts with the system
   model when it is ready (`DeductionReceiptExtractor`, from the PDF text layer or
   Vision OCR), converting the printed text in Swift as `fields.ts` does, and

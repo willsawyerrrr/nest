@@ -15,8 +15,19 @@ enum Render {
 
   static func render(_ doc: CorpusDoc, into dir: URL) throws {
     let files = try filesDirectory(in: dir)
-    try writeTextPDF(doc, to: files.appending(path: "\(doc.id).pdf"))
-    try writePNG(try raster(doc), to: files.appending(path: "\(doc.id).png"), name: doc.id)
+    let pdf = files.appending(path: "\(doc.id).pdf")
+    switch doc.fault {
+    case "imageOnly": try writeImagePDF(try raster(doc), to: pdf, name: doc.id)
+    case "corrupt":
+      try writeTextPDF(doc, to: pdf)
+      let data = try Data(contentsOf: pdf)
+      try data.prefix(data.count * 3 / 5).write(to: pdf)
+    default: try writeTextPDF(doc, to: pdf, encrypted: doc.fault == "encrypted")
+    }
+    for page in doc.pages.indices {
+      let name = page == 0 ? "\(doc.id).png" : "\(doc.id).p\(page + 1).png"
+      try writePNG(try raster(doc, page: page), to: files.appending(path: name), name: doc.id)
+    }
   }
 
   static func filesDirectory(in dir: URL) throws -> URL {
@@ -25,19 +36,25 @@ enum Render {
     return files
   }
 
-  /// The document as a one-page vector PDF whose text layer holds its rows.
-  static func writeTextPDF(_ doc: CorpusDoc, to url: URL) throws {
+  /// The document as a vector PDF, a page per `doc.pages`, whose text layer holds its rows.
+  /// `encrypted` opens only with the password `eval`.
+  static func writeTextPDF(_ doc: CorpusDoc, to url: URL, encrypted: Bool = false) throws {
     var box = page
-    guard let pdf = CGContext(url as CFURL, mediaBox: &box, nil)
+    let info: CFDictionary? =
+      encrypted
+      ? [kCGPDFContextUserPassword: "eval", kCGPDFContextOwnerPassword: "eval"] as CFDictionary : nil
+    guard let pdf = CGContext(url as CFURL, mediaBox: &box, info)
     else { throw EvalError("cannot create PDF for \(doc.id)") }
-    pdf.beginPDFPage(nil)
-    draw(doc, in: pdf)
-    pdf.endPDFPage()
+    for rows in doc.pages {
+      pdf.beginPDFPage(nil)
+      draw(rows, in: pdf)
+      pdf.endPDFPage()
+    }
     pdf.closePDF()
   }
 
-  /// The document rasterised on white at `scale` pixels per point.
-  static func raster(_ doc: CorpusDoc) throws -> CGImage {
+  /// A page of the document rasterised on white at `scale` pixels per point.
+  static func raster(_ doc: CorpusDoc, page index: Int = 0) throws -> CGImage {
     let size = (width: Int(page.width * scale), height: Int(page.height * scale))
     guard
       let bitmap = CGContext(
@@ -48,7 +65,7 @@ enum Render {
     bitmap.setFillColor(CGColor(gray: 1, alpha: 1))
     bitmap.fill(CGRect(x: 0, y: 0, width: size.width, height: size.height))
     bitmap.scaleBy(x: scale, y: scale)
-    draw(doc, in: bitmap)
+    draw(doc.pages[index], in: bitmap)
     guard let image = bitmap.makeImage() else { throw EvalError("cannot rasterise \(doc.id)") }
     return image
   }
@@ -72,12 +89,12 @@ enum Render {
     pdf.closePDF()
   }
 
-  private static func draw(_ doc: CorpusDoc, in context: CGContext) {
-    let rightCells = max(1, (doc.rows.map(\.count).max() ?? 1) - 1)
+  private static func draw(_ rows: [[String]], in context: CGContext) {
+    let rightCells = max(1, (rows.map(\.count).max() ?? 1) - 1)
     let columnWidth = (page.width - 2 * margin - firstColumn) / CGFloat(rightCells)
-    let lineHeight = min(16, (page.height - 2 * margin) / CGFloat(doc.rows.count))
+    let lineHeight = min(16, (page.height - 2 * margin) / CGFloat(max(1, rows.count)))
     let fontSize = min(10, lineHeight * 0.7)
-    for (index, row) in doc.rows.enumerated() {
+    for (index, row) in rows.enumerated() {
       let y = page.height - margin - CGFloat(index + 1) * lineHeight
       for (column, text) in row.enumerated() where !text.isEmpty {
         let x = column == 0 ? margin : margin + firstColumn + CGFloat(column - 1) * columnWidth

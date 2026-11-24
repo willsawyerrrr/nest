@@ -37,13 +37,13 @@ enum Run {
   nonisolated(unsafe) private static var generated = false
 
   static func run(
-    dir: URL, path: InputPath, model: ModelChoice, sampling: Sampling, repeats: Int, only: Set<String>
+    dir: URL, path: InputPath, model: ModelChoice, sampling: Sampling, repeats: Int, only: Set<String>, cross: Bool = false
   ) async throws {
     let corpus = try CorpusDoc.load(from: dir)
     let device = await Device.snapshot(model)
     var results: [String: [String: Any]] = [:]
     for doc in corpus where only.isEmpty || only.contains(doc.id) {
-      let kinds = doc.kind == "other" ? ["payslip", "deduction", "trade"] : [doc.kind]
+      let kinds = doc.kind == "other" || cross ? ["payslip", "deduction", "trade"] : [doc.kind]
       for kind in kinds {
         var runs: [[String: Any]] = []
         for repeatIndex in 0..<repeats {

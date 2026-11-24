@@ -6,10 +6,29 @@ struct CorpusDoc: Decodable {
   let kind: String
   let financialYear: Int
   let rows: [[String]]
+  /// Row indices where a new page starts; absent for a one-page document.
+  let pageBreaks: [Int]?
+  /// How the file is spoiled instead of rendered normally: `imageOnly` (no text layer), `corrupt`
+  /// (truncated PDF) or `encrypted` (password-protected PDF).
+  let fault: String?
 
+  /// The rows of each page; one empty page for a document with no rows.
+  var pages: [[[String]]] {
+    let starts = [0] + (pageBreaks ?? [])
+    return starts.enumerated().map { index, start in
+      Array(rows[start..<(index + 1 < starts.count ? starts[index + 1] : rows.count)])
+    }
+  }
+
+  /// `corpus.json`, then `strata.json` (`corpus.ts <dir> --strata`) when it is there.
   static func load(from dir: URL) throws -> [CorpusDoc] {
-    let data = try Data(contentsOf: dir.appending(path: "corpus.json"))
-    return try JSONDecoder().decode([CorpusDoc].self, from: data)
+    var docs: [CorpusDoc] = []
+    for name in ["corpus.json", "strata.json"] {
+      let url = dir.appending(path: name)
+      guard name == "corpus.json" || FileManager.default.fileExists(atPath: url.path) else { continue }
+      docs += try JSONDecoder().decode([CorpusDoc].self, from: try Data(contentsOf: url))
+    }
+    return docs
   }
 }
 

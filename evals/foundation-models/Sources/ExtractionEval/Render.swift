@@ -4,7 +4,8 @@ import Foundation
 import ImageIO
 import UniformTypeIdentifiers
 
-/// Lays a document's rows out as a one-page PDF (with a text layer) and a PNG raster of it.
+/// Lays a document's rows out as a one-page PDF (with a text layer) and a PNG raster of it, and
+/// renders the noisy variants a manifest describes.
 enum Render {
   static let page = CGRect(x: 0, y: 0, width: 595, height: 842)
   static let margin: CGFloat = 40
@@ -13,17 +14,30 @@ enum Render {
   static let scale: CGFloat = 1240 / 595
 
   static func render(_ doc: CorpusDoc, into dir: URL) throws {
+    let files = try filesDirectory(in: dir)
+    try writeTextPDF(doc, to: files.appending(path: "\(doc.id).pdf"))
+    try writePNG(try raster(doc), to: files.appending(path: "\(doc.id).png"), name: doc.id)
+  }
+
+  static func filesDirectory(in dir: URL) throws -> URL {
     let files = dir.appending(path: "files")
     try FileManager.default.createDirectory(at: files, withIntermediateDirectories: true)
+    return files
+  }
 
+  /// The document as a one-page vector PDF whose text layer holds its rows.
+  static func writeTextPDF(_ doc: CorpusDoc, to url: URL) throws {
     var box = page
-    guard let pdf = CGContext(files.appending(path: "\(doc.id).pdf") as CFURL, mediaBox: &box, nil)
+    guard let pdf = CGContext(url as CFURL, mediaBox: &box, nil)
     else { throw EvalError("cannot create PDF for \(doc.id)") }
     pdf.beginPDFPage(nil)
     draw(doc, in: pdf)
     pdf.endPDFPage()
     pdf.closePDF()
+  }
 
+  /// The document rasterised on white at `scale` pixels per point.
+  static func raster(_ doc: CorpusDoc) throws -> CGImage {
     let size = (width: Int(page.width * scale), height: Int(page.height * scale))
     guard
       let bitmap = CGContext(
@@ -35,12 +49,27 @@ enum Render {
     bitmap.fill(CGRect(x: 0, y: 0, width: size.width, height: size.height))
     bitmap.scaleBy(x: scale, y: scale)
     draw(doc, in: bitmap)
-    guard let image = bitmap.makeImage(),
-      let out = CGImageDestinationCreateWithURL(
-        files.appending(path: "\(doc.id).png") as CFURL, UTType.png.identifier as CFString, 1, nil)
-    else { throw EvalError("cannot write PNG for \(doc.id)") }
+    guard let image = bitmap.makeImage() else { throw EvalError("cannot rasterise \(doc.id)") }
+    return image
+  }
+
+  static func writePNG(_ image: CGImage, to url: URL, name: String) throws {
+    guard
+      let out = CGImageDestinationCreateWithURL(url as CFURL, UTType.png.identifier as CFString, 1, nil)
+    else { throw EvalError("cannot write PNG for \(name)") }
     CGImageDestinationAddImage(out, image, nil)
-    guard CGImageDestinationFinalize(out) else { throw EvalError("cannot write PNG for \(doc.id)") }
+    guard CGImageDestinationFinalize(out) else { throw EvalError("cannot write PNG for \(name)") }
+  }
+
+  /// A one-page PDF holding only `image`, so it has no text layer.
+  static func writeImagePDF(_ image: CGImage, to url: URL, name: String) throws {
+    var box = CGRect(x: 0, y: 0, width: CGFloat(image.width) / scale, height: CGFloat(image.height) / scale)
+    guard let pdf = CGContext(url as CFURL, mediaBox: &box, nil)
+    else { throw EvalError("cannot create PDF for \(name)") }
+    pdf.beginPDFPage(nil)
+    pdf.draw(image, in: box)
+    pdf.endPDFPage()
+    pdf.closePDF()
   }
 
   private static func draw(_ doc: CorpusDoc, in context: CGContext) {

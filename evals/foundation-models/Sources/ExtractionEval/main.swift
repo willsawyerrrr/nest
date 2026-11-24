@@ -2,7 +2,8 @@ import Foundation
 import FoundationModels
 
 /// `ExtractionEval facts` prints what the installed SDK and device report.
-/// `ExtractionEval render <dir>` writes each corpus document as PDF and PNG under `<dir>/files`.
+/// `ExtractionEval render <dir>` writes each corpus document as PDF and PNG under `<dir>/files`,
+/// then each variant in `<dir>/manifest.json` (see `supabase/functions/_eval/noise.ts`).
 /// `ExtractionEval run <dir> pdftext|ocr|image|image-hires|ocr+image [--model system|pcc]
 /// [--sampling default|greedy] [--repeats n] [--only id,id]` writes
 /// `<dir>/results/fm-<model>-<path>[-greedy].json`.
@@ -20,7 +21,11 @@ case "facts":
 case "render":
   guard args.count == 2 else { usage() }
   let dir = URL(filePath: args[1])
-  for doc in try CorpusDoc.load(from: dir) { try Render.render(doc, into: dir) }
+  let docs = try CorpusDoc.load(from: dir)
+  for doc in docs { try Render.render(doc, into: dir) }
+  if let manifest = try Manifest.load(from: dir) {
+    for variant in manifest.variants { try Noise.render(variant, of: docs, into: dir) }
+  }
 case "run":
   guard args.count >= 3, let path = InputPath(rawValue: args[2]) else { usage() }
   var model = ModelChoice.system

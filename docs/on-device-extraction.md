@@ -37,6 +37,13 @@ severe errors, stability over repeats and risk-coverage under each confidence
 proxy, and a decision matrix against a baseline engine; see
 [`extraction-eval-design.md`](extraction-eval-design.md#scoring).
 
+`corpus.ts` also writes `manifest.json`: 68 noisy variants (each document as
+`born-digital`, `scan`, `photo` and `screen`) derived from the clean documents
+by a seeded pipeline and sharing their labels. `render` writes each as
+`files/<id>.<profile>.pdf` and `.png`; only `born-digital` variants have a PDF
+text layer. See [`extraction-eval-design.md`](extraction-eval-design.md#noise).
+`run` and the scorer read only `corpus.json`, so variants are not yet scored.
+
 Real documents for local runs go under `evals/local/` and `evals/out/`, both
 git-ignored.
 
@@ -150,8 +157,9 @@ What they show:
 - The model often prints dates as `DD/MM/YYYY` despite an ISO instruction, so an
   on-device path needs to convert dates in code.
 
-The synthetic documents are clean digital renders. Photographed or scanned
-documents will be harder for every path, so these figures are an upper bound.
+The results above are for the clean digital renders. Photographed or scanned
+documents will be harder for every path, so these figures are an upper bound;
+the noisy variants exist to measure that but have not been run.
 
 ## Native receipt path
 

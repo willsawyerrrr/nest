@@ -4,9 +4,11 @@
  * prompts, tool schemas and field readers.
  *
  * Opus 5.5, Sonnet 5.5 and Fable 5.2 reject the forced `tool_choice` the
- * production extractors use, so every arm, Haiku 4.5 included, gets a `strict`
- * tool with `tool_choice: auto` and a system instruction naming the tool. The 5.x
- * arms run once per effort level, set explicitly; no sampling parameter is sent.
+ * production extractors use, so every arm, Haiku 4.5 included, gets a tool with
+ * `tool_choice: auto` and a system instruction naming the tool. The receipt and
+ * trade tools are `strict`; the payslip tool is not, as its schema exceeds the
+ * API's limit of 16 union-typed strict parameters. The 5.x arms run once per
+ * effort level, set explicitly; no sampling parameter is sent.
  *
  * `ANTHROPIC_API_KEY=… deno run --allow-env --allow-read --allow-write --allow-net
  * --allow-run=git haiku.ts <dir> [--arms a,b] [--efforts low,medium,high]
@@ -32,6 +34,13 @@ import { type EngineResults, resultKey, type RunResult } from './score.ts'
 
 export type ExtractorKind = Exclude<DocKind, 'other'>
 export const EXTRACTORS: ExtractorKind[] = ['payslip', 'deduction', 'trade']
+
+/** Whether each extractor's tool is sent `strict`; the payslip schema exceeds the union limit. */
+export const STRICT: Record<ExtractorKind, boolean> = {
+  payslip: false,
+  deduction: true,
+  trade: true,
+}
 
 export const MEDIA = ['pdf', 'png', 'text'] as const
 export type Media = typeof MEDIA[number]
@@ -160,7 +169,7 @@ export interface MessageRequest {
   model: string
   max_tokens: number
   system: string
-  tools: Array<Anthropic.Tool & { strict: true }>
+  tools: Array<Anthropic.Tool & { strict?: boolean }>
   tool_choice: { type: 'auto' }
   thinking?: { type: 'adaptive' }
   output_config?: { effort: Effort }
@@ -180,8 +189,8 @@ function userContent(ask: string, input: Input): Anthropic.ContentBlockParam[] {
 
 /**
  * The request for one document under one extractor: the production prompt and
- * tool, made `strict` and left to the model with `auto`, plus an instruction
- * naming the tool. Neither `temperature`, `top_p` nor `top_k` is sent.
+ * tool, made `strict` where `STRICT` says so and left to the model with `auto`,
+ * plus an instruction naming the tool. Neither `temperature`, `top_p` nor `top_k` is sent.
  */
 export function buildRequest(
   arm: Arm,
@@ -198,7 +207,7 @@ export function buildRequest(
     system:
       `${spec.system(financialYear)}\n\nRecord your answer by calling the \`${spec.tool.name}\` ` +
       'tool exactly once. Do not reply in prose.',
-    tools: [{ ...spec.tool, strict: true }],
+    tools: [STRICT[kind] ? { ...spec.tool, strict: true } : spec.tool],
     tool_choice: { type: 'auto' },
     ...(arm.thinking === 'adaptive' ? { thinking: { type: 'adaptive' as const } } : {}),
     ...(arm.effort && effort ? { output_config: { effort } } : {}),
@@ -230,6 +239,8 @@ export interface ClaudeEngineResults extends EngineResults {
     model: string
     effort: Effort | null
     media: Media
+    /** Whether each extractor's tool was sent `strict`. */
+    strict: Record<ExtractorKind, boolean>
     repeats: number
     corpusSha256: string
     commit: string | null
@@ -359,7 +370,10 @@ export async function runEngine(
   spec: EngineSpec,
   corpus: Corpus,
   repeats: number,
-  meta: Omit<ClaudeEngineResults['meta'], 'arm' | 'model' | 'effort' | 'media' | 'repeats'>,
+  meta: Omit<
+    ClaudeEngineResults['meta'],
+    'arm' | 'model' | 'effort' | 'media' | 'strict' | 'repeats'
+  >,
   log: (line: string) => void = console.log,
 ): Promise<ClaudeEngineResults> {
   const results: ClaudeEngineResults['results'] = {}
@@ -388,6 +402,7 @@ export async function runEngine(
       model: spec.arm.model,
       effort: spec.effort,
       media: spec.media,
+      strict: STRICT,
       repeats,
       ...meta,
     },

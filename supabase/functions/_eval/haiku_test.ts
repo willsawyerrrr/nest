@@ -65,13 +65,13 @@ function stub(...replies: Array<Anthropic.Message | Error>) {
   }
 }
 
-Deno.test('every arm sends a strict tool with auto choice, never forced, and no sampling', () => {
+Deno.test('every arm sends a tool, strict except the payslip, with auto choice, never forced, and no sampling', () => {
   for (const arm of Object.values(ARMS)) {
     for (const kind of ['payslip', 'deduction', 'trade'] as const) {
       const request = buildRequest(arm, arm.effort ? 'medium' : null, kind, 2025, pdf)
       assertEquals(request.tool_choice, { type: 'auto' })
       assertEquals(request.tools.length, 1)
-      assert(request.tools[0].strict)
+      assertEquals(request.tools[0].strict, kind === 'payslip' ? undefined : true)
       assert(request.system.includes(`\`${request.tools[0].name}\``))
       for (const banned of ['temperature', 'top_p', 'top_k']) assert(!(banned in request))
     }
@@ -220,6 +220,7 @@ Deno.test('runEngine writes the scorer shape: first repeat in results, every rep
   assertEquals(output.results['a:deduction'], output.repeats['a:deduction'][0] as ClaudeRunResult)
   assertEquals(output.meta.model, 'claude-haiku-4-5')
   assertEquals(output.meta.effort, null)
+  assertEquals(output.meta.strict, { payslip: false, deduction: true, trade: true })
   assertEquals(lines.length, 2)
 })
 

@@ -42,18 +42,16 @@ final class EvalModel {
   }
 
   /// Copies a folder picked in the Files app into Documents, replacing what it overwrites.
+  /// Picking Documents itself leaves everything in place.
   func importFolder(_ result: Result<URL, Error>) {
     do {
       let source = try result.get()
       guard source.startAccessingSecurityScopedResource() else { throw EvalError("cannot access \(source.lastPathComponent)") }
       defer { source.stopAccessingSecurityScopedResource() }
-      let fm = FileManager.default
-      for item in try fm.contentsOfDirectory(at: source, includingPropertiesForKeys: nil) {
-        let target = root.appending(path: item.lastPathComponent)
-        if fm.fileExists(atPath: target.path) { try fm.removeItem(at: target) }
-        try fm.copyItem(at: item, to: target)
+      switch try CorpusImport.run(from: source, into: root) {
+      case .alreadyInPlace: status = "Corpus already in place"
+      case .imported(let copied): status = "Imported \(copied) items from \(source.lastPathComponent)"
       }
-      status = "Imported \(source.lastPathComponent)"
     } catch {
       status = "Import failed: \(error)"
     }

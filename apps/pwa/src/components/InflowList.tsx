@@ -113,7 +113,7 @@ function jointCaption(inflow: Inflow): string | null {
 
 /**
  * A dimmed caption describing an inflow's effective window (e.g.
- * "1 Jul 2026 – 14 Sep 2026", "from 15 Sep 2026", "until 30 Jun 2027"), or null
+ * "1 July 2026 – 14 Sept 2026", "from 15 Sept 2026", "until 30 June 2027"), or null
  * when it applies all year. This is a per-inflow annotation only; the FY-prorated
  * gross it implies is a Tax-tab concept, not the displayed steady-rate figure.
  */

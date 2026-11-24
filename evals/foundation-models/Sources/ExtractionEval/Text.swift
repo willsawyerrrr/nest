@@ -17,4 +17,11 @@ enum DocumentText {
     let observations = try await RecognizeDocumentsRequest().perform(on: url)
     return observations.map(\.document.text.transcript).joined(separator: "\n")
   }
+
+  /// The transcripts of every page, in page order.
+  static func ocr(pages urls: [URL]) async throws -> String {
+    var transcripts: [String] = []
+    for url in urls { transcripts.append(try await ocr(url)) }
+    return transcripts.joined(separator: "\n")
+  }
 }

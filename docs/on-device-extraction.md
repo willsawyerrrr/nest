@@ -86,10 +86,18 @@ deno run --allow-read supabase/functions/_eval/report.ts evals/out --baseline cl
 | Path | Input to the model |
 | -- | -- |
 | `pdftext` | The PDF's text layer, via PDFKit |
-| `ocr` | Vision `RecognizeDocumentsRequest` transcript of the PNG |
-| `image` | The PNG as an iOS 27 `Attachment` |
-| `image-hires` | The PNG cut into four full-width bands overlapping by 10%, each its own `Attachment` |
-| `ocr+image` | The `ocr` transcript and the PNG as an `Attachment` |
+| `ocr` | Vision `RecognizeDocumentsRequest` transcript of every page's PNG |
+| `image` | Every page's PNG as an iOS 27 `Attachment`, in page order |
+| `image-hires` | Every page's PNG cut into four full-width bands overlapping by 10%, each its own `Attachment` |
+| `ocr+image` | The `ocr` transcript and every page's PNG as an `Attachment` |
+
+A prompt that overflows the on-device context (counted before generating, or
+reported by the model) is recorded as an error, which the scorer counts as
+cannot-answer. A PDF that will not open (truncated, or password-protected) is
+recorded as `unreadable: corrupt|encrypted` with no answer, on every path, since
+an app rejects such a file. The scorer treats it as a decline: correct for a
+non-document, a missed document (all fields missing, a false decline) for a
+real one, and not as a failed run.
 
 Results go to `results/fm-<model>-<path>.json`, or `…-greedy.json` for greedy
 sampling. Each result is its first repeat, so the scorer reads it unchanged,

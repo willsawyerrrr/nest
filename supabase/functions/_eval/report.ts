@@ -68,7 +68,7 @@ export function report(corpus: CorpusDoc[], engines: EngineResults[]): string {
         total.correct += score.correct
         total.spurious += score.spurious
         lenient += scoreRun(doc, extractor, run, { printedDates: true }).correct
-        if (run.raw === undefined) failed++
+        if (run.raw === undefined && run.unreadable === undefined) failed++
         times.push(run.ms)
         if (run.promptTokens !== undefined) tokens.push(run.promptTokens)
       }

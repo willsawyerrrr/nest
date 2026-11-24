@@ -95,4 +95,12 @@ Deno.test('loadDocs reads corpus, strata and manifest variants, and only what is
   assertEquals(docs.length, corpus.length + 1 + manifest.variants.length)
   assertEquals(docs[corpus.length].id, 'strata-1')
   assert(text.includes('strata-1'))
+  files['/d/reskinned.json'] = JSON.stringify([{
+    ...corpus[0],
+    id: 'reskin-1.s0',
+    source: 'reskin-1',
+  }])
+  const withReskin = await loadDocs('/d', read)
+  assertEquals(withReskin.docs[corpus.length + 1].id, 'reskin-1.s0')
+  assert(withReskin.text.includes('reskin-1.s0'))
 })

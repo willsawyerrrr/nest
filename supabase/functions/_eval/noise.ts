@@ -218,8 +218,8 @@ export function variantDocs(docs: CorpusDoc[], manifest: Manifest): CorpusDoc[] 
 }
 
 /**
- * Reads `corpus.json`, then `strata.json` and the variants of `manifest.json`
- * when they are there. `text` is every file read, for fingerprinting the corpus.
+ * Reads `corpus.json`, then `strata.json`, `reskinned.json` (see `reskin.ts`) and
+ * the variants of `manifest.json` when they are there. `text` is every file read, for fingerprinting the corpus.
  */
 export async function loadDocs(
   dir: string,
@@ -228,8 +228,16 @@ export async function loadDocs(
   const read = (name: string) => readText(`${dir}/${name}`).catch(() => null)
   const corpus = await readText(`${dir}/corpus.json`)
   const strata = await read('strata.json')
+  const reskinned = await read('reskinned.json')
   const manifest = await read('manifest.json')
-  const clean: CorpusDoc[] = [...JSON.parse(corpus), ...(strata ? JSON.parse(strata) : [])]
+  const clean: CorpusDoc[] = [
+    ...JSON.parse(corpus),
+    ...(strata ? JSON.parse(strata) : []),
+    ...(reskinned ? JSON.parse(reskinned) : []),
+  ]
   const variants = manifest ? variantDocs(clean, JSON.parse(manifest)) : []
-  return { docs: [...clean, ...variants], text: corpus + (strata ?? '') + (manifest ?? '') }
+  return {
+    docs: [...clean, ...variants],
+    text: corpus + (strata ?? '') + (reskinned ?? '') + (manifest ?? ''),
+  }
 }

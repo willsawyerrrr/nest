@@ -4,12 +4,15 @@ import FoundationModels
 /// `ExtractionEval facts` prints what the installed SDK and device report.
 /// `ExtractionEval render <dir>` writes each corpus document as PDF and PNG under `<dir>/files`,
 /// then each variant in `<dir>/manifest.json` (see `supabase/functions/_eval/noise.ts`).
+/// `ExtractionEval text <file> <out.txt>` writes a real document's text (text layer, else recognised)
+/// and `ExtractionEval redact <file> <terms.json> <outDir> <name>` paints the terms out of it (see
+/// `Redact.swift`); neither prints any of the document.
 /// `ExtractionEval run <dir> pdftext|ocr|image|image-hires|ocr+image [--model system|pcc]
 /// [--sampling default|greedy] [--repeats n] [--only id,id] [--cross]` writes
 /// `<dir>/results/fm-<model>-<path>[-greedy].json`, for the corpus, strata and, when
 /// `<dir>/manifest.json` is there, each rendered variant under its own id.
 func usage() -> Never {
-  FileHandle.standardError.write(Data("usage: ExtractionEval facts | render <dir> | run <dir> <path> [--model m] [--sampling default|greedy] [--repeats n] [--only ids] [--cross]\n".utf8))
+  FileHandle.standardError.write(Data("usage: ExtractionEval facts | render <dir> | run <dir> <path> [--model m] [--sampling default|greedy] [--repeats n] [--only ids] [--cross] | text <file> <out> | redact <file> <terms.json> <outDir> <name>\n".utf8))
   exit(2)
 }
 
@@ -27,6 +30,14 @@ case "render":
   if let manifest = try Manifest.load(from: dir) {
     for variant in manifest.variants { try Noise.render(variant, of: docs, into: dir) }
   }
+case "text":
+  guard args.count == 3 else { usage() }
+  try await Redact.text(of: URL(filePath: args[1])).write(toFile: args[2], atomically: true, encoding: .utf8)
+case "redact":
+  guard args.count == 5 else { usage() }
+  struct Terms: Decodable { let terms: [String] }
+  let terms = try JSONDecoder().decode(Terms.self, from: try Data(contentsOf: URL(filePath: args[2]))).terms
+  try await Redact.run(input: URL(filePath: args[1]), terms: terms, outDir: URL(filePath: args[3]), name: args[4])
 case "run":
   guard args.count >= 3, let path = InputPath(rawValue: args[2]) else { usage() }
   var model = ModelChoice.system

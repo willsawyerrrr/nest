@@ -760,7 +760,14 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   keep a PDF text layer. `_eval/strata.ts` (`corpus.ts --strata`) generates 500
   seeded documents of receipt, payslip, trade and non-document layouts, locales,
   statement lengths and adversarial pages, each with a `source` for the
-  bootstrap clusters. Real documents stay git-ignored under `evals/local/`.
+  bootstrap clusters. Real documents stay git-ignored under `evals/local/` and
+  are never committed: `_eval/local.ts` holds the storage layout, consent per
+  arm, labelling and the 20% verification sample, and lays out a corpus directory
+  per arm; `_eval/redact.ts` and `ExtractionEval redact` paint identifiers out
+  of the raster and text for arms that leave the machine; `_eval/reskin.ts`
+  re-skins a transcribed layout with seeded values and a re-derived label
+  (T2, shareable); `_eval/aggregate.ts` reports by stratum only, withholding
+  strata under five documents.
 - On-device receipts: the native apps read deduction receipts with the system
   model when it is ready (`DeductionReceiptExtractor`, from the PDF text layer or
   Vision OCR), converting the printed text in Swift as `fields.ts` does, and

@@ -151,23 +151,67 @@ raster alone, so the text layer exists only for documents that would have one
 
 - Storage: `evals/local/` (git-ignored, outside any synced folder) holds the
   originals, labels and per-document outputs. `evals/out/` is git-ignored too.
-  Nothing from T3 appears in a commit, PR, Linear issue or CI log.
+  Nothing from T3 appears in a commit, PR, Linear issue or CI log. A document's
+  id is `r-` and twelve hex digits of the SHA-256 of its bytes, so no id carries
+  a name; every command prints counts only, and an error that could carry a path
+  or value prints `failed`.
+
+  ```
+  evals/local/
+    config.json            members, labeller, optional seed
+    identifiers.json       the household's names and addresses (redact.ts)
+    originals/<id>.<ext>   the documents
+    labels/<id>.json       owner, kind, stratum, consent, raw printed label
+    verification/<id>.json the other member's independent label
+    redacted/<id>/         painted pages, image-only PDF, redacted text
+    layouts/<name>.json    transcribed layouts for re-skinning
+  ```
+
 - Consent: both household members agree to each of their own documents being
-  used and to which arms may see them. Documents naming third parties (an
-  employer, a donee, a counterparty) are used only after the third-party
-  identifiers are redacted.
+  used and to which arms may see them. A label record names its `owner` and the
+  `arms` (`on-device`, `pcc`, `claude`) the owner allows; `inputFor` gives an arm
+  the original, the redacted copy or nothing. Documents naming third parties (an
+  employer, a donee, a counterparty) carry `thirdParties` and are read, by every
+  arm, only from the redacted copy.
 - Redaction for T3 arms that send documents off the machine (PCC, Claude):
   names, addresses, TFN, ABN, account and member numbers are painted out of the
   raster and removed from the text layer before sending. Figures and dates stay,
   because they are what is being read; so T3 results measure reading, and the
-  labels never leave the machine.
+  labels never leave the machine. `local.ts <dir> redact <id>` extracts the
+  text (`ExtractionEval text`), finds identifiers in it (`redact.ts`: the
+  household's `identifiers.json` plus patterns for TFN, ABN, address and the
+  number after an account, BSB, member, customer, employee or card keyword),
+  paints every term out of the raster (`ExtractionEval redact`, located by the
+  PDF's text layer and by Vision), recognises the painted raster again and fails
+  if a term is still readable, and writes the redacted text. The painted PDF has
+  no text layer. An id with no redacted copy is read by no off-machine arm.
 - Re-skinning (T2) is the route to shareable evidence: transcribe a real
-  document's layout into the corpus row format (labels, column order, fonts,
-  page breaks), replace every value with seeded ones and re-derive the label.
-- Labelling: one member labels, the other verifies a 20% sample; disagreements
-  are resolved against the document. Labels are raw printed text, as today.
+  document's layout into a `Layout` (rows with `{slot}` in place of every value,
+  page breaks, a label template), and `reskin.ts` replaces each slot with a
+  seeded value (money, date, integer, text, or a sum of other money slots) and
+  re-derives the label from what it printed, refusing a label string that is not
+  on the page. A literal that still looks like an amount, date or long number, or
+  (given `--identifiers`) an identifier, is refused. The output is
+  `reskinned.json`, which `loadDocs` and the Swift harness read beside `strata.json`.
+- Labelling: one member (`config.labeller`) labels, the other verifies a 20%
+  sample; disagreements are resolved against the document. `local.ts add`
+  records a document and its label; the sample is the lowest-ranked fifth of
+  each stratum by a seeded hash (at least one per stratum), stable as documents
+  are added; the verifier labels each sampled document independently
+  (`verify`), the two labels are compared by path with no values shown, and a
+  differing pair is settled with `--resolved`, which becomes the scored label.
+  `status` counts labelled, sampled, verified, agreed and unresolved. Labels are
+  raw printed text, as today.
+- Running: `local.ts <dir> materialize <arm> <out dir>` lays out the documents
+  the arm may read as a corpus directory (`corpus.json`, `files/`) that the
+  existing `ExtractionEval run` and `haiku.ts` run over, writing results to
+  `<out dir>/results/`.
 - Reporting: T3 results are published only as aggregates by stratum, never
-  per document.
+  per document. `aggregate.ts <dir> [results dir...]` prints one table per arm
+  by stratum (documents, impact-weighted accuracy, non-documents declined,
+  wrong-but-confident over filled, failed runs). A stratum under five documents
+  is withheld and so is the all-strata total while any stratum is. Strata are
+  named by generic layout class (`payslip/tabular`), never by employer.
 
 ### Size
 

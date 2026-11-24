@@ -1,13 +1,27 @@
-const dateFormat = new Intl.DateTimeFormat('en-AU', {
-  day: 'numeric',
-  month: 'short',
-  year: 'numeric',
-})
+const MONTHS = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'June',
+  'July',
+  'Aug',
+  'Sept',
+  'Oct',
+  'Nov',
+  'Dec',
+]
 
-/** Formats an ISO date (`YYYY-MM-DD`) as a short local date (e.g. `28 Feb 2027`). */
+/**
+ * Formats an ISO date (`YYYY-MM-DD`) as a short date (e.g. `28 Feb 2027`). The
+ * month abbreviations are fixed to the Australian-English convention (`June`,
+ * `July`, `Sept`) the native app formats with, since the runtime's locale data
+ * changes them from one release to the next.
+ */
 export function formatIsoDate(iso: string): string {
   const [year, month, day] = iso.split('-').map(Number) as [number, number, number]
-  return dateFormat.format(new Date(year, month - 1, day))
+  return `${day} ${MONTHS[month - 1]} ${year}`
 }
 
 /**

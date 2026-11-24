@@ -75,12 +75,15 @@ describe('useCategoryGroups', () => {
     ])
   })
 
-  it('stays unresolved when a read fails', async () => {
-    builders.up_category_group!.result = { data: null, error: new Error('denied') }
-    const { result } = renderHook(() => useCategoryGroups(), { wrapper: makeWrapper() })
-    await waitFor(() => expect(from).toHaveBeenCalledWith('up_category_group'))
-    expect(result.current.categories).toBeNull()
-  })
+  it.each(['up_category', 'up_category_default_group', 'up_category_group'])(
+    'stays unresolved when the %s read fails',
+    async (table) => {
+      builders[table]!.result = { data: null, error: new Error('denied') }
+      const { result } = renderHook(() => useCategoryGroups(), { wrapper: makeWrapper() })
+      await waitFor(() => expect(from).toHaveBeenCalledWith('up_category_group'))
+      expect(result.current.categories).toBeNull()
+    },
+  )
 
   it('upserts an override, including to no group', async () => {
     const { result } = renderHook(() => useCategoryGroups(), { wrapper: makeWrapper() })

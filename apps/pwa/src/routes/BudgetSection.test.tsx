@@ -2,7 +2,7 @@ import type { ReactElement } from 'react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { setBudgetDraft, takeBudgetDraft } from '../lib/promoteDraft'
-import { act, render, screen } from '../test/render'
+import { act, render, screen, waitFor } from '../test/render'
 import { BudgetSection } from './BudgetSection'
 
 const hooks = vi.hoisted(() => ({
@@ -200,6 +200,13 @@ describe('BudgetSection', () => {
       { periodStart: '2026-10-29', periodEnd: '2026-11-11' },
       false,
     )
+
+    const bar = hooks.screenProps!.actualSpendBar as ReactElement<{ onNext: () => void }>
+    act(() => bar.props.onNext())
+    expect(hooks.useActualSpend).toHaveBeenLastCalledWith(
+      { periodStart: '2026-11-12', periodEnd: '2026-11-25' },
+      false,
+    )
   })
 
   it('counts pending spend once asked', async () => {
@@ -228,5 +235,9 @@ describe('BudgetSection', () => {
     render(hooks.screenProps!.actualSpendBar as ReactElement)
     await user.click(screen.getByRole('button', { name: 'Category groups' }))
     expect(await screen.findByRole('dialog', { name: 'Category groups' })).toBeInTheDocument()
+    await user.keyboard('{Escape}')
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Category groups' })).not.toBeInTheDocument(),
+    )
   })
 })

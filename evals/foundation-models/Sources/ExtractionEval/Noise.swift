@@ -27,6 +27,18 @@ struct Variant: Decodable {
   let profile: String
   let textLayer: Bool
   let ops: [NoiseOp]
+
+  /// The variant as a document: its source document's rows under the variant's id, which names
+  /// the rendered files. `companion` is the other document on a two-up page.
+  func document(of docs: [CorpusDoc]) throws -> CorpusDoc {
+    guard let base = docs.first(where: { $0.id == baseId }) else {
+      throw EvalError("\(id): no document \(baseId)")
+    }
+    return CorpusDoc(
+      id: id, kind: base.kind, financialYear: base.financialYear, rows: base.rows,
+      pageBreaks: base.pageBreaks, fault: nil, profile: profile, textLayer: textLayer,
+      companion: ops.first { $0.op == "twoUp" }?.companion)
+  }
 }
 
 struct Manifest: Decodable {

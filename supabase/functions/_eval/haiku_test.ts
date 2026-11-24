@@ -5,6 +5,7 @@ import {
   buildRequest,
   type ClaudeRunResult,
   costNanoUsd,
+  documentExtractors,
   engineName,
   engineSpecs,
   type Input,
@@ -13,6 +14,7 @@ import {
   projectCost,
   runEngine,
   runOnce,
+  textFile,
   THINKING_ALLOWANCE,
 } from './haiku.ts'
 import type { CorpusDoc } from './corpus.ts'
@@ -235,4 +237,19 @@ Deno.test('arguments are validated', () => {
   assertThrows(() => parseArgs(['out', '--arms', 'gpt']))
   assertThrows(() => parseArgs(['out', '--repeats', '0']))
   assertThrows(() => parseArgs(['out', '--bogus', 'x']))
+})
+
+Deno.test('a variant without a text layer is skipped on the text path, and reads its source text', () => {
+  const scan: CorpusDoc = { ...doc('a.scan', 'deduction'), profile: 'scan', textLayer: false }
+  const digital: CorpusDoc = {
+    ...doc('a.born-digital', 'deduction'),
+    profile: 'born-digital',
+    textLayer: true,
+  }
+  assertEquals(documentExtractors(scan, 'text'), [])
+  assertEquals(documentExtractors(scan, 'png'), ['deduction'])
+  assertEquals(documentExtractors(digital, 'text'), ['deduction'])
+  assertEquals(textFile(digital), 'a')
+  assertEquals(textFile(doc('a', 'deduction')), 'a')
+  assertEquals(projectCost([scan], engineSpecs(['haiku-4-5'], [], ['text']), 1).runs, 0)
 })

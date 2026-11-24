@@ -39,10 +39,12 @@ enum Run {
   static func run(
     dir: URL, path: InputPath, model: ModelChoice, sampling: Sampling, repeats: Int, only: Set<String>, cross: Bool = false
   ) async throws {
-    let corpus = try CorpusDoc.load(from: dir)
+    let corpus = try CorpusDoc.loadAll(from: dir)
     let device = await Device.snapshot(model)
     var results: [String: [String: Any]] = [:]
     for doc in corpus where only.isEmpty || only.contains(doc.id) {
+      // A picture-only variant has no text layer for the PDF text path to read.
+      if path == .pdftext && doc.textLayer == false { continue }
       let kinds = doc.kind == "other" || cross ? ["payslip", "deduction", "trade"] : [doc.kind]
       for kind in kinds {
         var runs: [[String: Any]] = []

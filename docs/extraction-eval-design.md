@@ -128,7 +128,12 @@ seed derived from the base seed, document id and profile. The TypeScript
 decides every random choice and writes it to the entry, so a variant is
 reproducible from its entry alone; Swift only applies the operations, in a fixed
 order. Variants share their base document's label, and the clean T0 documents
-and `corpus.json` are unchanged.
+and `corpus.json` are unchanged. The runners and scorer read the manifest
+alongside `corpus.json` and `strata.json`: a variant takes its source's label
+and clusters under the source (`source` of the source document, else its id),
+and the report slices accuracy by profile and for two-up pages. A two-up
+variant's prompt is the production prompt, so reading the companion instead of
+the page's first document is an error.
 
 | Profile        | Operations                                                          | PDF text layer |
 | -------------- | ------------------------------------------------------------------- | -------------- |

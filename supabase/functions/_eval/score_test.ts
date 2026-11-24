@@ -1,6 +1,14 @@
 import { assertEquals } from '@std/assert'
 import { buildCorpus, type CorpusDoc } from './corpus.ts'
-import { decisionMatrix, diagnostics, evaluate, report, timingReport } from './report.ts'
+import { buildManifest, variantDocs } from './noise.ts'
+import {
+  decisionMatrix,
+  diagnostics,
+  evaluate,
+  report,
+  timingReport,
+  variantReport,
+} from './report.ts'
 import {
   agreementConfidence,
   declineStats,
@@ -307,4 +315,34 @@ Deno.test('readEngine leaves results without runs unchanged and keeps explicit r
   const explicit = { ...plain, results: { 'x:payslip': { ms: 1, runs: [{ ms: 3 }] } }, repeats }
   assertEquals(readEngine(explicit).repeats, repeats)
   assertEquals(timingReport([], [plain]).split('\n').length, 2)
+})
+
+Deno.test('variants score against the source label, clustered under the source', () => {
+  const variant = variantDocs(corpus, buildManifest(corpus)).find((doc) =>
+    doc.id === 'receipt-1.scan'
+  )!
+  if (variant.kind !== 'deduction') throw new Error('unexpected kind')
+  const outcome = outcomeOf(variant, 'deduction', { raw: variant.label, ms: 1 })
+  assertEquals(outcome.source, 'receipt-1')
+  assertEquals(outcome.fields.every((unit) => unit.cls === 'correct'), true)
+  const wrong = { ...variant.label, amount: '999.00' }
+  assertEquals(
+    outcomeOf(variant, 'deduction', { raw: wrong, ms: 1 }).fields.some((u) => u.cls !== 'correct'),
+    true,
+  )
+})
+
+Deno.test('the variant report slices by profile and two-up, and is empty without variants', () => {
+  const docs = [...corpus, ...variantDocs(corpus, buildManifest(corpus))]
+  const results: Record<string, { raw: unknown; ms: number }> = {}
+  for (const doc of docs) {
+    if (doc.kind === 'deduction') {
+      results[resultKey(doc.id, 'deduction')] = { raw: doc.label, ms: 1 }
+    }
+  }
+  const table = variantReport(docs, [{ engine: 'stub', results }])
+  assertEquals(/\| stub \| deduction \| clean \| (\d+)\/\1 \(100%\) \|/.test(table), true)
+  assertEquals(table.includes('| stub | deduction | scan |'), true)
+  assertEquals(table.includes('| stub | deduction | two-up |'), true)
+  assertEquals(variantReport(corpus, [{ engine: 'stub', results }]), '')
 })

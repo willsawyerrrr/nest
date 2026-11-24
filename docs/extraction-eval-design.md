@@ -232,7 +232,10 @@ error among those accepted; `coverageAtRisk` reads the share accepted at 1%;
 `reliability` bins documents by confidence. Stability is `stability`: per
 field, the share of repeats giving the commonest value, averaged over fields
 and then documents. Engine results carry repeats in `repeats` (keyed as
-`results`; `results` holds the first).
+`results`; `results` holds the first). The report loads a Foundation Models
+result's `runs` into `repeats`, so stability covers every repeat; greedy and
+default sampling are separate files and so separate engines (`…-greedy`), and a
+cold/warm latency table splits runs by their `timing`.
 
 ### Intervals
 

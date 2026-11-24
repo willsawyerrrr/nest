@@ -14,6 +14,7 @@ import {
   declineStats,
   type EngineResults,
   outcomeOf,
+  readEngine,
   resultKey,
   riskItem,
   type RunOutcome,
@@ -87,6 +88,34 @@ export function report(corpus: CorpusDoc[], engines: EngineResults[]): string {
 }
 
 type Extractor = Exclude<DocKind, 'other'>
+
+/**
+ * Median latency of cold runs (the process's first generation, paying model
+ * load and warm-up) against warm ones, per engine and extractor. Engines that
+ * do not label their runs are left out.
+ */
+export function timingReport(corpus: CorpusDoc[], engines: EngineResults[]): string {
+  const lines = [
+    '| Engine | Extractor | Cold runs | Cold median ms | Warm runs | Warm median ms |',
+    '| -- | -- | -- | -- | -- | -- |',
+  ]
+  for (const engine of engines) {
+    for (const extractor of EXTRACTORS) {
+      const runs = corpus.flatMap((doc) => runsOf(engine, resultKey(doc.id, extractor)))
+      const [cold, warm] = (['cold', 'warm'] as const).map((timing) =>
+        runs.filter((run) => run.timing === timing).map((run) => run.ms)
+      )
+      if (cold.length + warm.length === 0) continue
+      const median = (times: number[]) => times.length ? percentile(times, 0.5) : '-'
+      lines.push(
+        `| ${engine.engine} | ${extractor} | ${cold.length} | ${median(cold)} | ${warm.length} | ${
+          median(warm)
+        } |`,
+      )
+    }
+  }
+  return lines.join('\n')
+}
 
 /** What the decision matrix needs to know about an arm that its results do not say. */
 export interface ArmProfile {
@@ -499,7 +528,9 @@ if (import.meta.main) {
   const engines: EngineResults[] = []
   for await (const entry of Deno.readDir(`${dir}/results`)) {
     if (entry.name.endsWith('.json')) {
-      engines.push(JSON.parse(await Deno.readTextFile(`${dir}/results/${entry.name}`)))
+      engines.push(
+        readEngine(JSON.parse(await Deno.readTextFile(`${dir}/results/${entry.name}`))),
+      )
     }
   }
   engines.sort((a, b) => a.engine.localeCompare(b.engine))
@@ -508,6 +539,8 @@ if (import.meta.main) {
   console.log(report(corpus, engines))
   console.log('\n## Error classes and calibration\n')
   console.log(diagnostics(corpus, engines))
+  console.log('\n## Cold and warm latency\n')
+  console.log(timingReport(corpus, engines))
   console.log('\n## Decision matrix\n')
   console.log(decisionMatrix(corpus, engines, { baseline, profiles }))
 }

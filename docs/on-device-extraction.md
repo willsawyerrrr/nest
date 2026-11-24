@@ -76,7 +76,8 @@ deno run --allow-read supabase/functions/_eval/report.ts evals/out --baseline ha
 
 Results go to `results/fm-<model>-<path>.json`, or `…-greedy.json` for greedy
 sampling. Each result is its first repeat, so the scorer reads it unchanged,
-plus `runs`, every repeat. Every run records `repeat`, `sampling`, `ms`,
+plus `runs`, every repeat, which the report scores as repeats (stability, and a
+cold/warm latency table). Every run records `repeat`, `sampling`, `ms`,
 `timing` (`cold` for the process's first generation, which pays model load and
 warm-up, else `warm`), `thermalState`, `lowPowerMode`, `osBuild`, `osVersion`,
 `modelVariant` and `contextSize`; the file's `device` repeats the constant ones.

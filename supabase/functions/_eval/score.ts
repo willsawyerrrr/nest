@@ -35,6 +35,10 @@ export interface RunResult {
   promptTokens?: number
   /** A self-reported confidence from 0 to 1, where the engine was asked for one. */
   confidence?: number
+  /** Whether the run paid model load and warm-up (`cold`) or not (`warm`), where the engine says. */
+  timing?: 'cold' | 'warm'
+  /** Every repeat of this run, the first being this result, where the engine writes them. */
+  runs?: RunResult[]
 }
 
 /** An engine's results, keyed by `<doc id>:<extractor>`. */
@@ -43,6 +47,20 @@ export interface EngineResults {
   results: Record<string, RunResult>
   /** Every repeat of a run, keyed as `results` is; `results` holds the first. */
   repeats?: Record<string, RunResult[]>
+}
+
+/**
+ * Reads an engine's results file. A result carrying `runs`, as the Foundation
+ * Models harness writes, has them fed into `repeats` so stability and timing
+ * see every repeat; `results` keeps the result itself. Sampling modes are
+ * separate files and so separate engines.
+ */
+export function readEngine(file: EngineResults): EngineResults {
+  const repeats = { ...file.repeats }
+  for (const [key, result] of Object.entries(file.results)) {
+    if (result.runs?.length) repeats[key] ??= result.runs
+  }
+  return Object.keys(repeats).length === 0 ? file : { ...file, repeats }
 }
 
 export interface Score {

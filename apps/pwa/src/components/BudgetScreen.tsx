@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { Stack, Text } from '@mantine/core'
 import type { BudgetLine, BudgetLineInput } from '../hooks/useBudgetLines'
 import type { MemberAllowance, MemberAllowanceInput } from '../hooks/useMemberAllowances'
@@ -41,6 +42,10 @@ interface BudgetScreenProps {
   promoteDraft?: PromoteDraft | null
   /** Called once the promoted draft has been saved or dismissed, to clear it. */
   onPromoteConsumed?: () => void
+  /** The actual-spend controls, rendered above the groups. */
+  actualSpendBar?: ReactNode
+  /** Each group's actual spend for the fortnight `actualSpendBar` names; omitted while loading. */
+  actualByGroup?: Record<BudgetGroup, number> | undefined
 }
 
 /** Presentational budget-line + temporary-item management. Persistence lives in the caller. */
@@ -63,6 +68,8 @@ export function BudgetScreen({
   onDeleteItem,
   promoteDraft,
   onPromoteConsumed,
+  actualSpendBar,
+  actualByGroup,
 }: BudgetScreenProps) {
   const drawable = allowances.flatMap((allowance) => {
     const member = members.find((candidate) => candidate.id === allowance.member_id)
@@ -93,8 +100,10 @@ export function BudgetScreen({
           />
         </Stack>
       )}
+      {actualSpendBar}
       <BudgetLineList
         lines={lines}
+        actualByGroup={actualByGroup}
         goals={goals}
         accounts={accounts}
         allowances={drawable}

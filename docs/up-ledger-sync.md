@@ -566,7 +566,14 @@ spend.
   the override (a null `line_group` for none); picking "Default (…)" deletes it.
   Each write drops the cached `budget_actual_spend` results, and closing the
   sheet reloads the spend.
-- The PWA does not show actual spend.
+- The PWA's Budget tab reads it through `useActualSpend` (`BudgetSection`
+  steps the fortnight with `payCycleAnchor` / `spendFortnight` from `@nest/plan`
+  over the stored inflows and folds the rows with `actualSpendByGroup`).
+  `ActualSpendBar` renders the fortnight, its steppers, the "Include pending"
+  switch, the in-no-group total and the Category groups button above the
+  groups; each `GroupSection` shows spent and left or over beneath its
+  subtotal. `CategoryGroupsModal` (`useCategoryGroups`) maps categories to
+  groups with the same default, group, or no-group choices.
 
 ## 4. Actual PAYG tax paid vs estimate
 

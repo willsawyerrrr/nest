@@ -262,9 +262,8 @@ alone.
 The PWA's review screen (`routes/TransactionReviewSection.tsx`,
 `components/TransactionReviewScreen.tsx`, `hooks/useTransactionReview.ts`)
 lists the signed-in member's unreviewed Up transactions (`source = 'up'`,
-`reviewed_at` null, and `is_categorizable` or an incoming transfer from outside
-the household's own accounts), newest first and capped at the newest 100. The
-native app and MCP's `unreviewed` filter list unreviewed, categorisable ones. A
+`reviewed_at` null, and `is_categorizable`), newest first and capped at the
+newest 100, as the native app and MCP's `unreviewed` filter list them. A
 `Salary`, `Interest` or `Transfer` transaction arrives reviewed (by no member),
 so no transfer or cover awaits review: between the household's own accounts, a
 cover or forward from a saver, or from someone else (e.g. `Transfer from

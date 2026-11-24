@@ -166,7 +166,7 @@ function financialYearWindow(financialYear: number): { start: string; end: strin
   return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) }
 }
 
-function buildSystemPrompt(category: DeductionCategory, financialYear: number): string {
+export function buildSystemPrompt(category: DeductionCategory, financialYear: number): string {
   const { documentKind, descriptionGuidance } = CATEGORY_EXPECTATIONS[category]
   const { start, end } = financialYearWindow(financialYear)
   return [

@@ -750,7 +750,9 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   [`docs/on-device-extraction.md`](docs/on-device-extraction.md) for the
   confirmed SDK facts and results and
   [`docs/extraction-eval-design.md`](docs/extraction-eval-design.md) for the
-  evals that choose a model per document type. The scorer reports error classes,
+  evals that choose a model per document type. `_eval/haiku.ts` runs the Claude
+  arms (Haiku 4.5 and 5.5, Sonnet, Opus, Fable) across effort levels and input
+  paths with usage and cost capture, confirming a projected cost before spending. The scorer reports error classes,
   wrong-but-confident and severe errors, risk-coverage, repeat stability and a
   seeded clustered bootstrap with Holm correction. A seeded noise pipeline
   (`_eval/noise.ts`, `manifest.json`) renders photographed, scanned and

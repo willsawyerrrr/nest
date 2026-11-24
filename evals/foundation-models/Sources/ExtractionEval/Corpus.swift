@@ -26,10 +26,11 @@ struct CorpusDoc: Decodable {
     }
   }
 
-  /// `corpus.json`, then `strata.json` (`corpus.ts <dir> --strata`) when it is there.
+  /// `corpus.json`, then `strata.json` (`corpus.ts <dir> --strata`) and `reskinned.json`
+  /// (`reskin.ts`) when they are there.
   static func load(from dir: URL) throws -> [CorpusDoc] {
     var docs: [CorpusDoc] = []
-    for name in ["corpus.json", "strata.json"] {
+    for name in ["corpus.json", "strata.json", "reskinned.json"] {
       let url = dir.appending(path: name)
       guard name == "corpus.json" || FileManager.default.fileExists(atPath: url.path) else { continue }
       docs += try JSONDecoder().decode([CorpusDoc].self, from: try Data(contentsOf: url))

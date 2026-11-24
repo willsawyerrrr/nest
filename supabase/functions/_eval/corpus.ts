@@ -8,9 +8,11 @@
  * the raw text an ideal extractor reports, in the shape the edge functions'
  * `readRawFields` produce, so both engines are scored through the same shaping.
  *
- * `deno run --allow-write corpus.ts <dir>` writes `<dir>/corpus.json`.
+ * `deno run --allow-write corpus.ts <dir>` writes `<dir>/corpus.json` (the clean
+ * tier T0) and `<dir>/manifest.json` (the seeded noisy variants, see `noise.ts`).
  */
 
+import { buildManifest } from './noise.ts'
 import type { RawDeductionFields } from '../deduction-extract/fields.ts'
 import type { RawPayslipFields, RawPayslipTaxLine } from '../payslip-extract/fields.ts'
 import type { RawTrade, RawTradeDocument } from '../trade-extract/fields.ts'
@@ -34,7 +36,7 @@ export type CorpusDoc =
   | BaseDoc & { kind: 'other' }
 
 /** A small seeded generator (mulberry32). */
-function rng(seed: number): () => number {
+export function rng(seed: number): () => number {
   let a = seed
   return () => {
     a = (a + 0x6d2b79f5) | 0
@@ -367,5 +369,7 @@ if (import.meta.main) {
   const dir = Deno.args[0]
   if (!dir) throw new Error('usage: corpus.ts <output dir>')
   await Deno.mkdir(dir, { recursive: true })
-  await Deno.writeTextFile(`${dir}/corpus.json`, JSON.stringify(buildCorpus(), null, 2))
+  const corpus = buildCorpus()
+  await Deno.writeTextFile(`${dir}/corpus.json`, JSON.stringify(corpus, null, 2))
+  await Deno.writeTextFile(`${dir}/manifest.json`, JSON.stringify(buildManifest(corpus), null, 2))
 }

@@ -752,8 +752,10 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   [`docs/extraction-eval-design.md`](docs/extraction-eval-design.md) for the
   evals that choose a model per document type. The scorer reports error classes,
   wrong-but-confident and severe errors, risk-coverage, repeat stability and a
-  seeded clustered bootstrap with Holm correction. Real documents stay
-  git-ignored under `evals/local/`.
+  seeded clustered bootstrap with Holm correction. A seeded noise pipeline
+  (`_eval/noise.ts`, `manifest.json`) renders photographed, scanned and
+  screen-captured variants of the clean documents; only born-digital variants
+  keep a PDF text layer. Real documents stay git-ignored under `evals/local/`.
 - On-device receipts: the native apps read deduction receipts with the system
   model when it is ready (`DeductionReceiptExtractor`, from the PDF text layer or
   Vision OCR), converting the printed text in Swift as `fields.ts` does, and

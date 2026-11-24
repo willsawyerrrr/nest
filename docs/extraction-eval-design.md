@@ -4,7 +4,8 @@ Evals that choose, per document type, which model reads a document: Apple's
 on-device Foundation Models, Private Cloud Compute (PCC) or a Claude model. The
 harness, corpus and first results are in
 [`on-device-extraction.md`](on-device-extraction.md); this document specifies
-what to build and run next. Nothing here has been run.
+what to build and run next. Nothing here has been run, bar the noise pipeline
+below, which renders but has not yet been scored.
 
 ## Arms
 
@@ -81,13 +82,31 @@ print `1.234,56`.
 
 ### Noise
 
-Applied to T1 and T2 renders by a seeded pipeline and recorded in each
-document's manifest entry: rotation (up to 15 degrees), perspective skew,
-blur, low light and shadow, JPEG quality 30 to 60, scan speckle, partial crop,
-two documents on one page, and photographed-screen moire. Each input path is
-produced from the same perturbed raster, so the PDF text layer exists only for
-documents that would have one (born-digital PDFs); photographed and scanned
-documents have none and must go through OCR or image.
+Applied by a seeded pipeline (`supabase/functions/_eval/noise.ts`, applied by
+`evals/foundation-models/Sources/ExtractionEval/Noise.swift`) and recorded in
+`manifest.json` beside `corpus.json`: rotation (up to 15 degrees), perspective
+skew, blur, low light and shadow, JPEG quality 30 to 60, scan speckle, partial
+crop, two documents on one page (the page and its companion in the manifest,
+the label that of the first), and photographed-screen moire.
+
+Every clean document is made into four variants, `<id>.<profile>`, each with a
+seed derived from the base seed, document id and profile. The TypeScript
+decides every random choice and writes it to the entry, so a variant is
+reproducible from its entry alone; Swift only applies the operations, in a fixed
+order. Variants share their base document's label, and the clean T0 documents
+and `corpus.json` are unchanged.
+
+| Profile        | Operations                                                          | PDF text layer |
+| -------------- | ------------------------------------------------------------------- | -------------- |
+| `born-digital` | JPEG, and sometimes blur, on the PNG only                           | Yes            |
+| `scan`         | Slight rotation, speckle, JPEG; sometimes crop, two-up, blur        | No             |
+| `photo`        | Rotation, perspective, low light, JPEG; sometimes shadow, blur, crop | No             |
+| `screen`       | Rotation, perspective, moire, blur, JPEG; sometimes low light, crop  | No             |
+
+Each input path is produced from the same perturbed raster: the PNG is the
+degraded raster, and for a photographed or scanned variant the PDF is that
+raster alone, so the text layer exists only for documents that would have one
+(born-digital PDFs); the others must go through OCR or image.
 
 ### Real documents without committing them
 

@@ -5,10 +5,10 @@ import FoundationModels
 /// `ExtractionEval render <dir>` writes each corpus document as PDF and PNG under `<dir>/files`,
 /// then each variant in `<dir>/manifest.json` (see `supabase/functions/_eval/noise.ts`).
 /// `ExtractionEval run <dir> pdftext|ocr|image|image-hires|ocr+image [--model system|pcc]
-/// [--sampling default|greedy] [--repeats n] [--only id,id]` writes
+/// [--sampling default|greedy] [--repeats n] [--only id,id] [--cross]` writes
 /// `<dir>/results/fm-<model>-<path>[-greedy].json`.
 func usage() -> Never {
-  FileHandle.standardError.write(Data("usage: ExtractionEval facts | render <dir> | run <dir> <path> [--model m] [--sampling default|greedy] [--repeats n] [--only ids]\n".utf8))
+  FileHandle.standardError.write(Data("usage: ExtractionEval facts | render <dir> | run <dir> <path> [--model m] [--sampling default|greedy] [--repeats n] [--only ids] [--cross]\n".utf8))
   exit(2)
 }
 
@@ -32,8 +32,15 @@ case "run":
   var sampling = Sampling.default
   var repeats = 1
   var only = Set<String>()
+  var cross = false
   var index = 3
-  while index + 1 < args.count {
+  while index < args.count {
+    if args[index] == "--cross" {
+      cross = true
+      index += 1
+      continue
+    }
+    guard index + 1 < args.count else { usage() }
     switch args[index] {
     case "--model":
       guard let choice = ModelChoice(rawValue: args[index + 1]) else { usage() }
@@ -49,7 +56,7 @@ case "run":
     }
     index += 2
   }
-  try await Run.run(dir: URL(filePath: args[1]), path: path, model: model, sampling: sampling, repeats: repeats, only: only)
+  try await Run.run(dir: URL(filePath: args[1]), path: path, model: model, sampling: sampling, repeats: repeats, only: only, cross: cross)
 default:
   usage()
 }

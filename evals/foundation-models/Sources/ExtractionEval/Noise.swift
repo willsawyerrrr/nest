@@ -64,7 +64,8 @@ enum Noise {
     let pdf = files.appending(path: "\(variant.id).pdf")
     if variant.textLayer {
       try Render.writeTextPDF(
-        CorpusDoc(id: variant.id, kind: base.kind, financialYear: base.financialYear, rows: base.rows),
+        CorpusDoc(id: variant.id, kind: base.kind, financialYear: base.financialYear, rows: base.rows,
+          pageBreaks: base.pageBreaks, fault: nil),
         to: pdf)
     } else {
       try Render.writeImagePDF(image, to: pdf, name: variant.id)

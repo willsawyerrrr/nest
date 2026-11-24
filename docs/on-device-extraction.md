@@ -42,7 +42,17 @@ proxy, and a decision matrix against a baseline engine; see
 by a seeded pipeline and sharing their labels. `render` writes each as
 `files/<id>.<profile>.pdf` and `.png`; only `born-digital` variants have a PDF
 text layer. See [`extraction-eval-design.md`](extraction-eval-design.md#noise).
-`run` and the scorer read only `corpus.json`, so variants are not yet scored.
+`run` and the scorer read only `corpus.json` and, when present, `strata.json`,
+so variants are not yet scored.
+
+`corpus.ts <dir> --strata` also writes `strata.json`: the 500 documents of tier
+T1's layout, locale, long-statement and adversarial strata (200 receipts, 100
+payslips, 80 trade documents, 120 non-documents), each with a `source` that
+clusters the bootstrap. `render` lays out multi-page documents with a PDF page
+and a PNG (`<id>.png`, `<id>.p2.png`, ...) per page, and spoils the files of
+image-only, corrupt and password-protected non-documents. `run --cross` feeds
+every document to all three extractors, giving the cross-type matrix. See
+[`extraction-eval-design.md`](extraction-eval-design.md#generated-strata).
 
 Real documents for local runs go under `evals/local/` and `evals/out/`, both
 git-ignored.

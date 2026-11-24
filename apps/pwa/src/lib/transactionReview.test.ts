@@ -5,6 +5,7 @@ import {
   isGift,
   reviewErrorMessage,
   reviewErrorNeedsConnections,
+  transactionLabel,
   type UpCategory,
 } from './transactionReview'
 
@@ -51,6 +52,13 @@ describe('isGift', () => {
   it('recognises the gift category', () => {
     expect(isGift({ external_category: 'gifts-and-charity' })).toBe(true)
     expect(isGift({ external_category: 'groceries' })).toBe(false)
+  })
+})
+
+describe('transactionLabel', () => {
+  it("uses the transaction's description, or a generic label when unnamed", () => {
+    expect(transactionLabel({ description: 'Cafe Lune' })).toBe('Cafe Lune')
+    expect(transactionLabel({ description: '' })).toBe('Card purchase')
   })
 })
 

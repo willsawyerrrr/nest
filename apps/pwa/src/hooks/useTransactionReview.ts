@@ -108,16 +108,11 @@ async function categoriseBatches(
 
 /**
  * Loads the signed-in member's transactions awaiting review, the one `?id=`
- * focuses, and Up's categories, and saves a review. RLS scopes the reads to the
- * member's balance-visible accounts.
- *
- * A category change goes to Up through `up-categorise` before the review is
- * recorded through `review_transaction`, so a failed change leaves the
- * transaction unreviewed. That includes `save_failed`, where Up took the
- * category but Nest's copy kept the old one: no later sync corrects it, so the
- * member saves again, which sets the same category on Up and retries the copy.
- * The bulk actions follow the same order per transaction: one that fails
- * either step stays unreviewed and is reported back.
+ * focuses, and Up's categories, and saves a review through
+ * {@link useReviewTransaction}. RLS scopes the reads to the member's
+ * balance-visible accounts. The bulk actions follow the same save order per
+ * transaction: one that fails either step stays unreviewed and is reported
+ * back.
  */
 export function useTransactionReview(focusId: string | null): UseTransactionReviewResult {
   const householdId = useHouseholdId()
@@ -157,39 +152,8 @@ export function useTransactionReview(focusId: string | null): UseTransactionRevi
     },
   )
 
-  const categories = useHouseholdQuery(['up_category', householdId], async () => {
-    const { data, error } = await supabase.from('up_category').select('id,name,parent_id')
-    if (error) {
-      throw error
-    }
-    return data as UpCategory[]
-  })
-
-  const review = useCallback(
-    async (transactionId: string, { note, categoryId }: ReviewInput) => {
-      if (categoryId !== undefined) {
-        const { error } = await supabase.functions.invoke('up-categorise', {
-          body: { transaction_id: transactionId, category_id: categoryId },
-        })
-        if (error) {
-          throw new ReviewError(await functionFailureCode(error))
-        }
-      }
-      const { error } = await supabase.rpc('review_transaction', {
-        p_transaction_id: transactionId,
-        p_note: note,
-      })
-      if (error) {
-        throw new ReviewError(null)
-      }
-      // A move into gifts lands the transaction in the Gifts inbox too.
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['transaction_review', householdId] }),
-        queryClient.invalidateQueries({ queryKey: ['transactions', householdId] }),
-      ])
-    },
-    [queryClient, householdId],
-  )
+  const categories = useUpCategories()
+  const review = useReviewTransaction()
 
   const refresh = useCallback(
     () =>
@@ -223,10 +187,68 @@ export function useTransactionReview(focusId: string | null): UseTransactionRevi
   return {
     transactions: list.data ?? null,
     focused: focus.data ?? null,
-    categories: categories.data ?? null,
+    categories: categories.categories,
     loading: list.loading || focus.loading || categories.loading,
     review,
     reviewMany,
     categoriseMany,
   }
+}
+
+/** Loads Up's category taxonomy. */
+export function useUpCategories(): { categories: UpCategory[] | null; loading: boolean } {
+  const householdId = useHouseholdId()
+  const { data, loading } = useHouseholdQuery(['up_category', householdId], async () => {
+    const { data, error } = await supabase.from('up_category').select('id,name,parent_id')
+    if (error) {
+      throw error
+    }
+    return data as UpCategory[]
+  })
+  return { categories: data ?? null, loading }
+}
+
+/**
+ * Marks a transaction reviewed with its note, setting its Up category first
+ * when `categoryId` is given, then refreshes every cached transaction read.
+ * Rejects with a {@link ReviewError}.
+ *
+ * A category change goes to Up through `up-categorise` before the review is
+ * recorded through `review_transaction`, so a failed change leaves the
+ * transaction unreviewed. That includes `save_failed`, where Up took the
+ * category but Nest's copy kept the old one: no later sync corrects it, so the
+ * member saves again, which sets the same category on Up and retries the copy.
+ */
+export function useReviewTransaction(): (
+  transactionId: string,
+  input: ReviewInput,
+) => Promise<void> {
+  const householdId = useHouseholdId()
+  const queryClient = useQueryClient()
+
+  return useCallback(
+    async (transactionId: string, { note, categoryId }: ReviewInput) => {
+      if (categoryId !== undefined) {
+        const { error } = await supabase.functions.invoke('up-categorise', {
+          body: { transaction_id: transactionId, category_id: categoryId },
+        })
+        if (error) {
+          throw new ReviewError(await functionFailureCode(error))
+        }
+      }
+      const { error } = await supabase.rpc('review_transaction', {
+        p_transaction_id: transactionId,
+        p_note: note,
+      })
+      if (error) {
+        throw new ReviewError(null)
+      }
+      // A move into gifts lands the transaction in the Gifts inbox too.
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['transaction_review', householdId] }),
+        queryClient.invalidateQueries({ queryKey: ['transactions', householdId] }),
+      ])
+    },
+    [queryClient, householdId],
+  )
 }

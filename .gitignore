@@ -38,6 +38,7 @@ apps/ios/ShareExtension/Info.plist
 apps/ios/NestMac/Info.plist
 apps/ios/ShareExtensionMac/Info.plist
 apps/ios/NotificationContent/Info.plist
+apps/ios/NestEval/Info.plist
 xcuserdata/
 DerivedData/
 

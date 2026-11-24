@@ -19,6 +19,10 @@ and Spotlight still work on both platforms.
 
 ## Structure
 
+- `NestEval/` — the signed eval host app that runs the Foundation Models
+  extraction harness on device; see
+  [`docs/on-device-extraction.md`](../../docs/on-device-extraction.md#eval-host-app).
+
 - `project.yml` — [XcodeGen](https://github.com/yonaskolb/XcodeGen) spec; the
   source of truth for the Xcode project, its `Info.plist` properties, and the
   `supabase-swift` SPM dependency (Auth product only). The generated

@@ -1,6 +1,5 @@
 import { useHouseholdId } from '../components/HouseholdProvider'
 import { supabase } from '../lib/supabase'
-import { REVIEWABLE_FILTER } from '../lib/transactionReview'
 import { useHouseholdQuery } from './useCollection'
 
 /**
@@ -22,7 +21,7 @@ export function useTransactionReviewCount(enabled: boolean): number | null {
         .from('transactions')
         .select('id', { count: 'exact', head: true })
         .eq('source', 'up')
-        .or(REVIEWABLE_FILTER)
+        .eq('is_categorizable', true)
         .is('reviewed_at', null)
       if (error) {
         throw error

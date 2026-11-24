@@ -6,7 +6,6 @@ import { supabase } from '../lib/supabase'
 import {
   REVIEW_PAGE_SIZE,
   REVIEW_TRANSACTION_COLUMNS,
-  REVIEWABLE_FILTER,
   ReviewError,
   type ReviewTransaction,
   type UpCategory,
@@ -130,7 +129,7 @@ export function useTransactionReview(focusId: string | null): UseTransactionRevi
       .from('transactions')
       .select(REVIEW_TRANSACTION_COLUMNS)
       .eq('source', 'up')
-      .or(REVIEWABLE_FILTER)
+      .eq('is_categorizable', true)
       .is('reviewed_at', null)
       .order('posted_at', { ascending: false })
       .limit(REVIEW_PAGE_SIZE)

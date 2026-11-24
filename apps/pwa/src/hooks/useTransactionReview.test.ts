@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { REVIEWABLE_FILTER, ReviewError } from '../lib/transactionReview'
+import { ReviewError } from '../lib/transactionReview'
 import { makeWrapper } from '../test/queryWrapper'
 import { useTransactionReview } from './useTransactionReview'
 
@@ -45,7 +45,7 @@ describe('useTransactionReview', () => {
     expect(from).toHaveBeenCalledWith('transactions')
     expect(from).toHaveBeenCalledWith('up_category')
     expect(builder.eq).toHaveBeenCalledWith('source', 'up')
-    expect(builder.or).toHaveBeenCalledWith(REVIEWABLE_FILTER)
+    expect(builder.eq).toHaveBeenCalledWith('is_categorizable', true)
     expect(builder.is).toHaveBeenCalledWith('reviewed_at', null)
     expect(builder.order).toHaveBeenCalledWith('posted_at', { ascending: false })
     expect(builder.limit).toHaveBeenCalledWith(100)

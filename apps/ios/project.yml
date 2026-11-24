@@ -143,6 +143,9 @@ targets:
     dependencies:
       - package: Supabase
         product: Auth
+      # Linked explicitly: it declares the extension point's context class, and
+      # an unreferenced `import` is not enough to make the linker keep it.
+      - sdk: UserNotificationsUI.framework
     info:
       path: NotificationContent/Info.plist
       properties:

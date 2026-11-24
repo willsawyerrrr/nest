@@ -1,6 +1,6 @@
 import { assert, assertEquals, assertNotEquals } from '@std/assert'
 import { buildCorpus } from './corpus.ts'
-import { buildManifest, NOISE_SEED, OP_ORDER, PROFILES } from './noise.ts'
+import { buildManifest, loadDocs, NOISE_SEED, OP_ORDER, PROFILES, variantDocs } from './noise.ts'
 
 const corpus = buildCorpus()
 const manifest = buildManifest(corpus)
@@ -50,4 +50,49 @@ Deno.test('born-digital variants carry no geometric operation', () => {
 Deno.test('every operation appears somewhere in the manifest', () => {
   const seen = new Set(manifest.variants.flatMap((v) => v.ops.map((o) => o.op)))
   assertEquals([...seen].sort(), [...OP_ORDER].sort())
+})
+
+Deno.test('a variant takes its source label and clusters under the source', () => {
+  const docs = variantDocs(corpus, manifest)
+  assertEquals(docs.length, manifest.variants.length)
+  const byId = new Map(corpus.map((doc) => [doc.id, doc]))
+  for (const [i, variant] of manifest.variants.entries()) {
+    const doc = docs[i]
+    const base = byId.get(variant.baseId)!
+    assertEquals(doc.id, variant.id)
+    assertEquals(doc.source, base.source ?? base.id)
+    assertEquals(doc.kind, base.kind)
+    assertEquals('label' in doc ? doc.label : null, 'label' in base ? base.label : null)
+    assertEquals(doc.profile, variant.profile)
+    assertEquals(doc.textLayer, variant.textLayer)
+    const twoUp = variant.ops.find((op) => op.op === 'twoUp')
+    assertEquals(doc.companion, twoUp?.companion)
+  }
+  assert(docs.some((doc) => doc.companion !== undefined))
+})
+
+Deno.test('a variant of a faulted document is not itself faulted', () => {
+  const base = { ...corpus[0], fault: 'corrupt' as const }
+  const [variant] = variantDocs([base], {
+    seed: 1,
+    variants: [{ ...manifest.variants[0], baseId: base.id }],
+  })
+  assertEquals(variant.fault, undefined)
+})
+
+Deno.test('loadDocs reads corpus, strata and manifest variants, and only what is there', async () => {
+  const files: Record<string, string> = { '/d/corpus.json': JSON.stringify(corpus) }
+  const read = (path: string) =>
+    path in files ? Promise.resolve(files[path]) : Promise.reject(new Error('missing'))
+  assertEquals((await loadDocs('/d', read)).docs.length, corpus.length)
+  files['/d/strata.json'] = JSON.stringify([{
+    ...corpus[0],
+    id: 'strata-1',
+    source: 'receipt:a:1',
+  }])
+  files['/d/manifest.json'] = JSON.stringify(manifest)
+  const { docs, text } = await loadDocs('/d', read)
+  assertEquals(docs.length, corpus.length + 1 + manifest.variants.length)
+  assertEquals(docs[corpus.length].id, 'strata-1')
+  assert(text.includes('strata-1'))
 })

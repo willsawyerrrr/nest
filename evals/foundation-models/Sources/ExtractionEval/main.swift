@@ -6,7 +6,8 @@ import FoundationModels
 /// then each variant in `<dir>/manifest.json` (see `supabase/functions/_eval/noise.ts`).
 /// `ExtractionEval run <dir> pdftext|ocr|image|image-hires|ocr+image [--model system|pcc]
 /// [--sampling default|greedy] [--repeats n] [--only id,id] [--cross]` writes
-/// `<dir>/results/fm-<model>-<path>[-greedy].json`.
+/// `<dir>/results/fm-<model>-<path>[-greedy].json`, for the corpus, strata and, when
+/// `<dir>/manifest.json` is there, each rendered variant under its own id.
 func usage() -> Never {
   FileHandle.standardError.write(Data("usage: ExtractionEval facts | render <dir> | run <dir> <path> [--model m] [--sampling default|greedy] [--repeats n] [--only ids] [--cross]\n".utf8))
   exit(2)

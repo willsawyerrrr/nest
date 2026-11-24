@@ -4,11 +4,13 @@
  * decision matrix per document type.
  *
  * `deno run --allow-read report.ts <dir> [--baseline <engine>]` reads
- * `<dir>/corpus.json`, every `<dir>/results/*.json` and, when present,
+ * `<dir>/corpus.json`, `strata.json` and the noisy variants of `manifest.json` when
+ * present (a variant is scored against its source document's label), every `<dir>/results/*.json` and, when present,
  * `<dir>/profiles.json` (engine name to `ArmProfile`).
  */
 
 import type { CorpusDoc, DocKind } from './corpus.ts'
+import { loadDocs } from './noise.ts'
 import {
   agreementConfidence,
   declineStats,
@@ -88,6 +90,52 @@ export function report(corpus: CorpusDoc[], engines: EngineResults[]): string {
 }
 
 type Extractor = Exclude<DocKind, 'other'>
+
+/** The slice of the corpus a document falls in: clean, a noise profile, or a two-up page. */
+const SLICES: Array<[string, (doc: CorpusDoc) => boolean]> = [
+  ['clean', (doc) => doc.profile === undefined],
+  ['born-digital', (doc) => doc.profile === 'born-digital'],
+  ['scan', (doc) => doc.profile === 'scan'],
+  ['photo', (doc) => doc.profile === 'photo'],
+  ['screen', (doc) => doc.profile === 'screen'],
+  ['two-up', (doc) => doc.companion !== undefined],
+]
+
+/**
+ * Exact-match accuracy per engine, extractor and slice, so what noise costs
+ * shows against the clean documents. A two-up variant also counts under its
+ * profile; it is scored against the label of the document on top, so reading
+ * its companion instead counts as wrong. Empty when the corpus has no variants.
+ */
+export function variantReport(corpus: CorpusDoc[], engines: EngineResults[]): string {
+  if (!corpus.some((doc) => doc.profile !== undefined)) return ''
+  const lines = [
+    '| Engine | Extractor | Slice | Correct | Documents |',
+    '| -- | -- | -- | -- | -- |',
+  ]
+  for (const engine of engines) {
+    for (const extractor of EXTRACTORS) {
+      for (const [name, inSlice] of SLICES) {
+        const total: Score = { units: 0, correct: 0, spurious: 0 }
+        let runs = 0
+        for (const doc of corpus.filter(inSlice)) {
+          const run = engine.results[resultKey(doc.id, extractor)]
+          if (!run) continue
+          const score = scoreRun(doc, extractor, run)
+          total.units += score.units
+          total.correct += score.correct
+          runs++
+        }
+        if (runs === 0) continue
+        const pct = total.units === 0 ? 0 : Math.round((100 * total.correct) / total.units)
+        lines.push(
+          `| ${engine.engine} | ${extractor} | ${name} | ${total.correct}/${total.units} (${pct}%) | ${runs} |`,
+        )
+      }
+    }
+  }
+  return lines.join('\n')
+}
 
 /**
  * Median latency of cold runs (the process's first generation, paying model
@@ -524,7 +572,7 @@ if (import.meta.main) {
   if (!dir) throw new Error('usage: report.ts <dir> [--baseline <engine>]')
   const baselineAt = rest.indexOf('--baseline')
   const baseline = baselineAt >= 0 ? rest[baselineAt + 1] : undefined
-  const corpus: CorpusDoc[] = JSON.parse(await Deno.readTextFile(`${dir}/corpus.json`))
+  const { docs: corpus } = await loadDocs(dir)
   const engines: EngineResults[] = []
   for await (const entry of Deno.readDir(`${dir}/results`)) {
     if (entry.name.endsWith('.json')) {
@@ -537,6 +585,8 @@ if (import.meta.main) {
   const profiles: Record<string, ArmProfile> = await Deno.readTextFile(`${dir}/profiles.json`)
     .then(JSON.parse, () => ({}))
   console.log(report(corpus, engines))
+  const variants = variantReport(corpus, engines)
+  if (variants) console.log(`\n## Noise and two-up pages\n\n${variants}`)
   console.log('\n## Error classes and calibration\n')
   console.log(diagnostics(corpus, engines))
   console.log('\n## Cold and warm latency\n')

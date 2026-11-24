@@ -42,8 +42,13 @@ proxy, and a decision matrix against a baseline engine; see
 by a seeded pipeline and sharing their labels. `render` writes each as
 `files/<id>.<profile>.pdf` and `.png`; only `born-digital` variants have a PDF
 text layer. See [`extraction-eval-design.md`](extraction-eval-design.md#noise).
-`run` and the scorer read only `corpus.json` and, when present, `strata.json`,
-so variants are not yet scored.
+`run`, `haiku.ts` and the scorer read `corpus.json` and, when present,
+`strata.json` and `manifest.json`. Each variant runs under its own id, is scored
+against its source document's label and counts as that source in the bootstrap,
+and the report adds accuracy per noise profile and for two-up pages. A variant
+with no text layer is skipped on the PDF text and `text` paths. A two-up page
+shows its companion below the document, and the prompt is unchanged: the answer
+is scored against the document on top, so reading the companion counts as wrong.
 
 `corpus.ts <dir> --strata` also writes `strata.json`: the 500 documents of tier
 T1's layout, locale, long-statement and adversarial strata (200 receipts, 100

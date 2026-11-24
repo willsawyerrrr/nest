@@ -40,6 +40,12 @@ interface BaseDoc {
   locale?: string
   /** The source layout instance the document varies; clusters the bootstrap. */
   source?: string
+  /** The noise profile; noisy variants only (see `noise.ts`). */
+  profile?: string
+  /** False when the variant's PDF carries no text layer; noisy variants only. */
+  textLayer?: boolean
+  /** The document sharing a two-up page; noisy variants only. */
+  companion?: string
 }
 
 export type CorpusDoc =

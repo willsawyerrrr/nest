@@ -191,3 +191,45 @@ export function buildManifest(corpus: CorpusDoc[]): Manifest {
   })
   return { seed: NOISE_SEED, variants }
 }
+
+/**
+ * The variants as documents: each takes its source document's label and, as
+ * `source`, the source's own cluster, so a variant is scored against the label
+ * of the document it was made from and the bootstrap resamples the source, not
+ * the variant. The id is the variant's, which names its files and results.
+ * `companion` is the other document on a two-up page.
+ */
+export function variantDocs(docs: CorpusDoc[], manifest: Manifest): CorpusDoc[] {
+  const byId = new Map(docs.map((doc) => [doc.id, doc]))
+  return manifest.variants.map((variant) => {
+    const base = byId.get(variant.baseId)
+    if (!base) throw new Error(`${variant.id}: no document ${variant.baseId}`)
+    const twoUp = variant.ops.find((op) => op.op === 'twoUp')
+    const { fault: _fault, ...clean } = base
+    return {
+      ...clean,
+      id: variant.id,
+      source: base.source ?? base.id,
+      profile: variant.profile,
+      textLayer: variant.textLayer,
+      ...(twoUp ? { companion: twoUp.companion } : {}),
+    }
+  })
+}
+
+/**
+ * Reads `corpus.json`, then `strata.json` and the variants of `manifest.json`
+ * when they are there. `text` is every file read, for fingerprinting the corpus.
+ */
+export async function loadDocs(
+  dir: string,
+  readText: (path: string) => Promise<string> = Deno.readTextFile,
+): Promise<{ docs: CorpusDoc[]; text: string }> {
+  const read = (name: string) => readText(`${dir}/${name}`).catch(() => null)
+  const corpus = await readText(`${dir}/corpus.json`)
+  const strata = await read('strata.json')
+  const manifest = await read('manifest.json')
+  const clean: CorpusDoc[] = [...JSON.parse(corpus), ...(strata ? JSON.parse(strata) : [])]
+  const variants = manifest ? variantDocs(clean, JSON.parse(manifest)) : []
+  return { docs: [...clean, ...variants], text: corpus + (strata ?? '') + (manifest ?? '') }
+}

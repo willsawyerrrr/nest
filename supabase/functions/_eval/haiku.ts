@@ -11,7 +11,9 @@
  * `ANTHROPIC_API_KEY=… deno run --allow-env --allow-read --allow-write --allow-net
  * --allow-run=git haiku.ts <dir> [--arms a,b] [--efforts low,medium,high]
  * [--media pdf,png,text] [--repeats 5] [--only id,id] [--dry-run] [--force]` reads
- * `<dir>/corpus.json` and the rendered `<dir>/files/<id>.<pdf|png|txt>`, prints the
+ * `<dir>/corpus.json`, `strata.json` and the noisy variants in `manifest.json` (each
+ * scored against its source document's label) and the rendered
+ * `<dir>/files/<id>.<pdf|png|txt>`, prints the
  * projected cost, asks for confirmation, and writes one
  * `<dir>/results/claude-<arm>[-<effort>]-<media>.json` per engine.
  */
@@ -25,6 +27,7 @@ import { readRawFields as readPayslip } from '../payslip-extract/fields.ts'
 import { buildSystemPrompt as tradePrompt, TRADES_TOOL } from '../trade-extract/model.ts'
 import { readRawFields as readTrades } from '../trade-extract/fields.ts'
 import type { CorpusDoc, DocKind } from './corpus.ts'
+import { loadDocs } from './noise.ts'
 import { type EngineResults, resultKey, type RunResult } from './score.ts'
 
 export type ExtractorKind = Exclude<DocKind, 'other'>
@@ -279,8 +282,15 @@ export async function runOnce(
   return raw ? { ...usage, raw } : { ...usage, error: 'malformed' }
 }
 
-export function documentExtractors(doc: CorpusDoc): ExtractorKind[] {
+export function documentExtractors(doc: CorpusDoc, media?: Media): ExtractorKind[] {
+  // A variant whose PDF is only a picture has no text to read.
+  if (media === 'text' && doc.textLayer === false) return []
   return EXTRACTORS.filter((kind) => doc.kind === kind || doc.kind === 'other')
+}
+
+/** The text file of a document; a born-digital variant reads its source document's. */
+export function textFile(doc: CorpusDoc): string {
+  return doc.profile ? doc.id.slice(0, -doc.profile.length - 1) : doc.id
 }
 
 /** The engine name the scorer and report know the arm by. */
@@ -320,8 +330,8 @@ export function projectCost(
   specs: EngineSpec[],
   repeats: number,
 ): Projection {
-  const perEngine = corpus.flatMap(documentExtractors)
-  const engines = specs.map(({ arm, name }) => {
+  const engines = specs.map(({ arm, name, media }) => {
+    const perEngine = corpus.flatMap((doc) => documentExtractors(doc, media))
     const costNano = perEngine.reduce((sum, kind) => {
       const { input, output } = EXTRACTOR_SPECS[kind].profile
       return sum + costNanoUsd(arm, input, output) * repeats
@@ -355,8 +365,10 @@ export async function runEngine(
   const results: ClaudeEngineResults['results'] = {}
   const all: ClaudeEngineResults['repeats'] = {}
   for (const doc of corpus.docs) {
+    const kinds = documentExtractors(doc, spec.media)
+    if (kinds.length === 0) continue
     const input = await corpus.load(doc, spec.media)
-    for (const kind of documentExtractors(doc)) {
+    for (const kind of kinds) {
       const runs: ClaudeRunResult[] = []
       for (let i = 0; i < repeats; i++) {
         runs.push(await runOnce(client, spec.arm, spec.effort, kind, doc.financialYear, input))
@@ -461,8 +473,7 @@ async function exists(path: string): Promise<boolean> {
 
 async function main(): Promise<void> {
   const options = parseArgs(Deno.args)
-  const manifest = await Deno.readTextFile(`${options.dir}/corpus.json`)
-  const all: CorpusDoc[] = JSON.parse(manifest)
+  const { docs: all, text: corpusText } = await loadDocs(options.dir)
   const docs = options.only ? all.filter((doc) => options.only!.includes(doc.id)) : all
   const resultsDir = `${options.dir}/results`
   const todo: EngineSpec[] = []
@@ -495,13 +506,13 @@ async function main(): Promise<void> {
     docs,
     load: async (doc, media) => {
       if (media === 'text') {
-        return { media, text: await Deno.readTextFile(`${options.dir}/files/${doc.id}.txt`) }
+        return { media, text: await Deno.readTextFile(`${options.dir}/files/${textFile(doc)}.txt`) }
       }
       return { media, bytes: await Deno.readFile(`${options.dir}/files/${doc.id}.${media}`) }
     },
   }
   const meta = {
-    corpusSha256: await sha256(manifest),
+    corpusSha256: await sha256(corpusText),
     commit: await gitCommit(),
     startedAt: new Date().toISOString(),
   }

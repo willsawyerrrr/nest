@@ -11,6 +11,12 @@ struct CorpusDoc: Decodable {
   /// How the file is spoiled instead of rendered normally: `imageOnly` (no text layer), `corrupt`
   /// (truncated PDF) or `encrypted` (password-protected PDF).
   let fault: String?
+  /// The noise profile; a noisy variant only.
+  var profile: String?
+  /// False when the variant's PDF is only a picture, with no text to read; a noisy variant only.
+  var textLayer: Bool?
+  /// The document sharing a two-up page; a noisy variant only.
+  var companion: String?
 
   /// The rows of each page; one empty page for a document with no rows.
   var pages: [[[String]]] {
@@ -29,6 +35,15 @@ struct CorpusDoc: Decodable {
       docs += try JSONDecoder().decode([CorpusDoc].self, from: try Data(contentsOf: url))
     }
     return docs
+  }
+
+  /// The corpus and strata documents, then each variant of `manifest.json` when it is there.
+  /// A variant is named by its own id, which names its rendered files and results, and carries its
+  /// source document's rows; the scorer reads the label from the source document.
+  static func loadAll(from dir: URL) throws -> [CorpusDoc] {
+    let docs = try load(from: dir)
+    guard let manifest = try Manifest.load(from: dir) else { return docs }
+    return try docs + manifest.variants.map { try $0.document(of: docs) }
   }
 }
 

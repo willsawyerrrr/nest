@@ -123,6 +123,6 @@ export function reviewErrorNeedsConnections(code: string | null): boolean {
 }
 
 /** A transaction's own words, falling back to a generic label for an unnamed one. */
-export function transactionLabel(transaction: ReviewTransaction): string {
+export function transactionLabel(transaction: Pick<ReviewTransaction, 'description'>): string {
   return transaction.description || 'Card purchase'
 }

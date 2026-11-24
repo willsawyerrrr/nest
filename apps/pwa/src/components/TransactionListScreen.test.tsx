@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { TransactionFilters } from '../lib/transactionList'
 import type { UpCategory } from '../lib/transactionReview'
 import { makeMember, makeReviewTransaction } from '../test/fixtures'
-import { render, screen, within } from '../test/render'
+import { render, screen, waitFor, within } from '../test/render'
 import { TransactionListScreen } from './TransactionListScreen'
 
 const categories: UpCategory[] = [
@@ -99,6 +99,42 @@ describe('TransactionListScreen', () => {
     await userEvent.click(screen.getByRole('combobox', { name: 'Kind' }))
     await userEvent.click(await screen.findByRole('option', { name: 'Transfer' }))
     expect(onFiltersChange).toHaveBeenCalledWith({ ...NONE, kind: 'transfer' })
+  })
+
+  it('changes the account, status and category filters', async () => {
+    renderScreen()
+    await userEvent.click(screen.getByRole('combobox', { name: 'Account' }))
+    await userEvent.click(await screen.findByRole('option', { name: 'Spending' }))
+    expect(onFiltersChange).toHaveBeenLastCalledWith({ ...NONE, account: 'a1' })
+
+    await userEvent.click(screen.getByRole('combobox', { name: 'Status' }))
+    await userEvent.click(await screen.findByRole('option', { name: 'Settled' }))
+    expect(onFiltersChange).toHaveBeenLastCalledWith({ ...NONE, status: 'settled' })
+
+    await userEvent.click(screen.getByRole('combobox', { name: 'Category' }))
+    await userEvent.click(await screen.findByRole('option', { name: 'Restaurants & Cafes' }))
+    expect(onFiltersChange).toHaveBeenLastCalledWith({ ...NONE, category: 'restaurants-and-cafes' })
+  })
+
+  it('changes the date range', async () => {
+    renderScreen()
+    await userEvent.type(screen.getByRole('textbox', { name: 'From' }), '1 Nov 2026{Enter}')
+    expect(onFiltersChange).toHaveBeenLastCalledWith({ ...NONE, from: expect.any(String) })
+    await userEvent.type(screen.getByRole('textbox', { name: 'To' }), '20 Nov 2026{Enter}')
+    expect(onFiltersChange).toHaveBeenLastCalledWith({ ...NONE, to: expect.any(String) })
+  })
+
+  it('points to Gifts after a transaction is filed as one, and dismisses the notice', async () => {
+    renderScreen()
+    await userEvent.click(screen.getByRole('button', { name: /Cafe Lune/ }))
+    await userEvent.click(screen.getByRole('button', { name: "It's a gift" }))
+    const notice = await screen.findByRole('link', { name: 'Open Gifts' })
+    await userEvent.click(
+      within(notice.closest('[role="alert"]') as HTMLElement).getByRole('button'),
+    )
+    await waitFor(() =>
+      expect(screen.queryByRole('link', { name: 'Open Gifts' })).not.toBeInTheDocument(),
+    )
   })
 
   it('offers Load more only while an older page may remain', async () => {

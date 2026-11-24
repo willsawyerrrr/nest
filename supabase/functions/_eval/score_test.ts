@@ -1,10 +1,11 @@
 import { assertEquals } from '@std/assert'
 import { buildCorpus, type CorpusDoc } from './corpus.ts'
-import { decisionMatrix, diagnostics, evaluate, report } from './report.ts'
+import { decisionMatrix, diagnostics, evaluate, report, timingReport } from './report.ts'
 import {
   agreementConfidence,
   declineStats,
   outcomeOf,
+  readEngine,
   resultKey,
   scoreRun,
   stability,
@@ -270,4 +271,40 @@ Deno.test('the decision matrix names failed and unmeasured gates and scores only
   assertEquals(text.includes('### Receipt'), true)
   assertEquals(text.includes('stability?'), true)
   assertEquals(diagnostics(corpus, engines).split('\n').length >= 4, true)
+})
+
+Deno.test("readEngine feeds a result file's runs into repeats for stability and timing", () => {
+  const doc = receipt('receipt-1')
+  const key = resultKey(doc.id, 'deduction')
+  const run = (timing: 'cold' | 'warm', ms: number, raw: object = {}) => ({
+    raw: { ...doc.label, ...raw },
+    ms,
+    timing,
+  })
+  const runs = [run('cold', 900), run('warm', 100), run('warm', 120, { amount: '$0.01' })]
+  const engine = readEngine({
+    engine: 'fm-system-pdftext',
+    results: { [key]: { ...runs[0], runs } },
+  })
+  assertEquals(engine.repeats?.[key], runs)
+  assertEquals(engine.results[key].ms, 900)
+  const steady = readEngine({
+    engine: 'steady',
+    results: { [key]: { ...runs[0], runs: runs.slice(0, 2) } },
+  })
+  assertEquals(evaluate([doc], [steady]).deduction[0].stability, 1)
+  assertEquals(evaluate([doc], [engine]).deduction[0].stability! < 1, true)
+  assertEquals(
+    timingReport([doc], [engine]).includes('| fm-system-pdftext | deduction | 1 | 900 | 2 | 120 |'),
+    true,
+  )
+})
+
+Deno.test('readEngine leaves results without runs unchanged and keeps explicit repeats', () => {
+  const plain = { engine: 'haiku', results: { 'x:payslip': { ms: 1 } } }
+  assertEquals(readEngine(plain), plain)
+  const repeats = { 'x:payslip': [{ ms: 1 }, { ms: 2 }] }
+  const explicit = { ...plain, results: { 'x:payslip': { ms: 1, runs: [{ ms: 3 }] } }, repeats }
+  assertEquals(readEngine(explicit).repeats, repeats)
+  assertEquals(timingReport([], [plain]).split('\n').length, 2)
 })

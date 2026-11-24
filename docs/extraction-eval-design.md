@@ -175,6 +175,17 @@ value is right exactly when the app would pre-fill it.
 - Severe error: a wrong amount, gross, tax withheld, units, price or side, or
   any money error over 1% of the printed value or with the wrong sign.
 
+`supabase/functions/_eval/score.ts` implements this (`outcomeOf`, one outcome
+per field, line or trade). A `format` field is text read that could not be
+converted, so the app leaves it empty; a run the app rejects as not the
+extractor's kind (`declined`) or that failed answers none of a document's units,
+so each is missing. Wrong-confident counts wrong and spurious fields over fields
+the app would pre-fill; a field's own checks are the conversion in `fields.ts`
+and the run claiming the document's kind. Lines (payslip earnings and tax) are
+units of weight 3 matched as a multiset, with an unmatched expected line paired
+with the most alike unmatched answer as wrong; a trade is one unit of weight 26
+(its field weights summed).
+
 ### Impact weights
 
 Weights follow what the field feeds downstream.
@@ -194,12 +205,29 @@ experiment. Report a reliability table and a risk-coverage curve per proxy: the
 share of documents that can be accepted without review at 1% field error. The
 cascade's value is this curve, not raw accuracy.
 
+The proxies are `validatorConfidence` (all answered fields converted),
+`agreementConfidence` (each run's fields against the other repeats, or against
+the same document under the other arms) and a run's `confidence` field.
+`riskCoverage` ranks documents by a proxy and reports impact-weighted field
+error among those accepted; `coverageAtRisk` reads the share accepted at 1%;
+`reliability` bins documents by confidence. Stability is `stability`: per
+field, the share of repeats giving the commonest value, averaged over fields
+and then documents. Engine results carry repeats in `repeats` (keyed as
+`results`; `results` holds the first).
+
 ### Intervals
 
 Paired, clustered bootstrap over source documents (10,000 resamples) for every
 difference against Haiku 4.5; 95% percentile intervals; Holm correction across
 the three types. Non-inferiority margin for adoption: the lower bound of the
 impact-weighted accuracy difference is at least -3 points.
+
+`stats.ts` implements `bootstrapDifference` (seeded, both arms re-scored on each
+resample of source documents, keyed by a document's `source` and else its id),
+`holm`, and `binomialUpper` (exact one-sided 95% bound on wrong-confident over
+filled fields; 150 documents of three fields and no events bound it near 0.7%,
+and the 15 receipt fields of the seeded corpus only near 18%). The p-value is
+two-sided and the Holm adjustment is per arm across the three types.
 
 ## Run protocol
 
@@ -259,6 +287,18 @@ context); the eval confirms or refutes that.
 
 Filled in per type after the runs. Weighted scores rank only arms that pass
 every gate; failed gates are named, not scored.
+
+`report.ts <dir> --baseline <engine>` prints the matrix (`decisionMatrix`) from
+the results, plus `<dir>/profiles.json` mapping each engine to an `ArmProfile`
+(tier `local` or `claude`, privacy 1 to 3, offline, `costPer1000` by extractor,
+device coverage). A gate that cannot be measured from the results (decline
+without non-documents, stability without repeats, accuracy without the
+baseline) is shown with a `?` and does not pass. The score scales each
+criterion to 0 to 1 and applies the weights above: accuracy as measured,
+stability as measured, privacy as 3, 2, 1 over 3, cost 0.5 at Haiku 4.5's cost
+and 1 at a tenth of it or free (log scale, 0 at ten times), latency as one
+minus p95 over the type's limit, offline and coverage as stated. Run the report
+over T3 alone as well as over the whole corpus; the gates apply to each.
 
 | Arm        | Accuracy (CI) | Wrong-confident (upper) | Decline | Cannot-answer | p95 latency | $/1000 | Offline | Coverage | Gates | Score |
 | ---------- | ------------- | ----------------------- | ------- | ------------- | ----------- | ------ | ------- | -------- | ----- | ----- |

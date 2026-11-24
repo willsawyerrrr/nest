@@ -31,6 +31,12 @@ document per whole trade. Extras are counted as spurious, not subtracted. A
 second column accepts dates printed `DD/MM/YYYY`, separating a misread date from
 one the model returned in the wrong format, which on-device code could convert.
 
+`report.ts` also prints, per engine and extractor, impact-weighted accuracy,
+error classes (correct, missing, wrong, spurious, format), wrong-confident and
+severe errors, stability over repeats and risk-coverage under each confidence
+proxy, and a decision matrix against a baseline engine; see
+[`extraction-eval-design.md`](extraction-eval-design.md#scoring).
+
 Real documents for local runs go under `evals/local/` and `evals/out/`, both
 git-ignored.
 
@@ -44,7 +50,7 @@ swift run --package-path evals/foundation-models ExtractionEval run evals/out oc
 swift run --package-path evals/foundation-models ExtractionEval run evals/out image
 ANTHROPIC_API_KEY=… deno run --allow-env --allow-read --allow-write --allow-net \
   supabase/functions/_eval/haiku.ts evals/out png      # or pdf
-deno run --allow-read supabase/functions/_eval/report.ts evals/out
+deno run --allow-read supabase/functions/_eval/report.ts evals/out --baseline haiku-pdf
 ```
 
 `run` takes `--model system|pcc` and `--only <id>,<id>`. The inputs:

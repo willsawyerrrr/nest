@@ -58,9 +58,11 @@ swift run --package-path evals/foundation-models ExtractionEval run evals/out im
 swift run --package-path evals/foundation-models ExtractionEval run evals/out image-hires
 swift run --package-path evals/foundation-models ExtractionEval run evals/out ocr+image --repeats 5
 swift run --package-path evals/foundation-models ExtractionEval run evals/out pdftext --repeats 5 --sampling greedy
+deno run --allow-env --allow-read --allow-write --allow-net --allow-run=git \
+  supabase/functions/_eval/haiku.ts evals/out --dry-run        # projected cost only, no key
 ANTHROPIC_API_KEY=… deno run --allow-env --allow-read --allow-write --allow-net \
-  supabase/functions/_eval/haiku.ts evals/out png      # or pdf
-deno run --allow-read supabase/functions/_eval/report.ts evals/out --baseline haiku-pdf
+  --allow-run=git supabase/functions/_eval/haiku.ts evals/out --media pdf,png
+deno run --allow-read supabase/functions/_eval/report.ts evals/out --baseline claude-haiku-4-5-pdf
 ```
 
 `run` takes `--model system|pcc`, `--sampling default|greedy` (default
@@ -117,8 +119,35 @@ documentation, and `ExtractionEval facts` run on macOS 27.2.1 (Xcode 27.2).
   managed entitlement, which is the likely cause but is untested.
 - iPhone behaviour: every figure below is from a Mac. Latency and the on-device
   model's accuracy on iPhone hardware are unmeasured.
-- Haiku on this corpus: not run, as no Anthropic key was available. `haiku.ts`
-  runs the production extractors unchanged. The comparison is open until it runs.
+- Claude arms on this corpus: not run, as no Anthropic key was available.
+  `haiku.ts` runs the production prompts and tools on every Claude arm (see
+  Claude arms below). The comparison is open until it runs.
+
+## Claude arms
+
+`haiku.ts <dir>` runs the production extractors' prompts, tools and field
+readers on Haiku 4.5, Haiku 5.5, Sonnet 5.5, Opus 5.5 and Fable 5.2. Opus 5.5,
+Sonnet 5.5 and Fable 5.2 reject a forced `tool_choice`, so every arm, Haiku 4.5
+included, gets a `strict` tool, `tool_choice: auto` and a system instruction
+naming the tool. No `temperature`, `top_p` or `top_k` is sent. Haiku 5.5, Sonnet
+5.5 and Opus 5.5 send adaptive thinking; Fable thinks always and takes no
+`thinking` parameter; every 5.x arm sets `output_config.effort` explicitly.
+Thinking arms get 8,000 output tokens beyond the production cap.
+
+Flags: `--arms` (default all), `--efforts` (default `low,medium,high`, 5.x arms
+only), `--media` (default `pdf,png,text`), `--repeats` (default 5), `--only`,
+`--dry-run` (print the projection and stop) and `--force` (rerun an engine whose
+results exist; otherwise it is skipped). `text` reads `<dir>/files/<id>.txt`, the
+PDF's text layer (for example `pdftotext -layout`), and sends it inline as the
+on-device `pdftext` path does.
+
+The runner prints a projected cost from `corpus.json` at the design's assumed
+token profile, excluding thinking, and spends nothing until `yes` is typed.
+Each engine writes `results/claude-<arm>[-<effort>]-<media>.json`: the scorer's
+`results` and `repeats`, plus per run `effort`, `inputTokens`, `outputTokens`
+(thinking included, as billed), `costNanoUsd` (integer nanodollars from the
+price table), `stopReason` and `ms` (including SDK retries), and `meta` with the
+model id, corpus SHA-256 and git commit.
 
 ## Results
 

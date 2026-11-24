@@ -5,7 +5,8 @@ on-device Foundation Models, Private Cloud Compute (PCC) or a Claude model. The
 harness, corpus and first results are in
 [`on-device-extraction.md`](on-device-extraction.md); this document specifies
 what to build and run next. Nothing here has been run, bar the noise pipeline
-below, which renders but has not yet been scored.
+below, which renders but has not yet been scored; the Claude runner is built (see
+[Claude arms](on-device-extraction.md#claude-arms)).
 
 ## Arms
 
@@ -373,7 +374,7 @@ before spending.
 | On-device iPhone | A host app (test target) to run the harness on device; eligible device on iOS 27 and iOS 26.4; Apple Intelligence on; eligibility list is unconfirmed             |
 | PCC              | Managed entitlement (the unsigned command-line tool fails with `ModelManagerError` 1046, untested as the cause); a signed host app; per-user quotas bound repeats |
 | Haiku 4.5, 5.5   | An Anthropic API key (none was available for the first run); Haiku 5.5 behaviour with the production tool schema unverified                                       |
-| Sonnet, Opus     | API key; runner without forced `tool_choice`                                                                                                                      |
+| Sonnet, Opus     | API key                                                                                                                                                           |
 | Fable            | API key on an organisation with 30-day retention (no ZDR); household documents leave the device, so T3 needs redaction and consent first                          |
 | Real corpus      | Both members' consent, the labelling tool and the redaction step                                                                                                  |
 

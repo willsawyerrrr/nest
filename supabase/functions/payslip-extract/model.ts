@@ -138,7 +138,7 @@ function financialYearWindow(financialYear: number): { start: string; end: strin
   return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) }
 }
 
-function buildSystemPrompt(financialYear: number): string {
+export function buildSystemPrompt(financialYear: number): string {
   const { start, end } = financialYearWindow(financialYear)
   return [
     'You read Australian payslips and report the figures printed on them, for a',

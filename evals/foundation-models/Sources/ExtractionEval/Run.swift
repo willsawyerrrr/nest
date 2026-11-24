@@ -10,6 +10,20 @@ enum InputPath: String {
   case ocr
   /// The rendered PNG as an iOS 27 image attachment.
   case image
+  /// The rendered PNG cut into overlapping horizontal bands, each its own image attachment.
+  case imageHires = "image-hires"
+  /// The Vision transcript and the rendered PNG together.
+  case ocrImage = "ocr+image"
+}
+
+/// How the model samples its answer.
+enum Sampling: String {
+  case greedy
+  case `default`
+
+  var options: GenerationOptions {
+    GenerationOptions(samplingMode: self == .greedy ? .greedy : nil)
+  }
 }
 
 /// Which model answers.
@@ -19,41 +33,70 @@ enum ModelChoice: String {
 }
 
 enum Run {
-  static func run(dir: URL, path: InputPath, model: ModelChoice, only: Set<String>) async throws {
+  /// Whether the process has generated yet; the first generation pays model load and warm-up.
+  nonisolated(unsafe) private static var generated = false
+
+  static func run(
+    dir: URL, path: InputPath, model: ModelChoice, sampling: Sampling, repeats: Int, only: Set<String>
+  ) async throws {
     let corpus = try CorpusDoc.load(from: dir)
-    var results: [String: RunResult] = [:]
+    let device = await Device.snapshot(model)
+    var results: [String: [String: Any]] = [:]
     for doc in corpus where only.isEmpty || only.contains(doc.id) {
       let kinds = doc.kind == "other" ? ["payslip", "deduction", "trade"] : [doc.kind]
       for kind in kinds {
-        let started = ContinuousClock.now
-        var result = RunResult(ms: 0)
-        do {
-          let (raw, tokens) = try await extract(doc, kind: kind, path: path, model: model, dir: dir)
-          result.raw = raw
-          result.promptTokens = tokens
-        } catch {
-          result.error = describe(error)
+        var runs: [[String: Any]] = []
+        for repeatIndex in 0..<repeats {
+          let timing = generated ? "warm" : "cold"
+          generated = true
+          let thermal = Device.thermalState
+          let started = ContinuousClock.now
+          var result = RunResult(ms: 0)
+          do {
+            let (raw, tokens) = try await extract(
+              doc, kind: kind, path: path, model: model, sampling: sampling, dir: dir)
+            result.raw = raw
+            result.promptTokens = tokens
+          } catch {
+            result.error = describe(error)
+          }
+          let elapsed = ContinuousClock.now - started
+          result.ms = Int(elapsed.components.seconds * 1000 + elapsed.components.attoseconds / 1_000_000_000_000_000)
+          var json = result.json
+          json["repeat"] = repeatIndex
+          json["sampling"] = sampling.rawValue
+          json["timing"] = timing
+          json["thermalState"] = thermal
+          json["lowPowerMode"] = ProcessInfo.processInfo.isLowPowerModeEnabled
+          json.merge(device) { $1 }
+          runs.append(json)
+          print(
+            "\(doc.id):\(kind)#\(repeatIndex)", result.error ?? "ok", "\(result.ms)ms", timing, thermal,
+            result.promptTokens.map { "\($0) tokens" } ?? "")
         }
-        let elapsed = ContinuousClock.now - started
-        result.ms = Int(elapsed.components.seconds * 1000 + elapsed.components.attoseconds / 1_000_000_000_000_000)
-        results["\(doc.id):\(kind)"] = result
-        print("\(doc.id):\(kind)", result.error ?? "ok", "\(result.ms)ms", result.promptTokens.map { "\($0) tokens" } ?? "")
+        // The first repeat is the result the scorer reads; `runs` holds every repeat.
+        var entry = runs[0]
+        entry["runs"] = runs
+        results["\(doc.id):\(kind)"] = entry
       }
     }
-    let engine = "fm-\(model.rawValue)-\(path.rawValue)"
+    let engine = "fm-\(model.rawValue)-\(path.rawValue)" + (sampling == .greedy ? "-greedy" : "")
     let out = dir.appending(path: "results")
     try FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
     let payload = try JSONSerialization.data(
       withJSONObject: [
         "engine": engine,
-        "results": results.mapValues(\.json),
+        "sampling": sampling.rawValue,
+        "repeats": repeats,
+        "device": device,
+        "results": results,
       ], options: [.prettyPrinted, .sortedKeys])
     try payload.write(to: out.appending(path: "\(engine).json"))
   }
 
   /// One document through one extractor: returns the raw fields as JSON and the prompt's token count.
   private static func extract(
-    _ doc: CorpusDoc, kind: String, path: InputPath, model: ModelChoice, dir: URL
+    _ doc: CorpusDoc, kind: String, path: InputPath, model: ModelChoice, sampling: Sampling, dir: URL
   ) async throws -> (Any, Int?) {
     let files = dir.appending(path: "files")
     let ask = Instructions.ask(for: kind)
@@ -68,28 +111,41 @@ enum Run {
         ask
         Attachment(imageURL: files.appending(path: "\(doc.id).png"))
       }
+    case .imageHires:
+      let tiles = try Tiles.bands(of: files.appending(path: "\(doc.id).png"))
+      prompt = Prompt {
+        "\(ask)\n\nThe page is shown as \(tiles.count) overlapping bands from top to bottom."
+        for tile in tiles { Attachment(tile) }
+      }
+    case .ocrImage:
+      let transcript = try await DocumentText.ocr(files.appending(path: "\(doc.id).png"))
+      prompt = Prompt {
+        "\(ask)\n\nDocument text:\n\(transcript)"
+        Attachment(imageURL: files.appending(path: "\(doc.id).png"))
+      }
     }
     let instructions = Instructions.text(for: kind, financialYear: doc.financialYear)
     switch model {
     case .system:
-      return try await generate(kind, SystemLanguageModel.default, instructions, prompt)
+      return try await generate(kind, SystemLanguageModel.default, instructions, prompt, sampling)
     case .pcc:
-      return try await generate(kind, PrivateCloudComputeLanguageModel(), instructions, prompt)
+      return try await generate(kind, PrivateCloudComputeLanguageModel(), instructions, prompt, sampling)
     }
   }
 
   private static func generate(
-    _ kind: String, _ model: some LanguageModel, _ instructions: String, _ prompt: Prompt
+    _ kind: String, _ model: some LanguageModel, _ instructions: String, _ prompt: Prompt,
+    _ sampling: Sampling
   ) async throws -> (Any, Int?) {
     let session = LanguageModelSession(model: model, instructions: instructions)
     let tokens = try? await tokenCount(model, kind, instructions, prompt)
     switch kind {
     case "payslip":
-      return (try await JSONEncoder.snake.jsonObject(session.respond(to: prompt, generating: PayslipFields.self).content), tokens)
+      return (try await JSONEncoder.snake.jsonObject(session.respond(to: prompt, generating: PayslipFields.self, options: sampling.options).content), tokens)
     case "deduction":
-      return (try await JSONEncoder.snake.jsonObject(session.respond(to: prompt, generating: ReceiptFields.self).content), tokens)
+      return (try await JSONEncoder.snake.jsonObject(session.respond(to: prompt, generating: ReceiptFields.self, options: sampling.options).content), tokens)
     default:
-      return (try await JSONEncoder.snake.jsonObject(session.respond(to: prompt, generating: TradeFields.self).content), tokens)
+      return (try await JSONEncoder.snake.jsonObject(session.respond(to: prompt, generating: TradeFields.self, options: sampling.options).content), tokens)
     }
   }
 

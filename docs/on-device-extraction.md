@@ -48,18 +48,31 @@ swift run --package-path evals/foundation-models ExtractionEval render evals/out
 swift run --package-path evals/foundation-models ExtractionEval run evals/out pdftext
 swift run --package-path evals/foundation-models ExtractionEval run evals/out ocr
 swift run --package-path evals/foundation-models ExtractionEval run evals/out image
+swift run --package-path evals/foundation-models ExtractionEval run evals/out image-hires
+swift run --package-path evals/foundation-models ExtractionEval run evals/out ocr+image --repeats 5
+swift run --package-path evals/foundation-models ExtractionEval run evals/out pdftext --repeats 5 --sampling greedy
 ANTHROPIC_API_KEY=… deno run --allow-env --allow-read --allow-write --allow-net \
   supabase/functions/_eval/haiku.ts evals/out png      # or pdf
 deno run --allow-read supabase/functions/_eval/report.ts evals/out --baseline haiku-pdf
 ```
 
-`run` takes `--model system|pcc` and `--only <id>,<id>`. The inputs:
+`run` takes `--model system|pcc`, `--sampling default|greedy` (default
+`default`), `--repeats <n>` (default 1) and `--only <id>,<id>`. The inputs:
 
 | Path | Input to the model |
 | -- | -- |
 | `pdftext` | The PDF's text layer, via PDFKit |
 | `ocr` | Vision `RecognizeDocumentsRequest` transcript of the PNG |
 | `image` | The PNG as an iOS 27 `Attachment` |
+| `image-hires` | The PNG cut into four full-width bands overlapping by 10%, each its own `Attachment` |
+| `ocr+image` | The `ocr` transcript and the PNG as an `Attachment` |
+
+Results go to `results/fm-<model>-<path>.json`, or `…-greedy.json` for greedy
+sampling. Each result is its first repeat, so the scorer reads it unchanged,
+plus `runs`, every repeat. Every run records `repeat`, `sampling`, `ms`,
+`timing` (`cold` for the process's first generation, which pays model load and
+warm-up, else `warm`), `thermalState`, `lowPowerMode`, `osBuild`, `osVersion`,
+`modelVariant` and `contextSize`; the file's `device` repeats the constant ones.
 
 The Vision OCR model downloads on first use, taking about 80 seconds, so a
 first `ocr` run looks hung.

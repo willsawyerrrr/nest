@@ -646,8 +646,8 @@ the workflow token is scoped `contents: read`:
   `supabase/functions` (the edge functions live outside the pnpm workspace, with
   their own Deno harness).
 - **build-ios** / **build-macos** — `macos-latest` runners; `xcodegen
-  generate` then `xcodebuild build` (which runs `appintentsmetadataprocessor`,
-  validating every App Shortcut phrase) then `xcodebuild test`, for the iOS
+  generate` then a single `xcodebuild test` (its build runs `appintentsmetadataprocessor`,
+  validating every App Shortcut phrase), for the iOS
   Simulator and native macOS (`NestMac` scheme) destinations respectively. Gated on a `changes`
   job (`dorny/paths-filter`, `apps/ios/**` or `ci.yml` itself) rather than a
   workflow-level path filter, so they still report a definitive `skipped` — not

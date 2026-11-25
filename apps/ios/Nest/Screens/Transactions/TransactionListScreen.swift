@@ -248,6 +248,7 @@ private struct TransactionListRowView: View {
                     if review.pending { NestPill(text: "Pending", tone: .warning) }
                     if row.isTransfer { NestPill(text: "Transfer") }
                     if review.reviewed { NestPill(text: "Reviewed", tone: .positive) }
+                    if review.flaggedWrong { NestPill(text: "Wrong category", tone: .negative) }
                     if review.hasDeduction { NestPill(text: "Deduction", tone: .positive) }
                 }
                 HStack(spacing: NestSpacing.xxs) {

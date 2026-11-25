@@ -10,11 +10,13 @@ enum NotificationActions {
     static let linkGift = "link-gift"
     /// Marks the candidate "not a gift", as the Gifts screen does.
     static let dismissGiftCandidate = "dismiss-gift-candidate"
-    /// A transaction review notification: confirm its Up category, or expand it
-    /// to pick another in the notification content extension.
+    /// A transaction review notification: confirm its Up category, or flag it
+    /// wrong to fix in the app.
     static let transactionReviewCategory = "transaction_review"
     /// Marks the transaction reviewed, as the review screen's Looks right does.
     static let markReviewed = "mark-reviewed"
+    /// Flags the Up category wrong, leaving the category and the transaction unreviewed.
+    static let flagWrongCategory = "flag-wrong-category"
 
     static var categories: Set<UNNotificationCategory> {
         [
@@ -34,7 +36,10 @@ enum NotificationActions {
                 actions: [
                     UNNotificationAction(
                         identifier: markReviewed, title: "Looks right",
-                        options: [.authenticationRequired])
+                        options: [.authenticationRequired]),
+                    UNNotificationAction(
+                        identifier: flagWrongCategory, title: "Wrong category",
+                        options: [.authenticationRequired, .destructive]),
                 ],
                 intentIdentifiers: []
             ),
@@ -50,15 +55,19 @@ enum NotificationResponse: Equatable, Sendable {
     case dismissGiftCandidate(transactionID: String)
     /// Mark the transaction reviewed without opening the app.
     case markReviewed(transactionID: String)
+    /// Flag the transaction's Up category wrong without opening the app.
+    case flagWrongCategory(transactionID: String)
     case ignore
 
     /// The response for the action the member chose. A tap and the link action
     /// open the payload's destination; the dismiss action needs the payload's
-    /// non-empty `transactionId`, and the review action a uuid one.
+    /// non-empty `transactionId`, and the review actions a uuid one.
     init(actionIdentifier: String, userInfo: [AnyHashable: Any]) {
         switch actionIdentifier {
         case NotificationActions.markReviewed:
             self = ReviewNotification.transactionID(userInfo).map(Self.markReviewed) ?? .ignore
+        case NotificationActions.flagWrongCategory:
+            self = ReviewNotification.transactionID(userInfo).map(Self.flagWrongCategory) ?? .ignore
         case NotificationActions.dismissGiftCandidate:
             if let id = userInfo["transactionId"] as? String, !id.isEmpty {
                 self = .dismissGiftCandidate(transactionID: id)
@@ -97,14 +106,24 @@ struct GiftCandidateDismisser: Sendable {
     }
 }
 
-/// Marks a transaction reviewed from its notification with the review screen's
-/// Looks right write, leaving its note and category.
+/// Answers a review notification's actions, leaving the transaction's note and
+/// category.
 struct TransactionReviewMarker: Sendable {
     var data: NestData = .live
 
+    /// Marks the transaction reviewed with the review screen's Looks right write,
+    /// which also clears a wrong-category flag.
     func markReviewed(transactionID: String) async throws {
         try await data.call(
             "review_transaction", params: ReviewTransactionParams(transactionId: transactionID),
+            invalidating: ["transactions"])
+    }
+
+    /// Flags the Up category wrong, leaving the transaction awaiting review.
+    func flagWrongCategory(transactionID: String) async throws {
+        try await data.call(
+            "flag_transaction_category",
+            params: FlagTransactionCategoryParams(transactionId: transactionID),
             invalidating: ["transactions"])
     }
 }

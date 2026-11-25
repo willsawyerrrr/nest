@@ -81,6 +81,15 @@ describe('TransactionReviewScreen', () => {
     expect(within(screen.getByTestId('transaction-row')).getByText('Transfer')).toBeInTheDocument()
   })
 
+  it('marks a transaction whose category was flagged wrong', () => {
+    renderScreen({
+      transactions: [makeReviewTransaction({ category_flagged_wrong_at: '2026-11-21T00:00:00Z' })],
+    })
+    expect(
+      within(screen.getByTestId('transaction-row')).getByText('Wrong category'),
+    ).toBeInTheDocument()
+  })
+
   it('renders the dense row on wide screens', () => {
     setWideViewport()
     renderScreen()

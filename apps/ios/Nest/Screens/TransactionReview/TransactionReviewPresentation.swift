@@ -11,6 +11,8 @@ struct ReviewRow: Equatable, Sendable, Identifiable {
     let category: String
     let pending: Bool
     let reviewed: Bool
+    /// Whether a member flagged the category wrong and it awaits a fix.
+    let flaggedWrong: Bool
     let categorisable: Bool
     /// Whether the transaction already sits in the Gifts inbox's category.
     let isGift: Bool
@@ -76,6 +78,7 @@ struct TransactionReviewPresentation: Equatable, Sendable {
             category: UpCategories.label(categories, transaction.externalCategory) ?? "Uncategorised",
             pending: transaction.status == "pending",
             reviewed: transaction.reviewedAt != nil,
+            flaggedWrong: transaction.reviewedAt == nil && transaction.categoryFlaggedWrongAt != nil,
             categorisable: transaction.isCategorizable == true,
             isGift: transaction.externalCategory == giftCategory,
             upNote: transaction.upNote.flatMap { $0.isEmpty ? nil : $0 },

@@ -44,6 +44,15 @@ struct ReviewTransactionParams: Encodable, Sendable {
     }
 }
 
+/// The `flag_transaction_category` parameters.
+struct FlagTransactionCategoryParams: Encodable, Sendable {
+    let transactionId: String
+
+    enum CodingKeys: String, CodingKey {
+        case transactionId = "p_transaction_id"
+    }
+}
+
 /// Nest's own copy for a failed review.
 enum ReviewFailure {
     /// The message for a failure's code; never the upstream text.

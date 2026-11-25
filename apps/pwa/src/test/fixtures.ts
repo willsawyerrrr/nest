@@ -321,6 +321,8 @@ export function makeGiftTransaction(overrides: Partial<GiftTransaction> = {}): G
     performing_customer_name: null,
     reviewed_at: null,
     reviewed_by_member_id: null,
+    category_flagged_wrong_at: null,
+    category_flagged_wrong_by_member_id: null,
     created_at: '',
     updated_at: '',
     ...overrides,
@@ -392,6 +394,7 @@ export function makeReviewTransaction(
     up_note: null,
     notes: null,
     reviewed_at: null,
+    category_flagged_wrong_at: null,
     ...overrides,
   }
 }

@@ -174,12 +174,15 @@ instance and can also be run locally.
   the allowance; the dated default resolving old uncaught spend to the old
   default and needing a replacement to retire; and a household's removal taking
   its items.
-- `transaction_review.sql` — the assertions that `review_transaction` is the
-  only client write path to `transactions`: members hold no update grant, a note
-  is stored trimmed (blank clears, null leaves) and a review stamps the caller's
-  member (false clears, null leaves), a joint-account row's note and review are
-  shared with last write winning, and a co-member's individual account and another
-  household are out of reach.
+- `transaction_review.sql` — the assertions that `review_transaction` and
+  `flag_transaction_category` are the only client write paths to
+  `transactions`: members hold no update grant, a note is stored trimmed (blank
+  clears, null leaves) and a review stamps the caller's member (false clears,
+  null leaves), a joint-account row's note and review are shared with last write
+  winning, flagging the category wrong stamps the caller's member and returns
+  the row to unreviewed leaving its category and note, marking it reviewed or
+  changing its category clears the flag (writing the same category does not),
+  and a co-member's individual account and another household are out of reach.
 - `up_customer_handles.sql` — the assertions that `up_customer_handles` learns
   each member's Up handles from their own individual accounts alone (never a
   joint account, never another household), that only `service_role` may call

@@ -8,7 +8,7 @@ enum ReviewFixtures {
 
     static func transaction(
         _ id: String, description: String = "Cafe Lune", category: String? = "restaurants-and-cafes",
-        reviewedAt: String? = nil, status: String = "settled"
+        reviewedAt: String? = nil, flaggedAt: String? = nil, status: String = "settled"
     ) -> String {
         func value(_ s: String?) -> String { s.map { "\"\($0)\"" } ?? "null" }
         return """
@@ -18,6 +18,7 @@ enum ReviewFixtures {
             "is_categorizable":true,"transaction_type":null,"deep_link_url":"up://transaction/\(id)",\
             "up_message":null,"up_note":"Brunch","performing_customer_name":null,\
             "reviewed_at":\(value(reviewedAt)),"reviewed_by_member_id":null,\
+            "category_flagged_wrong_at":\(value(flaggedAt)),"category_flagged_wrong_by_member_id":null,\
             "external_id":"up-\(id)","kind":"expense","member_id":null,"notes":null,\
             "posted_at":"2026-11-20T02:30:00+00:00","source":"up","status":"\(status)",\(stamp)}
             """

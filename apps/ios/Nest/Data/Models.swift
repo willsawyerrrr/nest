@@ -968,6 +968,9 @@ struct LedgerTransaction: NestRow {
 
     let accountId: String
     let amountCents: Int
+    /// When a member flagged the Up category as wrong; nil when unflagged.
+    let categoryFlaggedWrongAt: String?
+    let categoryFlaggedWrongByMemberId: String?
     let categoryId: String?
     let createdAt: String
     let deepLinkUrl: String?
@@ -996,6 +999,8 @@ struct LedgerTransaction: NestRow {
     enum CodingKeys: String, CodingKey, CaseIterable {
         case accountId = "account_id"
         case amountCents = "amount_cents"
+        case categoryFlaggedWrongAt = "category_flagged_wrong_at"
+        case categoryFlaggedWrongByMemberId = "category_flagged_wrong_by_member_id"
         case categoryId = "category_id"
         case createdAt = "created_at"
         case deepLinkUrl = "deep_link_url"

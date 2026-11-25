@@ -247,6 +247,7 @@ private struct ReviewRowView: View {
                         .foregroundStyle(NestColor.text).lineLimit(1)
                     if row.pending { NestPill(text: "Pending", tone: .warning) }
                     if row.reviewed { NestPill(text: "Reviewed", tone: .positive) }
+                    if row.flaggedWrong { NestPill(text: "Wrong category", tone: .negative) }
                     if row.hasDeduction { NestPill(text: "Deduction", tone: .positive) }
                 }
                 caption(row.meta, dimmed: true)

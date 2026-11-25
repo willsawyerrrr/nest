@@ -1053,6 +1053,7 @@ PWA's review screen: the title and intro, then the member's unreviewed,
 categorisable Up transactions, newest first and capped at the newest 100, as
 bordered cards on iPhone and dense ruled rows on iPad and Mac. Each row shows the
 description, signed amount, account and date, a Pending pill while Up holds it,
+a Wrong category pill while a member's flag from the review notification awaits a fix,
 the Up category (`Parent › Child`), Up's own note and message (read-only), and
 an "Open in Up" link to the transaction's deep link, outside the disclosure.
 Tapping a row expands the editor: a category menu (Up's child categories under
@@ -1083,12 +1084,13 @@ at a time) and a category menu with Apply, which sends the selection to
 `up-categorise`'s batch form (100 per request) and marks reviewed only those Up
 and Nest both took. A transaction either step refuses stays selected and
 unreviewed, and an alert names each one with its `ReviewFailure` copy.
-`UpCategories` (the picker's groups and labels), `ReviewFailure` (the failure
-copy) and `ReviewWrites.swift`'s request bodies are shared with the review
-notification: its **Looks right** action makes the screen's Looks right write
-without opening the app, and its expanded view (the notification content
-extension) picks a category with the screen's writes and failure copy (see
-[`ios.md`](ios.md#notification-content-extension)).
+Changing a flagged transaction's category clears the flag (a database trigger on
+the category), as does Looks right. `UpCategories` (labels) and
+`ReviewWrites.swift`'s request bodies are shared with the review notification:
+its **Looks right** action makes the screen's Looks right write and its **Wrong
+category** action calls `flag_transaction_category`, both without opening the
+app, and its expanded view (the notification content extension) shows the
+current category (see [`ios.md`](ios.md#notification-content-extension)).
 
 ## Transactions
 

@@ -24,6 +24,7 @@ struct AllowanceContentView: View {
     let presentation: BudgetPresentation
 
     @State private var editingID: String?
+    @State private var retiringID: String?
     @State private var adding = false
     @State private var deleting: BudgetLineRow?
 
@@ -51,17 +52,37 @@ struct AllowanceContentView: View {
                         }
                         ForEach(presentation.drawnLines) { row in
                             if editingID == row.id, let line = presentation.line(id: row.id) {
-                                form(BudgetLineFormState(initial: line, allowances: choices)) {
-                                    try await model.updateLine(id: row.id, $0)
-                                }
+                                form(
+                                    BudgetLineFormState(
+                                        initial: line, allowances: choices, today: model.today),
+                                    onChangeFrom: model.isPlanning
+                                        ? nil : { try await model.changeLine(id: row.id, from: $0, $1) }
+                                ) { try await model.updateLine(id: row.id, $0) }
+                            } else if retiringID == row.id, let line = presentation.line(id: row.id) {
+                                BudgetLineRetireFormView(
+                                    form: BudgetLineRetireFormState(
+                                        line: line, today: model.today, isDefault: { _ in false },
+                                        defaultCandidates: { _ in [] }),
+                                    onSubmit: { retirement in
+                                        try await model.retireLine(id: row.id, retirement)
+                                        retiringID = nil
+                                    },
+                                    onCancel: { retiringID = nil })
                             } else {
                                 BudgetLineRowView(
                                     row: row,
                                     onEdit: {
                                         adding = false
+                                        retiringID = nil
                                         editingID = row.id
                                     },
-                                    onDelete: { deleting = row })
+                                    onDelete: row.hasCountedSpend ? nil : { deleting = row },
+                                    onRetire: row.hasCountedSpend && !model.isPlanning
+                                        ? {
+                                            adding = false
+                                            editingID = nil
+                                            retiringID = row.id
+                                        } : nil)
                             }
                         }
                         if adding {
@@ -69,7 +90,7 @@ struct AllowanceContentView: View {
                                 BudgetLineFormState(
                                     defaultGroup: .discretionary,
                                     defaultAllowanceMemberId: allowance.memberID,
-                                    allowances: choices)
+                                    allowances: choices, today: model.today)
                             ) { try await model.createLine($0) }
                         } else {
                             InflowAddButton(label: "Add allowance item") {
@@ -94,7 +115,9 @@ struct AllowanceContentView: View {
     private var choices: [AllowanceChoice] { presentation.allowanceChoices }
 
     private func form(
-        _ form: BudgetLineFormState, submit: @escaping (BudgetLineInput) async throws -> Void
+        _ form: BudgetLineFormState,
+        onChangeFrom: ((String, BudgetLineInput) async throws -> Void)? = nil,
+        submit: @escaping (BudgetLineInput) async throws -> Void
     ) -> some View {
         BudgetLineFormView(
             form: form, goals: presentation.goalOptions, accounts: presentation.accountOptions,
@@ -102,6 +125,12 @@ struct AllowanceContentView: View {
                 try await submit(input)
                 editingID = nil
                 adding = false
+            },
+            onChangeFrom: onChangeFrom.map { change in
+                { day, input in
+                    try await change(day, input)
+                    editingID = nil
+                }
             },
             onCancel: {
                 editingID = nil

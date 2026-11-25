@@ -19,6 +19,8 @@ const base = { household_id: 'h1', created_at: STAMP, updated_at: STAMP }
 const line = (overrides: Partial<Tables<'budget_line'>>): Tables<'budget_line'> => ({
   ...base,
   id: 'b',
+  starts_on: '2026-01-01',
+  retired_on: null,
   name: 'Line',
   line_group: 'needs',
   amount_cents: 0,

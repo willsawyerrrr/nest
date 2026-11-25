@@ -19,7 +19,7 @@ Only three tables are sandboxed:
 | Table          | In planning mode                                              |
 | -------------- | ------------------------------------------------------------- |
 | `inflows`      | every field, plus new and deleted inflows                     |
-| `budget_line`  | **manual lines only** — amount, group, frequency, routing     |
+| `budget_line`  | **manual lines only** — amount, group, frequency, routing, start date |
 | `savings_goal` | every field, plus new and deleted goals                       |
 
 Everything else keeps writing real data while planning mode is on:
@@ -30,6 +30,14 @@ Everything else keeps writing real data while planning mode is on:
   `reconcile_derived_lines` trigger. `BudgetSection` withholds the derived-line
   edit handler while planning mode is active, so only manual lines carry an edit
   control.
+- **Stopping and changing items from a date** — `retire_budget_line` and
+  `change_budget_line_from` are dated, real changes to an item's lifespan, so
+  the native app withholds Stop budgeting and Change from a date while planning
+  mode is on. A sandboxed delete of an item spending has counted toward is
+  refused when the sandbox is saved (`budget_line_has_spend`), failing the
+  whole save, and the native app offers no delete for such an item. The
+  sandbox reads only the items active today, so a retired or not-yet-started
+  item is out of every planned figure.
 - **Everything RPC-backed or outside the three tables** — tax profile, HELP
   debt, super contributions, deductions, equity, payslips, gifts, breakdowns,
   account balances, pay splits, temporary items. These forms stay live and save
@@ -182,7 +190,8 @@ shape, and the RPC applies it column by column with `patch ? 'column'` — the
 `?` (key-exists) operator, not `coalesce` — because `coalesce(patch->>'column',
 existing)` cannot tell a column the patch never mentioned from one a patch
 explicitly set to `null`; every column the RPC does not find a key for is left
-exactly as stored.
+exactly as stored. A create without `starts_on` starts today; a patch's
+`starts_on` corrects the line's start date.
 
 On success, `save()` clears the household's `overrides` (staying in planning
 mode, exactly like `resetAll`) and invalidates every sandboxed table's

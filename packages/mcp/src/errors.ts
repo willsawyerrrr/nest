@@ -20,6 +20,9 @@ export const ERROR_CODES = [
   'incomplete_details',
   'invalid_details',
   'derived_line',
+  'has_counted_spend',
+  'retired_line',
+  'default_replacement_required',
   'member_recipient',
   'private_gift',
   'allowance_overdrawn',
@@ -68,9 +71,48 @@ export function fixedError(code: keyof typeof FIXED_MESSAGES): ToolError {
   return new ToolError(code, FIXED_MESSAGES[code])
 }
 
-/** The failure for a rejected write: the allowance guard's refusal by name, anything else a plain save failure. */
+/** The refusals the budget-line lifespan guards raise, by the token the database raises them with. */
+const LIFESPAN_REFUSALS: Record<string, ToolError> = {
+  budget_line_has_spend: new ToolError(
+    'has_counted_spend',
+    'Spending has counted toward this budget line, so it cannot be deleted; retire it with retire_budget_line instead.',
+  ),
+  budget_line_retired: new ToolError('retired_line', 'This budget line is already retired.'),
+  budget_line_retired_on_immutable: new ToolError(
+    'retired_line',
+    'A budget line is retired only with retire_budget_line, and never un-retired.',
+  ),
+  budget_line_retire_before_start: new ToolError(
+    'invalid_details',
+    'A budget line can only retire or change after the day it starts.',
+  ),
+  budget_line_default_replacement_required: new ToolError(
+    'default_replacement_required',
+    'This line is the household default; pass new_default_line_id to name the default from that day.',
+  ),
+  default_budget_line_invalid: new ToolError(
+    'invalid_details',
+    'The new default must be a live, started budget line not drawn from an allowance.',
+  ),
+  budget_line_lifespan: new ToolError(
+    'invalid_details',
+    'A budget line must start before it retires.',
+  ),
+}
+
+/**
+ * The failure for a rejected write: the allowance guard's and the lifespan
+ * guards' refusals by name (raised as the message, or a check constraint named
+ * in it), anything else a plain save failure.
+ */
 export function writeError(error: unknown): ToolError {
   const message =
     typeof error === 'object' && error !== null && 'message' in error ? error.message : undefined
+  if (typeof message === 'string') {
+    const token = Object.keys(LIFESPAN_REFUSALS).find(
+      (key) => message === key || message.includes(`"${key}"`),
+    )
+    if (token) return LIFESPAN_REFUSALS[token]!
+  }
   return fixedError(message === 'allowance_overdrawn' ? 'allowance_overdrawn' : 'save_failed')
 }

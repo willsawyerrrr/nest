@@ -241,6 +241,8 @@ export function makeMemberAllowance(overrides: Partial<MemberAllowance> = {}): M
 export function makeBudgetLine(overrides: Partial<BudgetLine> = {}): BudgetLine {
   return {
     id: Math.random().toString(),
+    starts_on: '2026-01-01',
+    retired_on: null,
     household_id: 'h1',
     line_group: 'savings',
     name: 'Line',

@@ -108,7 +108,8 @@ private enum BudgetFixtures {
         #expect(
             Set(server.paths) == [
                 "budget_line", "member_allowance", "members", "account_directory", "savings_goal",
-                "temporary_item", "breakdown", "super_profile",
+                "temporary_item", "breakdown", "super_profile", "household_default_budget_line",
+                "budget_lines_with_counted_spend",
             ])
     }
 
@@ -157,7 +158,8 @@ private enum BudgetFixtures {
         form.amount = "250.50"
         form.managementUrl = "netflix.com/account"
         try await model.createLine(try #require(form.input))
-        let post = try #require(server.requests.first { $0.method == "POST" })
+        let post = try #require(
+            server.requests.first { $0.method == "POST" && $0.path != BudgetRows.countedSpendFunction })
         #expect(post.path == "budget_line")
         let body = try object(post.body)
         #expect(body["household_id"] as? String == "h")
@@ -234,7 +236,11 @@ private enum BudgetFixtures {
         created.name = "Insurance"
         created.amount = "120"
         try await model.createLine(try #require(created.input))
-        #expect(!server.requests.contains { ["PATCH", "POST", "DELETE"].contains($0.method) })
+        #expect(
+            !server.requests.contains {
+                ["PATCH", "POST", "DELETE"].contains($0.method)
+                    && $0.path != BudgetRows.countedSpendFunction
+            })
         #expect(store.state.layer(.budgetLine).deletes == ["b2"])
         #expect(store.state.layer(.budgetLine).updates["b1"]?["amount_cents"] == .int(75_00))
         let lines = try #require(model.state.value?.rows.budgetLines)

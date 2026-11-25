@@ -48,12 +48,13 @@ struct SplitsRows: Codable, Sendable, Equatable {
         return accounts.filter { $0.id.map { !superIDs.contains($0) } ?? false }
     }
 
-    /// The engine input: the lines, goals and allowances in the shape
-    /// `assignmentsByAccount` reads. An allowance whose member is unknown is dropped.
-    var input: PaySplitRoutesInput {
+    /// The engine input: the lines active on the local day `today`, goals and
+    /// allowances in the shape `assignmentsByAccount` reads. An allowance whose
+    /// member is unknown is dropped.
+    func input(today: String) -> PaySplitRoutesInput {
         let names = Dictionary(members.map { ($0.id, $0.name) }, uniquingKeysWith: { $1 })
         return PaySplitRoutesInput(
-            lines: budgetLines.map(PaySplitRoutesInput.Line.init),
+            lines: budgetLines.active(on: today).map(PaySplitRoutesInput.Line.init),
             goals: savingsGoals.map(PaySplitRoutesInput.Goal.init),
             allowances: memberAllowances.compactMap { allowance in
                 names[allowance.memberId].map {

@@ -81,11 +81,12 @@ it either (see [`payslips.md`](payslips.md#money-that-lands-once)).
 ## Budget (plan-only, fortnightly)
 
 A budget line allocates a recurring amount to a named purpose within one of six
-fixed groups. There is one living budget per household — no per-period
-versioning. On the Budget tab each group shows the fortnight's actual
+fixed groups. There is one living budget per household; each item has a
+lifespan (see [Item lifespan](#item-lifespan)) rather than the budget having
+per-period versions. On the Budget tab each group shows the fortnight's actual
 spend from synced Up transactions beside its planned subtotal (see
 [Actual spend](#actual-spend)). The UI labels a budget line a
-**budget item** (Add item, Delete budget item, and so on); "line" persists only
+**budget item** (Add item, Stop budgeting, Delete budget item, and so on); "line" persists only
 in the schema (the `budget_line` table and its `line_group` column).
 
 | Group             | Meaning                                            |
@@ -98,9 +99,47 @@ in the schema (the `budget_line` table and its `line_group` column).
 | **Investments**   | Money set aside to invest                           |
 
 A budget line = `household_id`, `line_group`, `name`, `amount` + `frequency`
-(normalized to fortnightly and annual). Like inflows, a line on the `every N
-weeks` or `every N months` cadence carries its interval `N` in `interval_count`,
-the unit read from the frequency.
+(normalized to fortnightly and annual), and its lifespan, `starts_on` and
+`retired_on`. Like inflows, a line on the `every N weeks` or `every N months`
+cadence carries its interval `N` in `interval_count`, the unit read from the
+frequency.
+
+### Item lifespan
+
+Every item has a start date and an optional retirement date, and is active on
+the household's local days from its start up to, not including, its
+retirement. Retiring is one-way: a retired item never returns; add a new one
+instead.
+
+- **Start date.** Defaults to today; it can be backdated (to count earlier
+  spending toward the item) or set in the future. A future item shows as
+  "starts <date>" and stays out of today's plan, the fortnightly buffer, pay
+  splits, goal funding, the Summary, Siri and the calendar feed until then.
+- **Stop budgeting.** An item spending has counted toward can only be retired,
+  from a day that defaults to today. It leaves the plan from that day, rules
+  targeting it stop there, existing member choices keep pointing at it, and its
+  past spending stays on it — past rent stays on a retired Rent item rather than
+  falling to the default. A retired item cannot be chosen for a transaction
+  posted after its retirement, and is hidden from the Budget screen. An item no
+  spending has counted toward can still be deleted.
+- **Change from a date.** For a change of amount, cadence, group or name that
+  applies from a day (a rent rise, a new gym price): the item retires that day
+  and a replacement starts with the new details, carrying copies of its rules,
+  so earlier spending stays on the old item and later spending counts toward the
+  new one. Editing in place stays, for correcting mistakes, and rewrites the
+  item for every period.
+- **Default item.** The household's default item is dated too: uncaught spend
+  counts toward the default in force when it was posted. Retiring the default
+  item asks for the item that takes over from the retirement day; changing it
+  from a date hands the default to the replacement.
+- **Outside the lifespan.** Spending counts toward an item only within its
+  lifespan: a rule targeting it matches nothing posted before its start or from
+  its retirement (the next rule is tried), a member choice outside it is
+  refused, and a default whose item is inactive that day counts as Not budgeted.
+- **Historical views** read the items active in each period.
+
+Planning mode sandboxes edits in place; stopping an item and changing it from a
+date are real, dated changes and are not offered while planning.
 
 ### Actual spend
 
@@ -113,8 +152,8 @@ allowance, or **Not budgeted**. Where it counts, first that applies:
    the transaction was posted; the first match wins.
 3. **Suggestion** — one not yet confirmed.
 4. **Default** — spend from a member's own account counts toward their
-   allowance; anything else toward the household's default item (say,
-   Discretionary spend), or Not budgeted while it has none.
+   allowance; anything else toward the household's default item in force when
+   it was posted (say, Discretionary spend), or Not budgeted while it has none.
 
 A rule sends spend to an item, the member's own allowance, or Not budgeted, and
 matches on every condition it sets: the payee contains or equals a phrase
@@ -480,7 +519,9 @@ income tables.
     gift tables, with `breakdown_id` null — see above),
     `destination_account_id` (nullable; the Up account funding the line, for the
     Pay splits tab), `management_url` (nullable; http(s) link to the
-    subscription's management page, shown as an icon link on the line's row).
+    subscription's management page, shown as an icon link on the line's row),
+    `starts_on` (its first day), `retired_on` (nullable; the first day it no
+    longer applies — see [Item lifespan](#item-lifespan)).
   - Temporary is a Summary group derived from the `temporary_item` table, not a
     `budget_group` value: a budget line is never authored as temporary.
 - **MemberAllowance** — a member's permanent discretionary allowance, one per
@@ -494,7 +535,8 @@ income tables.
     `valid_until`, `sort_order`, and the conditions).
 - **TransactionAllocation** — where a member sent a transaction's spend, or a
   suggestion places it: target and `amount_cents` rows summing to the spend.
-- The household's default item is `households.default_budget_line_id`. See
+- The household's default item over time is `household_default_budget_line`
+  (a row per `valid_from` day). See
   [`data-model.md`](data-model.md#spend-allocation).
 - **SavingsGoal** — a persistent target.
   - `id`, `household_id`, `name`, `target_cents`, `target_date` (nullable),

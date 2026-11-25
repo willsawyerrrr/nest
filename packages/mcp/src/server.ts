@@ -111,8 +111,11 @@ export function createServer(ctx: NestContext, transport: 'stdio' | 'http' = 'st
     'list_budget_lines',
     {
       description:
-        'List the household budget lines with amounts normalised to fortnightly and annual cents, including any member allowance a line is drawn from. Optionally filter by a case-insensitive part of the name.',
-      inputSchema: { name: z.string().trim().min(1).optional() },
+        'List the household budget lines with amounts normalised to fortnightly and annual cents, including any member allowance a line is drawn from. Each line has a lifespan: starts_on (its first day) and retired_on (the first day it no longer applies, null while live), with status active, upcoming (starts later, not yet in the plan), or retired; has_counted_spend says spending has counted toward it, so it can be retired but not deleted. Retired lines are left out unless include_retired is true. Optionally filter by a case-insensitive part of the name.',
+      inputSchema: {
+        name: z.string().trim().min(1).optional(),
+        include_retired: z.boolean().optional(),
+      },
       annotations: { readOnlyHint: true },
     },
     (input) => respond(() => listBudgetLines(ctx, input)),
@@ -122,7 +125,7 @@ export function createServer(ctx: NestContext, transport: 'stdio' | 'http' = 'st
     'add_budget_line',
     {
       description:
-        'Add a manual budget line. group is needs, wants, discretionary, savings, or investments; amount_cents is a non-negative integer number of cents per frequency (weekly, fortnightly, monthly, quarterly, biannual, annual, or every_n_weeks / every_n_months with interval_count). management_url optionally links the page for managing the subscription it pays for. goal_id (savings or investments lines) funds a savings goal; destination_account_id (other groups) is the account funding the line in the pay splits; allowance_member (discretionary lines, your own name) draws the line from your spending allowance, which it cannot overdraw.',
+        'Add a manual budget line. group is needs, wants, discretionary, savings, or investments; amount_cents is a non-negative integer number of cents per frequency (weekly, fortnightly, monthly, quarterly, biannual, annual, or every_n_weeks / every_n_months with interval_count). management_url optionally links the page for managing the subscription it pays for. goal_id (savings or investments lines) funds a savings goal; destination_account_id (other groups) is the account funding the line in the pay splits; allowance_member (discretionary lines, your own name) draws the line from your spending allowance, which it cannot overdraw. starts_on (YYYY-MM-DD, default today) is the first day the line is in the plan and counts spending; it may be backdated or in the future.',
       inputSchema: addBudgetLineInput.shape,
     },
     (input) => respond(() => addBudgetLine(ctx, input)),
@@ -132,7 +135,7 @@ export function createServer(ctx: NestContext, transport: 'stdio' | 'http' = 'st
     'update_budget_line',
     {
       description:
-        'Edit a manual budget line by id (from list_budget_lines); only the fields given change. Pass management_url null to clear it. Lines derived from a breakdown or gifts cannot be edited here. A line drawn from your allowance cannot be raised past what the allowance has left. Pass null for goal_id, destination_account_id, or allowance_member to clear it; changing the group clears what the new group cannot carry.',
+        'Edit a manual budget line by id (from list_budget_lines); only the fields given change. Pass management_url null to clear it. Lines derived from a breakdown or gifts cannot be edited here. A line drawn from your allowance cannot be raised past what the allowance has left. Pass null for goal_id, destination_account_id, or allowance_member to clear it; changing the group clears what the new group cannot carry. starts_on corrects the day the line starts. Editing in place rewrites the line for every period, so use it to correct mistakes; to change name, group, amount_cents, frequency, or interval_count from a date (a rent rise, a new gym price), pass change_from (YYYY-MM-DD): the line retires that day and a replacement starts with the new figures and copies of its rules, so spending before the day stays on the old line. Returns the new line id, with replaces naming the old one.',
       inputSchema: updateBudgetLineInput.shape,
     },
     (input) => respond(() => updateBudgetLine(ctx, input)),

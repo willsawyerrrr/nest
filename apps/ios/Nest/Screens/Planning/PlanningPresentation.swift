@@ -79,7 +79,8 @@ enum PlanningPresentation {
                     table: .inflows, rowID: row.id, name: row.name, column: "amount_cents", cents: $0)
             }
         }
-            + rows.budgetLines.filter { $0.breakdownId == nil && !$0.isGiftLine }.map {
+            + rows.budgetLines.filter { $0.breakdownId == nil && !$0.isGiftLine && $0.retiredOn == nil }
+                .map {
                 EditableAmount(
                     table: .budgetLine, rowID: $0.id, name: $0.name, column: "amount_cents",
                     cents: $0.amountCents)

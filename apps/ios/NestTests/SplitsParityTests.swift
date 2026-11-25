@@ -52,7 +52,7 @@ import Testing
     @Test func screenAssemblyMatchesThePWAFigures() async throws {
         let engine = try Engine(bundle: Bundle(for: Engine.self))
         for fixture in Self.fixtures {
-            let routes = try await engine.paySplitRoutes(fixture.rows.input)
+            let routes = try await engine.paySplitRoutes(fixture.rows.input(today: "2026-12-01"))
             #expect(routes == fixture.expected.routes, "\(fixture.name)")
 
             let presentation = SplitsPresentation(
@@ -70,7 +70,7 @@ import Testing
         let engine = try Engine(bundle: Bundle(for: Engine.self))
         let rows = Self.fixtures[0].rows
         let presentation = SplitsPresentation(
-            content: SplitsContent(rows: rows, routes: try await engine.paySplitRoutes(rows.input)))
+            content: SplitsContent(rows: rows, routes: try await engine.paySplitRoutes(rows.input(today: "2026-12-01"))))
         #expect(presentation.rowsToUpdate == 2)
         #expect(presentation.staysTitle == "Stays in your pay account")
         #expect(presentation.spendingAccounts.map(\.label) == ["Bills", "Spending"])

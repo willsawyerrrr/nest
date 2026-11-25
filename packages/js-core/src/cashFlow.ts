@@ -1,4 +1,5 @@
 import {
+  activeBudgetLineRows,
   summariseHouseholdFromRows,
   toIncomeInput,
   type BudgetLineRow,
@@ -9,9 +10,11 @@ import {
 } from '@nest/household'
 import {
   fortnightlyCents,
+  HOUSEHOLD_TIME_ZONE,
   isActiveOn,
   isDrawnFromAllowance,
   isTemporaryActive,
+  localIsoDate,
   summariseAllowances,
   type BudgetSummary,
   type Frequency,
@@ -104,8 +107,9 @@ export function inflowSources(inflows: CashFlowBundle['inflows'], now: Date): In
 }
 
 /**
- * The fortnightly figure of every budget line and active temporary item, read as
- * stored (a derived line's annual amount is canonical in the row). A line drawn
+ * The fortnightly figure of every budget line active on the household's local
+ * day at `now`, and every active temporary item, read as stored (a derived
+ * line's annual amount is canonical in the row). A line drawn
  * from a member's allowance is left out and the allowance appears in its place as
  * a Discretionary line, for what it costs the household.
  */
@@ -122,14 +126,18 @@ export function cashFlowLines(bundle: CashFlowBundle, now: Date): CashFlowLine[]
     }
     return [allowance]
   })
-  const drawable = bundle.budgetLines.map((line) => ({
+  const budgetLines = activeBudgetLineRows(
+    bundle.budgetLines,
+    localIsoDate(now, bundle.timeZone ?? HOUSEHOLD_TIME_ZONE),
+  )
+  const drawable = budgetLines.map((line) => ({
     amountCents: line.amount_cents,
     frequency: line.frequency as Frequency,
     ...(line.interval_count != null && { interval: line.interval_count }),
     allowanceMemberId: line.allowance_member_id ?? null,
   }))
   return [
-    ...bundle.budgetLines
+    ...budgetLines
       .filter(
         (line) =>
           !isDrawnFromAllowance(

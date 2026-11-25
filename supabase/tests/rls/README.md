@@ -160,9 +160,20 @@ instance and can also be run locally.
   what a backdate would move and changing nothing; pending and settled told
   apart, transfers and uncategorised income left out, refunds netting off; an
   allocation set following its transaction's amount, held to its spend, and
-  discarded whole with a deleted line; and privacy: a co-member's private
-  account never counts, an allowance rule or choice reads to a co-member as that
-  member's allowance with nothing named, and another household sees nothing.
+  discarded whole when it loses a row, its line's delete refused; and privacy: a
+  co-member's private account never counts, an allowance rule or choice reads to
+  a co-member as that member's allowance with nothing named, and another
+  household sees nothing.
+- `budget_line_lifespan.sql` — the assertions for item lifespans: a new item
+  starts today, `retired_on` is written only by `retire_budget_line` and never
+  cleared; past rent stays on a retired Rent item while later rent no longer
+  matches its rule, which stops at the retirement; a rule targeting an item not
+  yet started falls through; member choices refused outside the lifespan; delete
+  refused with counted spend and allowed without; change from a date splitting
+  spend between the old and new items and carrying the rules, the default, and
+  the allowance; the dated default resolving old uncaught spend to the old
+  default and needing a replacement to retire; and a household's removal taking
+  its items.
 - `transaction_review.sql` — the assertions that `review_transaction` is the
   only client write path to `transactions`: members hold no update grant, a note
   is stored trimmed (blank clears, null leaves) and a review stamps the caller's

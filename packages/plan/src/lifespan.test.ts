@@ -1,0 +1,34 @@
+import { describe, expect, it } from 'vitest'
+import { isBudgetLineActive, isBudgetLineRetired, localIsoDate } from './index.ts'
+
+describe('isBudgetLineActive', () => {
+  it('is active from its start day up to, not including, its retirement day', () => {
+    const rent = { startsOn: '2026-01-01', retiredOn: '2026-10-10' }
+    expect(isBudgetLineActive(rent, '2025-12-31')).toBe(false)
+    expect(isBudgetLineActive(rent, '2026-01-01')).toBe(true)
+    expect(isBudgetLineActive(rent, '2026-10-09')).toBe(true)
+    expect(isBudgetLineActive(rent, '2026-10-10')).toBe(false)
+  })
+
+  it('reads absent bounds as open', () => {
+    expect(isBudgetLineActive({}, '2026-10-10')).toBe(true)
+    expect(isBudgetLineActive({ startsOn: null, retiredOn: null }, '2026-10-10')).toBe(true)
+  })
+})
+
+describe('isBudgetLineRetired', () => {
+  it('is retired from its retirement day on, and never before or while live', () => {
+    expect(isBudgetLineRetired({ retiredOn: '2026-10-10' }, '2026-10-09')).toBe(false)
+    expect(isBudgetLineRetired({ retiredOn: '2026-10-10' }, '2026-10-10')).toBe(true)
+    expect(isBudgetLineRetired({ startsOn: '2027-01-01' }, '2026-10-10')).toBe(false)
+  })
+})
+
+describe('localIsoDate', () => {
+  it('reads the local day in the household timezone, not UTC', () => {
+    // 9am on 25 November in Sydney is still 24 November in UTC.
+    const now = new Date('2026-11-24T22:00:00Z')
+    expect(localIsoDate(now)).toBe('2026-11-25')
+    expect(localIsoDate(now, 'UTC')).toBe('2026-11-24')
+  })
+})

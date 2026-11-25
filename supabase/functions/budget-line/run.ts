@@ -3,13 +3,13 @@
  * caller's household, load its budget lines, match one by name — is unit-tested
  * without a database. `index.ts` wires the real service-role reads.
  *
- * It answers "how much is budgeted for groceries": the matched line's amount in
- * its own cadence, plus the fortnightly and annual normalisations from the
+ * It answers "how much is budgeted for groceries": among the lines active today,
+ * the matched line's amount in its own cadence, plus the fortnightly and annual normalisations from the
  * shared `@nest/plan` helpers, and every line name so a miss can say what
  * exists.
  */
 
-import { annualCents, fortnightlyCents, type Frequency } from '@nest/plan'
+import { annualCents, fortnightlyCents, type Frequency, isBudgetLineActive } from '@nest/plan'
 import type { CallerError } from '../_shared/caller.ts'
 
 /** The `budget_line` columns this reads. A derived line (breakdown, gift) carries a stored `amount_cents` from the reconcile, so it is read like any other. */
@@ -21,6 +21,10 @@ export interface BudgetLineRow {
   interval_count: number | null
   /** The member whose allowance the line is drawn from; such a line is private to that member. */
   allowance_member_id?: string | null
+  /** The line's first local day; absent ⇒ always started. */
+  starts_on?: string | null
+  /** The first local day the line no longer applies; absent ⇒ live. */
+  retired_on?: string | null
 }
 
 /** The matched budget line in the response. */
@@ -108,6 +112,8 @@ export interface BudgetLineDeps {
   >
   /** Loads the household's budget lines. */
   loadBudgetLines: (householdId: string) => Promise<readonly BudgetLineRow[]>
+  /** The household's local day; only lines active on it are answered. */
+  today: (householdId: string) => Promise<string>
   /** The spoken name to match, as sent in the request body. */
   query: string
 }
@@ -123,9 +129,19 @@ export async function runBudgetLine(deps: BudgetLineDeps): Promise<BudgetLineRes
     return { status: resolved.error.status, body: { error: resolved.error.message } }
   }
   // A line drawn from a member's allowance is private to that member, though the
-  // service-role read returns it for the whole household.
-  const lines = (await deps.loadBudgetLines(resolved.householdId)).filter(
-    (line) => line.allowance_member_id == null || line.allowance_member_id === resolved.memberId,
+  // service-role read returns it for the whole household. A line not yet started
+  // or already retired is out of today's plan.
+  const [rows, today] = await Promise.all([
+    deps.loadBudgetLines(resolved.householdId),
+    deps.today(resolved.householdId),
+  ])
+  const lines = rows.filter(
+    (line) =>
+      (line.allowance_member_id == null || line.allowance_member_id === resolved.memberId) &&
+      isBudgetLineActive(
+        { startsOn: line.starts_on ?? null, retiredOn: line.retired_on ?? null },
+        today,
+      ),
   )
   return { status: 200, body: shapeBudgetLine(lines, deps.query) }
 }

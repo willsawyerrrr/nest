@@ -13,13 +13,16 @@
  * lines and temporary items by `@nest/plan`'s `summarise`.
  *
  * Budget lines are read straight, at the `amount_cents` and `frequency` the row
- * carries. A breakdown- or gift-derived line's rolled-up annual amount is the
+ * carries, and only those active on the household's local day at `now` count:
+ * an item not yet started or already retired is out of the plan. A breakdown- or gift-derived line's rolled-up annual amount is the
  * caller's to resolve before calling: the PWA re-derives it from the breakdown
  * and gift tables, while the server trusts the `reconcile_derived_lines`
  * triggers to have kept the row canonical.
  */
 
 import {
+  HOUSEHOLD_TIME_ZONE,
+  localIsoDate,
   summarise,
   type Amounts,
   type BudgetGroup,
@@ -59,6 +62,8 @@ export interface SummarySources {
   financialYear: number
   inflows: readonly InflowRow[]
   budgetLines: readonly BudgetLineRow[]
+  /** The household's local day the budget lines' lifespans are read on; absent ⇒ every line counts. */
+  today?: string
   memberAllowances: readonly MemberAllowanceRow[]
   temporaryItems: readonly TemporaryItemRow[]
   /** Annual income tax and levies (including the 15% super contributions tax) for the gross-basis view. */
@@ -92,12 +97,14 @@ export function toSummaryInput({
   financialYear,
   inflows,
   budgetLines,
+  today,
   memberAllowances,
   temporaryItems,
   taxAnnualCents = 0,
   salarySacrificeAnnualCents = 0,
 }: SummarySources): SummaryInput {
   return {
+    ...(today !== undefined && { today }),
     afterTaxIncomeAnnualCents,
     taxAnnualCents,
     salarySacrificeAnnualCents,
@@ -127,6 +134,8 @@ export function toSummaryInput({
       frequency: line.frequency as Frequency,
       ...(line.interval_count != null && { interval: line.interval_count }),
       ...(line.allowance_member_id != null && { allowanceMemberId: line.allowance_member_id }),
+      ...(line.starts_on != null && { startsOn: line.starts_on }),
+      ...(line.retired_on != null && { retiredOn: line.retired_on }),
     })),
     memberAllowances: memberAllowances.map((allowance) => ({
       memberId: allowance.member_id,
@@ -183,7 +192,8 @@ function reportedSummary(wholeYear: BudgetSummary, activeNow: BudgetSummary): Bu
 /**
  * The whole Summary reconciliation from the household's rows, at `now`. Pure —
  * the same rows in always give the same buffer out. The financial year and tax
- * config are read from `now`, matching the PWA's `financialYearForDate(new
+ * config are read from `now`, the budget lines' lifespans from its local day in
+ * `bundle.timeZone`, matching the PWA's `financialYearForDate(new
  * Date())` / `currentTaxConfig()`.
  *
  * One-off money is reported beside the plan, never inside it, so the take-home
@@ -193,6 +203,7 @@ function reportedSummary(wholeYear: BudgetSummary, activeNow: BudgetSummary): Bu
 export function summariseHouseholdFromRows(bundle: BudgetSummaryBundle, now: Date): BudgetSummary {
   const financialYear = financialYearForDate(now)
   const config = configsByYear[financialYear] ?? FY2027_CONFIG
+  const today = localIsoDate(now, bundle.timeZone ?? HOUSEHOLD_TIME_ZONE)
 
   // Projected savings interest is steady, always-active `other` income, so the
   // same inputs feed the whole-year estimate and the active-now rerun.
@@ -208,6 +219,7 @@ export function summariseHouseholdFromRows(bundle: BudgetSummaryBundle, now: Dat
       financialYear,
       inflows: bundle.inflows,
       budgetLines: bundle.budgetLines,
+      today,
       memberAllowances: bundle.memberAllowances,
       temporaryItems: bundle.temporaryItems,
       salarySacrificeAnnualCents: estimate.annualNetConcessionalSuperCents,

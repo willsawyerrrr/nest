@@ -93,6 +93,9 @@ struct BudgetLineInput: Codable, Equatable, Sendable {
     var giftRecipientMemberId: String?
     var isGiftLine: Bool
     var managementUrl: String?
+    /// The first local day the line applies, written only when stated: a new
+    /// line without one starts today, an edit without one keeps its own.
+    var startsOn: String?
 
     enum CodingKeys: String, CodingKey {
         case name, frequency
@@ -106,6 +109,7 @@ struct BudgetLineInput: Codable, Equatable, Sendable {
         case giftRecipientMemberId = "gift_recipient_member_id"
         case isGiftLine = "is_gift_line"
         case managementUrl = "management_url"
+        case startsOn = "starts_on"
     }
 
     func encode(to encoder: Encoder) throws {
@@ -122,6 +126,7 @@ struct BudgetLineInput: Codable, Equatable, Sendable {
         try c.encode(giftRecipientMemberId, forKey: .giftRecipientMemberId)
         try c.encode(isGiftLine, forKey: .isGiftLine)
         try c.encode(managementUrl, forKey: .managementUrl)
+        try c.encodeIfPresent(startsOn, forKey: .startsOn)
     }
 
     /// The input that rewrites `line` unchanged.
@@ -143,7 +148,7 @@ struct BudgetLineInput: Codable, Equatable, Sendable {
     init(
         lineGroup: BudgetGroup, name: String, amountCents: Int, frequency: Frequency,
         intervalCount: Int?, goalId: String?, destinationAccountId: String?,
-        allowanceMemberId: String?, managementUrl: String?
+        allowanceMemberId: String?, managementUrl: String?, startsOn: String? = nil
     ) {
         self.lineGroup = lineGroup
         self.name = name
@@ -157,6 +162,7 @@ struct BudgetLineInput: Codable, Equatable, Sendable {
         giftRecipientMemberId = nil
         isGiftLine = false
         self.managementUrl = managementUrl
+        self.startsOn = startsOn
     }
 
     /// The row a create writes: the columns plus the household.
@@ -192,6 +198,15 @@ struct BudgetLineFormState: Codable, Equatable, Sendable {
     var destinationAccountId: String?
     var allowanceMemberId: String?
     var managementUrl: String
+    /// The first day the line applies; a new line's starts on `today`, and a
+    /// cleared one starts today too.
+    var startsOn: String?
+    /// The day an edit applies from, or `nil` to edit in place (correcting the
+    /// line for every period). Set, the line retires that day and a replacement
+    /// starts with the new group, name, amount and cadence.
+    var changeFrom: String?
+    /// Today, the default start and change day.
+    var today: String?
     /// The line under edit, for what it already draws from its allowance.
     var initial: BudgetLine?
     /// The allowances a Discretionary line may draw from: the member's own.
@@ -202,10 +217,12 @@ struct BudgetLineFormState: Codable, Equatable, Sendable {
     init(
         initial: BudgetLine? = nil, draft: PromoteDraft? = nil,
         defaultGroup: BudgetGroup? = nil, defaultAllowanceMemberId: String? = nil,
-        allowances: [AllowanceChoice] = []
+        allowances: [AllowanceChoice] = [], today: String? = nil
     ) {
         self.initial = initial
         self.allowances = allowances
+        self.today = today
+        startsOn = initial.map(\.startsOn) ?? today
         group = initial?.lineGroup ?? defaultGroup ?? .needs
         name = initial?.name ?? draft?.name ?? ""
         frequency = initial?.frequency ?? .fortnightly
@@ -246,6 +263,21 @@ struct BudgetLineFormState: Codable, Equatable, Sendable {
 
     var isIntervalValid: Bool { InflowFormState.isIntervalValid(interval) }
     var isManagementUrlValid: Bool { ManagementURL.isValid(managementUrl) }
+
+    /// Whether the line can change from a date: an existing, live line.
+    var canChangeFrom: Bool { initial.map { $0.retiredOn == nil } ?? false }
+
+    /// Whether the start date lies before the line's retirement, where it has one.
+    var isStartValid: Bool {
+        guard let startsOn, let retiredOn = initial?.retiredOn else { return true }
+        return startsOn < retiredOn
+    }
+
+    /// Whether the change day falls after the line's start, as it must.
+    var isChangeFromValid: Bool {
+        guard let changeFrom else { return true }
+        return initial?.startsOn.map { changeFrom > $0 } ?? true
+    }
     var amountCents: Int { InflowFormState.cents(amount) ?? 0 }
     /// Whether the amount is a number of at least zero, as the PWA's `min={0}` input holds it.
     var isAmountValid: Bool { InflowFormState.cents(amount).map { $0 >= 0 } ?? false }
@@ -273,6 +305,8 @@ struct BudgetLineFormState: Codable, Equatable, Sendable {
             && isAmountValid
             && (!frequency.isEveryN || isIntervalValid)
             && isManagementUrlValid
+            && isStartValid
+            && isChangeFromValid
             && !overdraws
     }
 
@@ -286,13 +320,99 @@ struct BudgetLineFormState: Codable, Equatable, Sendable {
             goalId: showsGoalPicker ? goalId : nil,
             destinationAccountId: showsAccountPicker ? destinationAccountId : nil,
             allowanceMemberId: drawnFrom?.memberId,
-            managementUrl: ManagementURL.normalise(managementUrl))
+            managementUrl: ManagementURL.normalise(managementUrl),
+            startsOn: startsOn == initial?.startsOn ? nil : startsOn)
     }
 
-    /// The copy a failed save shows: the overdraw refusal's own, else the generic.
+    /// The copy a failed save shows: a guard's refusal's own, else the generic.
     static func failureMessage(_ error: Error) -> String {
-        (error as? NestError)?.refusal == AllowanceCopy.refusal
-            ? AllowanceCopy.itemOverdraws : "Could not save this budget item. Please try again."
+        switch (error as? NestError)?.refusal {
+        case AllowanceCopy.refusal: AllowanceCopy.itemOverdraws
+        case "budget_line_retire_before_start": BudgetLifespanCopy.changeBeforeStart
+        case "budget_line_retired": BudgetLifespanCopy.alreadyRetired
+        default: "Could not save this budget item. Please try again."
+        }
+    }
+}
+
+/// The lifespan copy: start dates, stopping, and changing from a date.
+enum BudgetLifespanCopy {
+    static let startsDescription =
+        "The first day it counts toward the plan and its spending. Backdate it to count earlier spending, or pick a later day to plan ahead."
+    static let changeFromLabel = "Change from a date"
+    static let changeFromDescription =
+        "Stops this item on that day and starts a new one with these details and its rules, so earlier spending stays here. Leave it off to correct the item for every period."
+    static let changeBeforeStart = "Pick a day after this item starts."
+    static let alreadyRetired = "This item has already stopped."
+    static let stopDescription =
+        "It leaves the plan from that day and its rules stop there. Spending already counted toward it stays."
+    static let newDefaultDescription =
+        "This is the item uncaught spending counts toward. Pick the one that takes over from that day."
+
+    /// `Starts 1 Mar 2027`.
+    static func starts(_ iso: String) -> String { "Starts \(BudgetPresentation.date(iso))" }
+}
+
+/// What stopping a line saves: the day it stops, and the default that takes over.
+struct BudgetLineRetirement: Equatable, Sendable {
+    var retireOn: String
+    var newDefaultLineId: String?
+}
+
+/// The "Stop budgeting" form's fields and rules: a stop day after the line's
+/// start, defaulting to today, and a new default where the line is the default.
+struct BudgetLineRetireFormState: Equatable, Sendable {
+    let line: BudgetLine
+    var retireOn: String?
+    var newDefaultLineId: String?
+    /// Whether the line is the household default on a day, so stopping it needs a new one.
+    let isDefault: @Sendable (String) -> Bool
+    /// The lines that may take over as the default on a day.
+    let defaultCandidates: @Sendable (String) -> [(id: String, name: String)]
+
+    init(
+        line: BudgetLine, today: String, isDefault: @escaping @Sendable (String) -> Bool,
+        defaultCandidates: @escaping @Sendable (String) -> [(id: String, name: String)]
+    ) {
+        self.line = line
+        retireOn = today
+        self.isDefault = isDefault
+        self.defaultCandidates = defaultCandidates
+    }
+
+    static func == (a: Self, b: Self) -> Bool {
+        a.line == b.line && a.retireOn == b.retireOn && a.newDefaultLineId == b.newDefaultLineId
+    }
+
+    /// Whether the stop day falls after the line's start.
+    var isDayValid: Bool {
+        guard let retireOn else { return false }
+        return line.startsOn.map { retireOn > $0 } ?? true
+    }
+
+    /// Whether the form asks for a new default.
+    var needsNewDefault: Bool { retireOn.map(isDefault) ?? false }
+
+    var candidates: [(id: String, name: String)] {
+        retireOn.map(defaultCandidates) ?? []
+    }
+
+    var canSubmit: Bool { isDayValid && (!needsNewDefault || newDefaultLineId != nil) }
+
+    var retirement: BudgetLineRetirement? {
+        guard canSubmit, let retireOn else { return nil }
+        return BudgetLineRetirement(
+            retireOn: retireOn, newDefaultLineId: needsNewDefault ? newDefaultLineId : nil)
+    }
+
+    static func failureMessage(_ error: Error) -> String {
+        switch (error as? NestError)?.refusal {
+        case "budget_line_retire_before_start": BudgetLifespanCopy.changeBeforeStart
+        case "budget_line_retired": BudgetLifespanCopy.alreadyRetired
+        case "budget_line_default_replacement_required", "default_budget_line_invalid":
+            "Pick an item that is live that day to take over as the default."
+        default: "Could not stop budgeting for this item. Please try again."
+        }
     }
 }
 

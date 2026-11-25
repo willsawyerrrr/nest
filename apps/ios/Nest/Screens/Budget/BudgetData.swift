@@ -14,6 +14,10 @@ struct BudgetRows: Codable, Sendable, Equatable {
     var breakdowns: [Breakdown] = []
     /// The super profiles, whose linked balance accounts cannot fund a line.
     var superProfiles: [SuperProfile] = []
+    /// The household default item over time.
+    var defaultLines: [HouseholdDefaultBudgetLine] = []
+    /// The lines spending has ever counted toward: retired, never deleted.
+    var countedSpendLineIDs: [String] = []
 
     /// The tables, with super profiles scoped to `financialYear` as the PWA reads them.
     static func sources(financialYear: Int) -> [TableSource<BudgetRows>] {
@@ -28,7 +32,24 @@ struct BudgetRows: Codable, Sendable, Equatable {
             .table(SuperProfile.self, filters: [.eq("financial_year", String(financialYear))]) {
                 $0.superProfiles = $1
             },
+            .table(HouseholdDefaultBudgetLine.self) { $0.defaultLines = $1 },
+            .rpc(Self.countedSpendFunction, as: String.self) { $0.countedSpendLineIDs = $1 },
         ]
+    }
+
+    /// The function listing the lines spending has counted toward, invalidated
+    /// with every budget-line write.
+    static let countedSpendFunction = "budget_lines_with_counted_spend"
+
+    /// Whether spending has counted toward the line `id`, so it can be retired but not deleted.
+    func hasCountedSpend(_ id: String) -> Bool { countedSpendLineIDs.contains(id) }
+
+    /// Whether the line `id` is the household default on the local day `day` or later.
+    func isDefault(_ id: String, from day: String) -> Bool {
+        let ordered = defaultLines.sorted { $0.validFrom < $1.validFrom }
+        let inForce = ordered.last { $0.validFrom <= day }
+        return inForce?.budgetLineId == id
+            || ordered.contains { $0.validFrom > day && $0.budgetLineId == id }
     }
 
     /// The accounts a line or allowance may be funded from: every account but a
@@ -44,13 +65,38 @@ struct BudgetRows: Codable, Sendable, Equatable {
     }
 
     /// The engine input at `now`: the lines and allowances in the shape
-    /// `budgetOverview` reads.
+    /// `budgetOverview` reads, totalled over the lines active on its local day.
     func input(now: Date) -> BudgetOverviewInput {
         BudgetOverviewInput(
             lines: budgetLines.map(BudgetOverviewInput.Line.init),
             allowances: memberAllowances.map(BudgetOverviewInput.Allowance.init),
             temporaryItems: temporaryItems.map(BudgetOverviewInput.Temporary.init),
-            now: SummaryRows.iso(now))
+            now: SummaryRows.iso(now), today: InflowsPresentation.isoDate(now))
+    }
+}
+
+extension BudgetRows {
+    private enum CodingKeys: String, CodingKey {
+        case budgetLines, memberAllowances, members, accounts, savingsGoals, temporaryItems
+        case breakdowns, superProfiles, defaultLines, countedSpendLineIDs
+    }
+
+    /// Decodes the rows, reading an absent lifespan list as empty.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            budgetLines: try c.decode([BudgetLine].self, forKey: .budgetLines),
+            memberAllowances: try c.decode([MemberAllowance].self, forKey: .memberAllowances),
+            members: try c.decode([Member].self, forKey: .members),
+            accounts: try c.decode([AccountDirectoryEntry].self, forKey: .accounts),
+            savingsGoals: try c.decode([SavingsGoal].self, forKey: .savingsGoals),
+            temporaryItems: try c.decode([TemporaryItem].self, forKey: .temporaryItems),
+            breakdowns: try c.decode([Breakdown].self, forKey: .breakdowns),
+            superProfiles: try c.decode([SuperProfile].self, forKey: .superProfiles),
+            defaultLines: try c.decodeIfPresent(
+                [HouseholdDefaultBudgetLine].self, forKey: .defaultLines) ?? [],
+            countedSpendLineIDs: try c.decodeIfPresent([String].self, forKey: .countedSpendLineIDs)
+                ?? [])
     }
 }
 
@@ -62,6 +108,8 @@ struct BudgetOverviewInput: Encodable, Sendable {
         let frequency: Frequency
         let interval: Int?
         let allowanceMemberId: String?
+        var startsOn: String?
+        var retiredOn: String?
 
         init(
             group: BudgetGroup, amountCents: Int, frequency: Frequency, interval: Int?,
@@ -80,6 +128,8 @@ struct BudgetOverviewInput: Encodable, Sendable {
             frequency = line.frequency
             interval = line.intervalCount
             allowanceMemberId = line.allowanceMemberId
+            startsOn = line.startsOn
+            retiredOn = line.retiredOn
         }
     }
 
@@ -111,4 +161,6 @@ struct BudgetOverviewInput: Encodable, Sendable {
     let allowances: [Allowance]
     let temporaryItems: [Temporary]
     let now: String
+    /// The household's local day; only lines active on it count toward the totals.
+    var today: String?
 }

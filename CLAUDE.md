@@ -73,7 +73,8 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   rotating session kept in a `0600` file) and reaches data only through
   PostgREST, RPC, Storage, and edge functions under RLS — never a service-role
   key. Read tools: `list_budget_lines` (including the `allowance_member_id` a line
-  is drawn from; a co-member's allowance lines are not readable), `get_fortnightly_buffer` (the shared
+  is drawn from, each line's lifespan and whether spending has counted toward it,
+  retired lines on request; a co-member's allowance lines are not readable), `get_fortnightly_buffer` (the shared
   `summariseHouseholdFromRows`, reporting each member's allowance, and for the member's own, drawn and
   remaining), `list_savings_goals`, `list_wishlist`, `list_accounts` (balances only for
   the balance-visible set; a co-member's spending account by name only), `list_members`,
@@ -81,7 +82,7 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   `list_gift_candidates` (a budget for the member's own gift reports no spend, as
   RLS hides its purchases), and `list_up_categories` (Up's taxonomy). Write
   tools: `set_account_net_worth_exclusion`, `set_member_date_of_birth`, `set_pay_account`, `set_transaction_note` (also marks the transaction reviewed, via `review_transaction`), `add_budget_line` and `update_budget_line` (manual lines only; derived
-  lines are refused; they also set a line's goal, funding account, and own-allowance draw), `delete_budget_line`,
+  lines are refused; they also set a line's goal, funding account, own-allowance draw, and start date, and `update_budget_line`'s `change_from` changes a line from a date through `change_budget_line_from`), `delete_budget_line` (only a line no spending has counted toward; `has_counted_spend` otherwise), `retire_budget_line`,
   breakdown and breakdown-item CRUD (generic only), `update_member_allowance`
   (an overdraw surfaces as `allowance_overdrawn`), savings-goal CRUD and queue
   reorder, temporary-item CRUD, `add_wishlist_item` / `update_wishlist_item` /
@@ -834,14 +835,24 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   account, amount, and message/note text, versioned in `spend_rule_version` so
   an edit, reorder, or retirement applies from now and a backdate from a chosen
   day), then an unconfirmed suggestion, then the default (a member's own
-  account → their allowance, else `households.default_budget_line_id`, else Not
-  budgeted). `spend_resolution` computes this live (pure over the transaction
+  account → their allowance, else the default item in force on the posting day,
+  `household_default_budget_line`, else Not budgeted). `spend_resolution` computes this live (pure over the transaction
   and the rule versions, so a settled or re-noted transaction re-resolves for
   free), `actual_spend_by_target` sums it per target with pending apart, and
   `preview_spend_rule` shows what a backdated change would move. Pending always
   counts there. An allowance rule or choice is its member's alone, reading to a
   co-member as that member's allowance with nothing named; see
   [`docs/up-ledger-sync.md`](docs/up-ledger-sync.md#3-reconcile-actual-spend-vs-budget).
+  Every item has a lifespan, `budget_line.starts_on` (default today, backdated
+  or future) to the optional `retired_on`: today's plan, the buffer, pay splits,
+  goal funding, Siri and the calendar feed count only the items active today, a
+  future item shows as "starts <date>", and spend counts toward an item only
+  within its lifespan (choices outside it refused). An item spending has
+  counted toward is retired (`retire_budget_line`, never un-retired; retiring
+  the default names its successor), not deleted (`budget_line_has_spend`), so
+  its history stays; "Change from a date" (`change_budget_line_from`) retires it
+  and starts a replacement carrying its rules. See
+  [`docs/budget-and-savings.md`](docs/budget-and-savings.md#item-lifespan).
   Each line carries an
   amount on a frequency (weekly through annual, or an arbitrary every-N-weeks or
   every-N-months cadence, exactly as inflows do), normalised to fortnightly and

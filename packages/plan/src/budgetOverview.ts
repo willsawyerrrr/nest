@@ -11,6 +11,7 @@ import {
   type MemberAllowance,
 } from './allowance.ts'
 import type { BudgetGroup, BudgetLine } from './index.ts'
+import { isBudgetLineActive } from './lifespan.ts'
 import { annualCents, fortnightlyCents } from './normalize.ts'
 import type { Amounts } from './summary.ts'
 
@@ -19,7 +20,7 @@ const GROUPS: readonly BudgetGroup[] = ['needs', 'wants', 'discretionary', 'savi
 
 /** The Budget screen's figures for a set of lines and allowances. */
 export interface BudgetOverview {
-  /** Each input line's amounts, in input order. */
+  /** Each input line's amounts, in input order, whether or not it is active. */
   readonly lines: readonly Amounts[]
   /**
    * Each group's fortnightly subtotal. A line drawn from an allowance counts
@@ -30,22 +31,29 @@ export interface BudgetOverview {
   readonly allowances: readonly AllowanceSummary[]
 }
 
-/** Reconciles `lines` and `allowances` into the Budget screen's figures. */
+/**
+ * Reconciles `lines` and `allowances` into the Budget screen's figures. Every
+ * line has its amounts; with `today` (the household's local day), only the lines
+ * active that day count toward the group subtotals and allowances, so an item
+ * not yet started or already retired is listed but not totalled.
+ */
 export function budgetOverview(
   lines: readonly BudgetLine[],
   allowances: readonly MemberAllowance[],
+  today?: string,
 ): BudgetOverview {
   const amounts = lines.map((line) => ({
     fortnightlyCents: fortnightlyCents(line.amountCents, line.frequency, line.interval),
     annualCents: annualCents(line.amountCents, line.frequency, line.interval),
   }))
-  const summaries = summariseAllowances(lines, allowances)
+  const counts = (line: BudgetLine) => today === undefined || isBudgetLineActive(line, today)
+  const summaries = summariseAllowances(lines.filter(counts), allowances)
   const groups = Object.fromEntries(GROUPS.map((group) => [group, 0])) as Record<
     BudgetGroup,
     number
   >
   lines.forEach((line, index) => {
-    if (!isDrawnFromAllowance(line, allowances)) {
+    if (counts(line) && !isDrawnFromAllowance(line, allowances)) {
       groups[line.group] += amounts[index]!.fortnightlyCents
     }
   })

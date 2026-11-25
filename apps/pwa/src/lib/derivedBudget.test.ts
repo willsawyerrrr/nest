@@ -7,6 +7,8 @@ import { applyBreakdownAmounts } from './derivedBudget'
 function line(overrides: Partial<BudgetLine> = {}): BudgetLine {
   return {
     id: 'l1',
+    starts_on: '2026-01-01',
+    retired_on: null,
     household_id: 'h',
     line_group: 'wants',
     name: 'Line',

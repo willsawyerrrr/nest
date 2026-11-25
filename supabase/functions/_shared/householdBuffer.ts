@@ -98,6 +98,7 @@ export async function loadBudgetSummaryBundle(
     savingsGoals,
     accounts,
     accountBalances,
+    household,
   ] = await Promise.all([
     forHousehold('inflows'),
     forHousehold('tax_profile', financialYear),
@@ -111,7 +112,11 @@ export async function loadBudgetSummaryBundle(
     forHousehold('savings_goal'),
     forHousehold('accounts'),
     forHousehold('account_balance'),
+    admin.from('households').select('timezone').eq('id', householdId).maybeSingle(),
   ])
+  if (household.error) {
+    throw new Error(`Failed to read households: ${household.error.message}`)
+  }
 
   return {
     inflows,
@@ -125,5 +130,6 @@ export async function loadBudgetSummaryBundle(
     temporaryItems,
     savingsGoals,
     savers: toSaverRows(accounts, accountBalances),
+    ...(household.data?.timezone != null && { timeZone: household.data.timezone as string }),
   }
 }

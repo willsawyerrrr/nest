@@ -28,6 +28,8 @@ const base = { household_id: 'h1', created_at: STAMP, updated_at: STAMP }
 const line = (overrides: Partial<BudgetLine>): BudgetLine => ({
   ...base,
   id: 'b',
+  starts_on: '2026-01-01',
+  retired_on: null,
   name: 'Line',
   line_group: 'savings',
   amount_cents: 0,

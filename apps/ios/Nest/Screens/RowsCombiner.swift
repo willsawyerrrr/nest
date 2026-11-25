@@ -26,6 +26,19 @@ struct TableSource<Rows: Sendable>: Sendable {
             }
         }
     }
+
+    /// Calls the read-only Postgres function `name` and stores each snapshot of
+    /// its result rows with `assign` (see `NestData.rpcRows`).
+    static func rpc<T: Codable & Sendable>(
+        _ name: String, params: some Encodable & Sendable = SupabaseAPI.EmptyBody(),
+        as _: T.Type = T.self, assign: @escaping @Sendable (inout Rows, [T]) -> Void
+    ) -> TableSource {
+        TableSource { data, report in
+            for try await snapshot in data.rpcRows(name, params: params, as: T.self) {
+                await report({ assign(&$0, snapshot.rows) }, snapshot.isCached)
+            }
+        }
+    }
 }
 
 /// Merges several tables' cached-then-fresh streams into one stream of whole

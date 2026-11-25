@@ -223,6 +223,7 @@ describe('listTransactions', () => {
     notes: null,
     reviewed_at: null,
     reviewed_by_member_id: null,
+    category_flagged_wrong_at: null,
     ...extra,
   })
   const transactions = [
@@ -238,6 +239,7 @@ describe('listTransactions', () => {
       kind: 'income',
       transaction_type: null,
       up_message: 'Rent',
+      category_flagged_wrong_at: '2026-09-16T00:00:00Z',
     }),
   ]
 
@@ -252,8 +254,13 @@ describe('listTransactions', () => {
       notes: "Sam's birthday",
       reviewed_at: '2026-10-02T00:00:00Z',
       reviewed_by_member_id: 'm-self',
+      category_flagged_wrong_at: null,
     })
-    expect(result.transactions[1]).toMatchObject({ up_message: 'Rent', up_note: null })
+    expect(result.transactions[1]).toMatchObject({
+      up_message: 'Rent',
+      up_note: null,
+      category_flagged_wrong_at: '2026-09-16T00:00:00Z',
+    })
   })
 
   it('filters by account, kind, source category, and dates', async () => {

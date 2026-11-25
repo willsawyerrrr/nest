@@ -79,7 +79,7 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   `summariseHouseholdFromRows`, reporting each member's allowance, and for the member's own, drawn and
   remaining), `list_savings_goals`, `list_wishlist`, `list_accounts` (balances only for
   the balance-visible set; a co-member's spending account by name only), `list_members`,
-  `get_household`, `list_categories`, `list_transactions` (what RLS exposes, with Up's detail, the household's notes and review state, and unreviewed and note-text filters), `list_trades`, `list_holdings` (FIFO, valued at the last traded price), `list_payslips`, and the gift tracker's `list_gifts` and
+  `get_household`, `list_categories`, `list_transactions` (what RLS exposes, with Up's detail, the household's notes, review state and wrong-category flag, and unreviewed and note-text filters), `list_trades`, `list_holdings` (FIFO, valued at the last traded price), `list_payslips`, and the gift tracker's `list_gifts` and
   `list_gift_candidates` (a budget for the member's own gift reports no spend, as
   RLS hides its purchases), and `list_up_categories` (Up's taxonomy). Write
   tools: `set_account_net_worth_exclusion`, `set_member_date_of_birth`, `set_pay_account`, `set_transaction_note` (also marks the transaction reviewed, via `review_transaction`), `add_budget_line` and `update_budget_line` (manual lines only; derived

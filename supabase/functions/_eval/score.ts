@@ -54,6 +54,13 @@ export interface EngineResults {
   repeats?: Record<string, RunResult[]>
 }
 
+/** Whether a parsed results file is an engine's results, as opposed to a run record. */
+export function isEngineResults(file: unknown): file is EngineResults {
+  if (typeof file !== 'object' || file === null) return false
+  const { engine, results } = file as Record<string, unknown>
+  return typeof engine === 'string' && typeof results === 'object' && results !== null
+}
+
 /**
  * Reads an engine's results file. A result carrying `runs`, as the Foundation
  * Models harness writes, has them fed into `repeats` so stability and timing

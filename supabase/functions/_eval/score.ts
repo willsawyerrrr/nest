@@ -42,6 +42,15 @@ export interface RunResult {
   confidence?: number
   /** Whether the run paid model load and warm-up (`cold`) or not (`warm`), where the engine says. */
   timing?: 'cold' | 'warm'
+  /**
+   * Set when the model was rate limited on every attempt, so it never answered.
+   * The run is one the arm cannot answer, not a wrong or failed one.
+   */
+  rateLimited?: boolean
+  /** Rate-limited attempts retried before the run settled, where the engine retries. */
+  retries?: number
+  /** Milliseconds spent backing off and waiting for the device to cool, excluded from `ms`. */
+  waitedMs?: number
   /** Every repeat of this run, the first being this result, where the engine writes them. */
   runs?: RunResult[]
 }
@@ -287,8 +296,11 @@ export interface RunOutcome {
   extractor: DocKind
   /** The source document the variant was made from; clusters the bootstrap. */
   source: string
-  /** `declined` is an answer the app rejects as not the extractor's kind. */
-  status: 'answered' | 'declined' | 'failed'
+  /**
+   * `declined` is an answer the app rejects as not the extractor's kind;
+   * `rateLimited` is a run the model never answered for being rate limited.
+   */
+  status: 'answered' | 'declined' | 'failed' | 'rateLimited'
   /** Empty unless the document is of the extractor's kind. */
   fields: FieldOutcome[]
   ms: number
@@ -532,7 +544,8 @@ function unanswered(doc: Exclude<CorpusDoc, { kind: 'other' }>): FieldOutcome[] 
 /**
  * Scores one run field by field. A run the app would reject as not the
  * extractor's kind or whose file could not be opened (`declined`) and a run
- * that failed or could not be read (`failed`) answer none of a document's units, so each is missing.
+ * that failed or could not be read (`failed`) or was rate limited (`rateLimited`) answer none of a
+ * document's units, so each is missing.
  */
 export function outcomeOf(
   doc: CorpusDoc & { source?: string },
@@ -554,6 +567,9 @@ export function outcomeOf(
   const target = doc.kind === extractor && doc.kind !== 'other' ? doc : null
   if (run.unreadable !== undefined) {
     return { ...base, status: 'declined', fields: target ? unanswered(target) : [] }
+  }
+  if (run.rateLimited) {
+    return { ...base, status: 'rateLimited', fields: target ? unanswered(target) : [] }
   }
   const read = run.raw === undefined ? null : readAnswer(extractor, run.raw)
   if (read === null) {
@@ -589,6 +605,8 @@ export interface Summary {
   runs: number
   failed: number
   declined: number
+  /** Runs the model never answered for being rate limited; not counted in `failed`. */
+  rateLimited: number
   /** Impact weight of every unit, and of those correct. */
   weight: number
   correctWeight: number
@@ -632,6 +650,7 @@ export function summarise(outcomes: RunOutcome[]): Summary {
     runs: outcomes.length,
     failed: outcomes.filter((run) => run.status === 'failed').length,
     declined: outcomes.filter((run) => run.status === 'declined').length,
+    rateLimited: outcomes.filter((run) => run.status === 'rateLimited').length,
     weight,
     correctWeight,
     accuracy: weight === 0 ? 0 : correctWeight / weight,
@@ -647,7 +666,7 @@ export function summarise(outcomes: RunOutcome[]): Summary {
 /**
  * How well an engine told documents apart: the share of documents of another
  * kind it declined, and the share of documents of the extractor's kind it
- * declined. Failed runs are neither.
+ * declined. Failed and rate-limited runs are neither.
  */
 export function declineStats(outcomes: RunOutcome[]): {
   negatives: number
@@ -655,7 +674,7 @@ export function declineStats(outcomes: RunOutcome[]): {
   positives: number
   declinedPositives: number
 } {
-  const answered = outcomes.filter((run) => run.status !== 'failed')
+  const answered = outcomes.filter((run) => run.status !== 'failed' && run.status !== 'rateLimited')
   const [positive, negative] = [
     answered.filter((run) => run.kind === run.extractor),
     answered.filter((run) => run.kind !== run.extractor),

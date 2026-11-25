@@ -50,14 +50,15 @@ const percentile = (values: number[], p: number): number => {
 /** One row per engine and extractor: accuracy, spurious extras, failures, latency, tokens. */
 export function report(corpus: CorpusDoc[], engines: EngineResults[]): string {
   const lines = [
-    '| Engine | Extractor | Correct | Correct, printed dates accepted | Spurious | Failed | Median ms | Max prompt tokens |',
-    '| -- | -- | -- | -- | -- | -- | -- | -- |',
+    '| Engine | Extractor | Correct | Correct, printed dates accepted | Spurious | Failed | Rate limited | Median ms | Max prompt tokens |',
+    '| -- | -- | -- | -- | -- | -- | -- | -- | -- |',
   ]
   for (const engine of engines) {
     for (const extractor of EXTRACTORS) {
       const total: Score = { units: 0, correct: 0, spurious: 0 }
       let lenient = 0
       let failed = 0
+      let rateLimited = 0
       let runs = 0
       const times: number[] = []
       const tokens: number[] = []
@@ -70,7 +71,8 @@ export function report(corpus: CorpusDoc[], engines: EngineResults[]): string {
         total.correct += score.correct
         total.spurious += score.spurious
         lenient += scoreRun(doc, extractor, run, { printedDates: true }).correct
-        if (run.raw === undefined && run.unreadable === undefined) failed++
+        if (run.rateLimited) rateLimited++
+        else if (run.raw === undefined && run.unreadable === undefined) failed++
         times.push(run.ms)
         if (run.promptTokens !== undefined) tokens.push(run.promptTokens)
       }
@@ -82,9 +84,9 @@ export function report(corpus: CorpusDoc[], engines: EngineResults[]): string {
           pct(total.correct)
         }%) | ${lenient}/${total.units} (${
           pct(lenient)
-        }%) | ${total.spurious} | ${failed}/${runs} | ${percentile(times, 0.5)} | ${
-          tokens.length ? Math.max(...tokens) : '-'
-        } |`,
+        }%) | ${total.spurious} | ${failed}/${runs} | ${rateLimited}/${runs} | ${
+          percentile(times, 0.5)
+        } | ${tokens.length ? Math.max(...tokens) : '-'} |`,
       )
     }
   }
@@ -405,7 +407,7 @@ export function evaluate(
         adjustedP: null,
         wrongConfidentUpper: binomialUpper(summary.wrongConfident, summary.filled),
         decline: declineStats(runs),
-        cannotAnswer: summary.failed / runs.length,
+        cannotAnswer: (summary.failed + summary.rateLimited) / runs.length,
         p95Ms: percentile(times, 0.95),
         stability: meanStability(runs),
       }

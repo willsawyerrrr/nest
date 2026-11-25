@@ -56,9 +56,15 @@ struct RunResult {
   var promptTokens: Int?
   /// `corrupt` or `encrypted` when the PDF could not be opened, so no model ran.
   var unreadable: String?
+  /// Whether the model was rate limited on every attempt, so it never answered.
+  var rateLimited = false
+  /// Rate-limited attempts retried, and milliseconds spent backing off and cooling (not in `ms`).
+  var retries = 0
+  var waitedMs = 0
 
   var json: [String: Any] {
-    var out: [String: Any] = ["ms": ms]
+    var out: [String: Any] = ["ms": ms, "retries": retries, "waitedMs": waitedMs]
+    if rateLimited { out["rateLimited"] = true }
     if let raw { out["raw"] = raw }
     if let error { out["error"] = error }
     if let promptTokens { out["promptTokens"] = promptTokens }

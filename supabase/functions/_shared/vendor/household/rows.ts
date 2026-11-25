@@ -168,7 +168,10 @@ export function activeBudgetLineRows<Row extends BudgetLineLifespanRow>(
   today: string,
 ): Row[] {
   return rows.filter((row) =>
-    isBudgetLineActive({ startsOn: row.starts_on ?? null, retiredOn: row.retired_on ?? null }, today),
+    isBudgetLineActive(
+      { startsOn: row.starts_on ?? null, retiredOn: row.retired_on ?? null },
+      today,
+    ),
   )
 }
 

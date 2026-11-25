@@ -334,6 +334,7 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/transaction_review.sql
           psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/budget_actual_spend.sql
           psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/spend_allocation.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/budget_line_lifespan.sql
           psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/up_customer_handles.sql
           psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/up_webhook.sql
           psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/member_vault_cleanup.sql

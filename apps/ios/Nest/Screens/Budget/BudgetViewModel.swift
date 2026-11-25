@@ -113,15 +113,50 @@ final class BudgetViewModel {
         await load()
     }
 
-    /// Removes the line `id`, then reloads.
+    /// Removes the line `id`, then reloads. The database refuses a line spending
+    /// has counted toward (`budget_line_has_spend`); stop budgeting for it instead.
     func deleteLine(id: String) async throws {
         if planning.isActive {
             planning.delete(.budgetLine, id: id)
         } else {
-            try await data.delete(BudgetLine.self, filters: [.eq("id", id)])
+            try await data.delete(
+                BudgetLine.self, filters: [.eq("id", id)], also: [BudgetRows.countedSpendFunction])
         }
         await load()
     }
+
+    /// Stops budgeting for the line `id` from `retirement.retireOn`, handing the
+    /// household default to `retirement.newDefaultLineId` where it is the
+    /// default, then reloads. Never sandboxed.
+    func retireLine(id: String, _ retirement: BudgetLineRetirement) async throws {
+        try await data.call(
+            "retire_budget_line",
+            params: RetireParams(
+                budgetLineID: id, retireOn: retirement.retireOn,
+                newDefaultLineID: retirement.newDefaultLineId),
+            invalidating: Self.lifespanTables)
+        await load()
+    }
+
+    /// Changes the line `id` from `day`: it stops that day and a replacement
+    /// with `input`'s group, name, amount and cadence starts, carrying its
+    /// rules. Never sandboxed.
+    func changeLine(id: String, from day: String, _ input: BudgetLineInput) async throws {
+        try await data.call(
+            "change_budget_line_from",
+            params: ChangeParams(
+                budgetLineID: id, changeOn: day, lineGroup: input.lineGroup, name: input.name,
+                amountCents: input.amountCents, frequency: input.frequency,
+                intervalCount: input.intervalCount),
+            invalidating: Self.lifespanTables)
+        await load()
+    }
+
+    /// What retiring or changing a line touches.
+    private static let lifespanTables: Set<String> = [
+        BudgetLine.table, HouseholdDefaultBudgetLine.table, BudgetRows.countedSpendFunction,
+        "spend_rule", "spend_rule_version", "current_spend_rules",
+    ]
 
     /// Saves a derived line's edit, as the PWA's `useDerivedLineEditor`: a generic
     /// line's name and group go to its breakdown and the line, a gift line's group
@@ -182,6 +217,56 @@ final class BudgetViewModel {
         row["created_at"] = .string(stamp)
         row["updated_at"] = .string(stamp)
         return row
+    }
+}
+
+private struct RetireParams: Encodable, Sendable {
+    let budgetLineID: String
+    let retireOn: String
+    let newDefaultLineID: String?
+
+    enum CodingKeys: String, CodingKey {
+        case budgetLineID = "p_budget_line_id"
+        case retireOn = "p_retire_on"
+        case newDefaultLineID = "p_new_default_budget_line_id"
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(budgetLineID, forKey: .budgetLineID)
+        try c.encode(retireOn, forKey: .retireOn)
+        try c.encodeIfPresent(newDefaultLineID, forKey: .newDefaultLineID)
+    }
+}
+
+private struct ChangeParams: Encodable, Sendable {
+    let budgetLineID: String
+    let changeOn: String
+    let lineGroup: BudgetGroup
+    let name: String
+    let amountCents: Int
+    let frequency: Frequency
+    let intervalCount: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case budgetLineID = "p_budget_line_id"
+        case changeOn = "p_change_on"
+        case lineGroup = "p_line_group"
+        case name = "p_name"
+        case amountCents = "p_amount_cents"
+        case frequency = "p_frequency"
+        case intervalCount = "p_interval_count"
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(budgetLineID, forKey: .budgetLineID)
+        try c.encode(changeOn, forKey: .changeOn)
+        try c.encode(lineGroup, forKey: .lineGroup)
+        try c.encode(name, forKey: .name)
+        try c.encode(amountCents, forKey: .amountCents)
+        try c.encode(frequency, forKey: .frequency)
+        try c.encodeIfPresent(intervalCount, forKey: .intervalCount)
     }
 }
 

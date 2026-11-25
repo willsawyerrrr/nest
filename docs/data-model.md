@@ -39,14 +39,18 @@ and so without the trigger.
     columnless set-null on this FK would also target the `households.id` half of
     the reference. Written only through the `set_household_pay_account` RPC (see
     RPCs), not a broad households update.
-  - `default_budget_line_id` (nullable) — the **default item**: the budget line
-    spend counts toward when no member choice, rule, or suggestion places it and
-    it is not from a member's own account (see [Spend allocation](#spend-allocation));
-    null counts such spend as Not budgeted. A composite FK
-    `(default_budget_line_id, id) → budget_line (id, household_id)`,
-    `on delete set null (default_budget_line_id)`. Written through
-    `set_household_default_budget_line`, which refuses a line drawn from an
-    allowance.
+- **household_default_budget_line** — the household's **default item** over
+  time: the budget line spend counts toward when no member choice, rule, or
+  suggestion places it and it is not from a member's own account (see
+  [Spend allocation](#spend-allocation)).
+  - `household_id`, `valid_from` (a local date; together the primary key),
+    `budget_line_id` (nullable: Not budgeted), `created_at`. A row is in force
+    from `valid_from` until the next row's; before the first row there is no
+    default. Composite FK `(budget_line_id, household_id) → budget_line`,
+    `on delete set null (budget_line_id)`. Members read it; it is written through
+    `set_household_default_budget_line` and `retire_budget_line` /
+    `change_budget_line_from`. The 20261125010000 migration seeded each
+    household's default from the line it named, from that line's start.
 - **members** — a person in a household, linked to an auth user.
   - `id`, `household_id`, `user_id` (→ `auth.users`), `name`, `email`
     (nullable), `date_of_birth` (date, nullable), `up_connected_at` (nullable),
@@ -691,7 +695,30 @@ Discretionary lines may be drawn from.
     `goal_id` (nullable), `breakdown_id` (nullable), `is_gift_line` (bool),
     `gift_recipient_member_id` (nullable), `destination_account_id`
     (nullable), `management_url` (nullable), `allowance_member_id` (nullable),
-    `created_at`, `updated_at`.
+    `starts_on` (date), `retired_on` (date, nullable), `created_at`, `updated_at`.
+  - **Lifespan.** A line is active on the local days (household timezone)
+    `[starts_on, retired_on)`: `starts_on` is its first day, `retired_on` the
+    first day it no longer applies (`budget_line_lifespan` holds it after the
+    start). `starts_on` defaults to today in the household (the column default
+    reads the caller's household, `default_budget_line_starts_on` fills a
+    service-role insert) and may be backdated or in the future; the
+    20261125010000 migration set existing lines' to the earlier of their
+    `created_at` day and the household's earliest transaction, so every synced
+    transaction sits inside the lifespan of the lines it counted toward.
+    `retired_on` is written only by `retire_budget_line` (and
+    `change_budget_line_from`) and never cleared or changed
+    (`guard_budget_line_retired_on`, `budget_line_retired_on_immutable`): a
+    retired line never returns. Today's plan, the fortnightly buffer, pay
+    splits, goal funding and the Budget screen's totals count only the lines
+    active today; a line not yet started is listed as "starts <date>". Spend
+    counts toward a line only within its lifespan (see
+    [Spend allocation](#spend-allocation)).
+  - **Delete or retire.** A manual line spending has ever counted toward (by a
+    member choice, a rule, a suggestion, or the default) cannot be deleted:
+    `prevent_budget_line_delete_with_spend` raises `budget_line_has_spend`, so
+    its history stays; retire it instead. A line with none deletes as before.
+    Derived lines are the reconcile's and are neither guarded nor retirable, and
+    deleting a household takes its lines regardless.
   - `goal_id` links to a savings goal; only `savings`/`investments` lines may
     set it. Many lines may fund one goal.
   - `breakdown_id` marks a **derived line** whose amount is rolled up from a
@@ -736,10 +763,11 @@ Discretionary lines may be drawn from.
     (`before insert or update of amount_cents, frequency, interval_count,
     allowance_member_id`, SECURITY DEFINER, locking the allowance row) raises a
     `check_violation` with the fixed message `allowance_overdrawn` when the
-    annualised amounts (`reconcile_annual_cents`) of the allowance's lines would
-    exceed the allowance's annual amount. An update that keeps the same allowance
-    without raising the line's annual amount is allowed
-    (`20261018010000_prevent_allowance_overdraw.sql`).
+    annualised amounts (`reconcile_annual_cents`) of the allowance's unretired
+    lines would exceed the allowance's annual amount. An update that keeps the
+    same allowance without raising the line's annual amount, or touches a retired
+    line, is allowed (`20261018010000_prevent_allowance_overdraw.sql`,
+    `20261125010000_budget_line_lifespan.sql`).
 - **member_allowance** — a member's permanent discretionary spending allowance.
   - `id`, `household_id`, `member_id`, `amount_cents` (`>= 0`; zero until set), `frequency` (the
     shared enum), `interval_count` (the same non-null-iff-every-N rule as
@@ -756,7 +784,8 @@ Discretionary lines may be drawn from.
     drawn from it are the private part (see `budget_line`). A same-named trigger on
     `member_allowance` (`before update of amount_cents, frequency, interval_count`,
     SECURITY DEFINER) raises the same `allowance_overdrawn` when the annual amount
-    would fall below the annualised lines drawn from it, whoever the editor is.
+    would fall below the annualised unretired lines drawn from it, whoever the
+    editor is.
     `service_role` holds `select` for the
     household-buffer loader.
   - Permanent (`20261005000000_permanent_member_allowances.sql`): an `after insert`
@@ -1162,8 +1191,15 @@ that applies:
    `posted_at`, first match by `sort_order`;
 3. an unconfirmed suggestion (`transaction_allocation`);
 4. the default: spend from an account a member owns counts toward that member's
-   allowance, anything else toward `households.default_budget_line_id`, or Not
-   budgeted while it is null.
+   allowance, anything else toward the `household_default_budget_line` row in
+   force on its local posting day, or Not budgeted while there is none.
+
+A rule, suggestion, or default counts toward a budget line only on the days the
+line is active (`[starts_on, retired_on)`, see `budget_line`): a rule whose line
+is inactive on the transaction's day does not match, so the next rule is tried;
+a default whose line is inactive that day counts as Not budgeted. A member
+choice is refused for a transaction posted outside the line's lifespan, and a
+choice already made keeps pointing at the line whatever its lifespan.
 
 Only choices and suggestions are stored. Rule and default resolution is computed
 live by `spend_resolution` (see RPCs), a pure function of the transaction, the
@@ -1209,8 +1245,9 @@ ones count.
     row): split-capable, though every writer allocates a whole transaction. The
     `check_transaction_allocation` constraint trigger (deferred) holds this. A
     set losing any row is discarded whole (`discard_transaction_allocation_set`),
-    so a deleted line or member returns the transaction to rule and default
-    resolution, and a set follows its transaction when the sync re-prices it
+    so a removed derived line or member returns the transaction to rule and
+    default resolution (a manual line with an allocation has counted spend, so
+    it is retired rather than deleted), and a set follows its transaction when the sync re-prices it
     (`follow_transaction_allocation_amount`, the remainder on its largest row).
     Nothing writes suggestions yet.
 - **current_spend_rules** (view) — each live rule at its current version: the
@@ -1478,9 +1515,35 @@ that live in Vault:
   `p_include_pending`, grouped by the household's override else the default; a
   null `line_group` is spend in no group. SECURITY INVOKER, so it sums only the
   transactions the caller can see.
-- `set_household_default_budget_line(p_budget_line_id)` — set (or, with null,
-  clear) the caller's household default item; `default_budget_line_invalid`
-  for a line outside the household or drawn from an allowance.
+- `set_household_default_budget_line(p_budget_line_id, p_from date default null)`
+  — set (or, with null, clear) the caller's household default item from local
+  day `p_from` (today when null) on, superseding any later row;
+  `default_budget_line_invalid` for a line outside the household, drawn from an
+  allowance, retired, or starting after `p_from`.
+- `retire_budget_line(p_budget_line_id, p_retire_on date default null, p_new_default_budget_line_id uuid default null)`
+  — stops budgeting for a manual line the caller can manage from local day
+  `p_retire_on` (today when null), which must fall after its start: every
+  version of a rule targeting it ends at the start of that day (a rule left with
+  none is removed) and `retired_on` is set. Spend already counted toward it
+  stays. Where the line is the default on that day or later,
+  `p_new_default_budget_line_id` becomes the default from that day. Errors:
+  `budget_line_not_found`, `budget_line_derived`, `budget_line_retired`,
+  `budget_line_retire_before_start`, `budget_line_default_replacement_required`,
+  `default_budget_line_invalid`.
+- `change_budget_line_from(p_budget_line_id, p_change_on, p_line_group, p_name, p_amount_cents, p_frequency, p_interval_count default null)`
+  → `uuid` — changes a manual line from local day `p_change_on` (today when
+  null): retires it that day and inserts its replacement starting that day with
+  the given group, name, amount and cadence, keeping its goal, funding account,
+  allowance and management link where the new group allows them. Each live rule
+  targeting it is copied onto the replacement, in force from the change (or its
+  own later start) at the same `sort_order`; where the line was the default the
+  replacement takes over from that day. The retired line leaves the allowance
+  overdraw total first, so the replacement draws within it. Errors as
+  `retire_budget_line`, plus `allowance_overdrawn`.
+- `budget_lines_with_counted_spend()` → `setof uuid` — the caller's visible
+  budget lines spending in the household has ever counted toward (read
+  household-wide through `budget_line_has_counted_spend`): these can be retired
+  but not deleted.
 - `set_transaction_spend_target(p_transaction_id, p_target_kind, p_budget_line_id default null, p_allowance_member_id default null)`
   — sends the whole of a spend transaction the caller can see to a target as
   their `member_choice`, replacing any choice or suggestion; a joint-account
@@ -1488,7 +1551,9 @@ that live in Vault:
   `no_data_found` (`transaction not found`), `transaction_not_spend` (a
   transfer or uncategorised income), or `spend_target_invalid` (a line outside
   the household or drawn from a co-member's allowance, or any allowance but the
-  caller's own). `clear_transaction_spend_target(p_transaction_id)` removes the
+  caller's own), or `spend_target_inactive` (a line not started or already
+  retired on the transaction's local posting day).
+  `clear_transaction_spend_target(p_transaction_id)` removes the
   choice or confirmed suggestion. Both SECURITY DEFINER, re-applying the
   `transactions` read predicate.
 - `create_spend_rule(p_target_kind, p_budget_line_id, p_allowance_member_id, p_description_pattern, p_description_match default 'contains', p_up_category_ids, p_account_ids, p_amount_cents, p_amount_min_cents, p_amount_max_cents, p_text_pattern, p_apply_from date)`
@@ -1505,6 +1570,7 @@ that live in Vault:
   moved rule gains a version. Errors: `spend_target_invalid`,
   `spend_rule_condition_required`, `spend_rule_amount_invalid`,
   `spend_rule_account_invalid` (an account the caller cannot name),
+  `spend_target_inactive` (a line retired by the day the rule applies from),
   `spend_rule_apply_from_future`, `spend_rule_not_found`, `spend_rule_retired`,
   `spend_rule_order_mismatch`. A rule may target only the caller's own
   allowance.

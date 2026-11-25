@@ -1,7 +1,12 @@
 import { assert, describe, expect, it } from 'vitest'
 import { fortnightlyCents, FORTNIGHTS_PER_YEAR } from '@nest/plan'
 import { FY2027_CONFIG } from '@nest/tax'
-import type { BudgetLineRow, BudgetSummaryBundle, InflowRow } from './rows.ts'
+import {
+  activeBudgetLineRows,
+  type BudgetLineRow,
+  type BudgetSummaryBundle,
+  type InflowRow,
+} from './rows.ts'
 import { summariseHouseholdFromRows, toSummaryInput } from './summary.ts'
 import { estimateHouseholdTaxFromRows } from './tax.ts'
 
@@ -333,5 +338,34 @@ describe('summariseHouseholdFromRows', () => {
     const summary = summariseHouseholdFromRows(bundle(), new Date('2099-12-01T00:00:00Z'))
     const asFy2027 = summariseHouseholdFromRows(bundle(), NOW)
     expect(summary.available.annualCents).toBe(asFy2027.available.annualCents)
+  })
+})
+
+describe('budget line lifespans', () => {
+  it('keeps the rows active on the local day', () => {
+    const rows = [
+      line({ amount_cents: 1, starts_on: '2026-01-01', retired_on: '2026-10-10' }),
+      line({ amount_cents: 2, starts_on: '2026-10-10' }),
+      line({ amount_cents: 3, starts_on: '2027-01-01' }),
+      line({ amount_cents: 4 }),
+    ]
+    expect(activeBudgetLineRows(rows, '2026-11-25').map((row) => row.amount_cents)).toEqual([2, 4])
+  })
+
+  it('leaves retired and not-yet-started items out of the buffer, read on the household day', () => {
+    // 9am on 25 November in Sydney: still the 24th in UTC.
+    const at = new Date('2026-11-24T22:00:00Z')
+    const startsToday = line({ amount_cents: 300_00, starts_on: '2026-11-25' })
+    const base = bundle({ budgetLines: [line({ amount_cents: 100_00 })] })
+    const withLines = (budgetLines: BudgetLineRow[], timeZone?: string) =>
+      summariseHouseholdFromRows(
+        { ...base, budgetLines, ...(timeZone !== undefined && { timeZone }) },
+        at,
+      ).groups.needs.fortnightlyCents
+
+    expect(withLines([startsToday])).toBe(300_00)
+    expect(withLines([startsToday], 'UTC')).toBe(0)
+    expect(withLines([line({ amount_cents: 300_00, starts_on: '2027-01-01' })])).toBe(0)
+    expect(withLines([line({ amount_cents: 300_00, retired_on: '2026-11-25' })])).toBe(0)
   })
 })

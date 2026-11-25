@@ -10,6 +10,7 @@ import {
   type MemberAllowance,
 } from './allowance.ts'
 import type { BudgetGroup, BudgetLine, Money, NonTaxableInflow, TemporaryItem } from './index.ts'
+import { isBudgetLineActive } from './lifespan.ts'
 import { annualCents, fortnightlyCents, FORTNIGHTS_PER_YEAR } from './normalize.ts'
 
 /** A figure expressed in both the plan's primary fortnightly period and annually. */
@@ -28,6 +29,12 @@ export interface SummaryInput {
   readonly afterTaxIncomeAnnualCents: Money
   readonly nonTaxableInflows: readonly NonTaxableInflow[]
   readonly budgetLines: readonly BudgetLine[]
+  /**
+   * The household's local day (ISO `YYYY-MM-DD`) the budget lines' lifespans are
+   * read on: a line not started or already retired then counts toward nothing.
+   * Absent ⇒ every line counts.
+   */
+  readonly today?: string
   readonly temporaryItems: readonly TemporaryItem[]
   /**
    * Members' spending allowances. Each is the Discretionary outgoing for its
@@ -141,7 +148,8 @@ function addAmounts(a: Amounts, b: Amounts): Amounts {
  * reported beside the plan rather than spent by it.
  *
  * A line drawn from a member's allowance adds nothing to its group: the
- * allowance's own amount joins Discretionary instead.
+ * allowance's own amount joins Discretionary instead. With `input.today`, a line
+ * outside its lifespan that day is left out entirely.
  */
 export function summarise(input: SummaryInput, now: Date): BudgetSummary {
   // A non-taxable inflow with an effective window counts in full while `now` is
@@ -173,11 +181,16 @@ export function summarise(input: SummaryInput, now: Date): BudgetSummary {
     investments: zero,
   }
   const memberAllowances = input.memberAllowances ?? []
-  const allowances = summariseAllowances(input.budgetLines, memberAllowances)
+  const { today } = input
+  const budgetLines =
+    today === undefined
+      ? input.budgetLines
+      : input.budgetLines.filter((line) => isBudgetLineActive(line, today))
+  const allowances = summariseAllowances(budgetLines, memberAllowances)
   for (const { allowance } of allowances) {
     lineTotals.discretionary = addAmounts(lineTotals.discretionary, allowance)
   }
-  for (const line of input.budgetLines) {
+  for (const line of budgetLines) {
     if (isDrawnFromAllowance(line, memberAllowances)) {
       continue
     }

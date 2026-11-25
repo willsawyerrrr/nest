@@ -306,6 +306,8 @@ export type Database = {
           line_group: Database['public']['Enums']['budget_group']
           management_url: string | null
           name: string
+          retired_on: string | null
+          starts_on: string
           updated_at: string
         }
         ComputedFields: never
@@ -325,6 +327,8 @@ export type Database = {
           line_group: Database['public']['Enums']['budget_group']
           management_url?: string | null
           name: string
+          retired_on?: string | null
+          starts_on?: string
           updated_at?: string
         }
         Update: {
@@ -343,6 +347,8 @@ export type Database = {
           line_group?: Database['public']['Enums']['budget_group']
           management_url?: string | null
           name?: string
+          retired_on?: string | null
+          starts_on?: string
           updated_at?: string
         }
         Relationships: [
@@ -1183,10 +1189,46 @@ export type Database = {
           },
         ]
       }
+      household_default_budget_line: {
+        Row: {
+          budget_line_id: string | null
+          created_at: string
+          household_id: string
+          valid_from: string
+        }
+        ComputedFields: never
+        Insert: {
+          budget_line_id?: string | null
+          created_at?: string
+          household_id: string
+          valid_from: string
+        }
+        Update: {
+          budget_line_id?: string | null
+          created_at?: string
+          household_id?: string
+          valid_from?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'household_default_budget_line_budget_line_id_household_id_fkey'
+            columns: ['budget_line_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'budget_line'
+            referencedColumns: ['id', 'household_id']
+          },
+          {
+            foreignKeyName: 'household_default_budget_line_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       households: {
         Row: {
           created_at: string
-          default_budget_line_id: string | null
           id: string
           invite_code: string | null
           invite_code_expires_at: string | null
@@ -1198,7 +1240,6 @@ export type Database = {
         ComputedFields: never
         Insert: {
           created_at?: string
-          default_budget_line_id?: string | null
           id?: string
           invite_code?: string | null
           invite_code_expires_at?: string | null
@@ -1209,7 +1250,6 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          default_budget_line_id?: string | null
           id?: string
           invite_code?: string | null
           invite_code_expires_at?: string | null
@@ -1219,13 +1259,6 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
-          {
-            foreignKeyName: 'households_default_budget_line_id_fkey'
-            columns: ['default_budget_line_id', 'id']
-            isOneToOne: false
-            referencedRelation: 'budget_line'
-            referencedColumns: ['id', 'household_id']
-          },
           {
             foreignKeyName: 'households_pay_account_id_fkey'
             columns: ['pay_account_id', 'id']
@@ -2968,6 +3001,10 @@ export type Database = {
           team_id: string
         }[]
       }
+      assert_budget_line_active: {
+        Args: { p_budget_line_id: string; p_on: string; p_require_started: boolean }
+        Returns: undefined
+      }
       assert_spend_target: {
         Args: {
           p_allowance_member_id: string
@@ -2995,6 +3032,21 @@ export type Database = {
           p_is_gift_line: boolean
         }
         Returns: Record<string, unknown>
+      }
+      budget_line_has_counted_spend: { Args: { p_budget_line_id: string }; Returns: boolean }
+      budget_lines_with_counted_spend: { Args: Record<PropertyKey, never>; Returns: string[] }
+      caller_household_today: { Args: Record<PropertyKey, never>; Returns: string }
+      change_budget_line_from: {
+        Args: {
+          p_amount_cents: number
+          p_budget_line_id: string
+          p_change_on: string
+          p_frequency: Database['public']['Enums']['frequency']
+          p_interval_count?: number
+          p_line_group: Database['public']['Enums']['budget_group']
+          p_name: string
+        }
+        Returns: string
       }
       clear_transaction_spend_target: { Args: { p_transaction_id: string }; Returns: undefined }
       clear_up_token: { Args: { p_member_id: string }; Returns: undefined }
@@ -3078,8 +3130,45 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string[]
       }
+      household_day_start: { Args: { p_day: string; p_household_id: string }; Returns: string }
+      household_default_budget_line_on: {
+        Args: { p_day: string; p_household_id: string }
+        Returns: string
+      }
       household_ids_for_current_user: { Args: Record<PropertyKey, never>; Returns: string[] }
+      household_spend_resolution: {
+        Args: {
+          p_end?: string
+          p_household_id: string
+          p_start?: string
+          p_transaction_ids?: string[]
+          p_visible_only: boolean
+        }
+        Returns: {
+          allowance_member_id: string
+          amount_cents: number
+          budget_line_id: string
+          posted_at: string
+          reason: Database['public']['Enums']['spend_resolution_reason']
+          rule_id: string
+          rule_version: number
+          status: Database['public']['Enums']['transaction_status']
+          target_kind: Database['public']['Enums']['spend_target_kind']
+          transaction_id: string
+        }[]
+      }
       household_super_account_ids: { Args: Record<PropertyKey, never>; Returns: string[] }
+      household_today: { Args: { p_household_id: string }; Returns: string }
+      is_default_budget_line_from: {
+        Args: {
+          p_line: Omit<
+            Database['public']['Tables']['budget_line']['Row'],
+            Database['public']['Tables']['budget_line']['ComputedFields']
+          >
+          p_on: string
+        }
+        Returns: boolean
+      }
       join_household: { Args: { p_code: string; p_member_name: string }; Returns: string }
       payslip_financial_year: { Args: { paid_on: string; period_end: string }; Returns: number }
       preview_spend_rule: {
@@ -3149,6 +3238,43 @@ export type Database = {
       register_apns_device: { Args: { p_environment: string; p_token: string }; Returns: undefined }
       reorder_spend_rules: { Args: { p_rule_ids: string[] }; Returns: undefined }
       resend_api_key: { Args: Record<PropertyKey, never>; Returns: string }
+      retirable_budget_line: {
+        Args: { p_budget_line_id: string; p_on: string }
+        Returns: {
+          allowance_member_id: string | null
+          amount_cents: number
+          breakdown_id: string | null
+          created_at: string
+          destination_account_id: string | null
+          frequency: Database['public']['Enums']['frequency']
+          gift_recipient_member_id: string | null
+          goal_id: string | null
+          household_id: string
+          id: string
+          interval_count: number | null
+          is_gift_line: boolean
+          line_group: Database['public']['Enums']['budget_group']
+          management_url: string | null
+          name: string
+          retired_on: string | null
+          starts_on: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: '*'
+          to: 'budget_line'
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      retire_budget_line: {
+        Args: {
+          p_budget_line_id: string
+          p_new_default_budget_line_id?: string
+          p_retire_on?: string
+        }
+        Returns: undefined
+      }
       review_transaction: {
         Args: { p_note?: string; p_reviewed?: boolean; p_transaction_id: string }
         Returns: {
@@ -3189,7 +3315,10 @@ export type Database = {
       revoke_calendar_feed_token: { Args: Record<PropertyKey, never>; Returns: undefined }
       revoke_invite_code: { Args: Record<PropertyKey, never>; Returns: undefined }
       revoke_share_grant: { Args: Record<PropertyKey, never>; Returns: undefined }
-      set_household_default_budget_line: { Args: { p_budget_line_id: string }; Returns: undefined }
+      set_household_default_budget_line: {
+        Args: { p_budget_line_id: string; p_from?: string }
+        Returns: undefined
+      }
       set_household_pay_account: { Args: { p_account_id: string }; Returns: undefined }
       set_member_date_of_birth: {
         Args: { p_date_of_birth: string; p_member_id: string }
@@ -3276,6 +3405,20 @@ export type Database = {
       }
       visible_balance_account_ids: { Args: Record<PropertyKey, never>; Returns: string[] }
       visible_spend_rule_ids: { Args: Record<PropertyKey, never>; Returns: string[] }
+      write_budget_line_retirement: {
+        Args: {
+          p_line: Omit<
+            Database['public']['Tables']['budget_line']['Row'],
+            Database['public']['Tables']['budget_line']['ComputedFields']
+          >
+          p_on: string
+        }
+        Returns: undefined
+      }
+      write_household_default_budget_line: {
+        Args: { p_budget_line_id: string; p_from: string; p_household_id: string }
+        Returns: undefined
+      }
       write_spend_rule_version: {
         Args: {
           p_account_ids: string[]

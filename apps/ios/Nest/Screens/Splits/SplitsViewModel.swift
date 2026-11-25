@@ -39,7 +39,8 @@ final class SplitsViewModel {
             data: data)
         do {
             for try await snapshot in stream {
-                let routes = try await route(snapshot.rows.input)
+                let routes = try await route(
+                    snapshot.rows.input(today: InflowsPresentation.isoDate(now())))
                 state = .loaded(
                     SplitsContent(rows: snapshot.rows, routes: routes),
                     isRefreshing: snapshot.isCached, refreshError: nil)

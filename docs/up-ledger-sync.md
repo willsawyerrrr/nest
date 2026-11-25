@@ -537,8 +537,9 @@ the buffer moves with spend.
 - **Where spend counts, first that applies.** A member's choice (or a confirmed
   suggestion) → the household's rules → an unconfirmed suggestion → the
   default. The default is the member's allowance for spend from an account they
-  own, else the household's default item (`households.default_budget_line_id`,
-  e.g. Discretionary spend), else Not budgeted. Real spending does not line up
+  own, else the household's default item in force on the transaction's local
+  posting day (`household_default_budget_line`, e.g. Discretionary spend), else
+  Not budgeted. Real spending does not line up
   with Up categories — rent is a fixed-amount Pay Anyone to the landlord, other
   payments to the same payee are not, and a servo milk run is groceries — so a
   category is one rule condition among several rather than the mapping itself.
@@ -567,7 +568,27 @@ the buffer moves with spend.
 - **Allocations split.** A choice is a set of rows summing to the transaction's
   spend, so one transaction can later count toward several targets; every
   writer allocates whole transactions. A set follows its transaction when a
-  held amount settles differently, and is discarded whole if its line goes.
+  held amount settles differently, and is discarded whole if it loses a row
+  (a derived line the reconcile removes, or a removed member).
+- **Items have a lifespan.** A budget item counts spend only on the local days
+  `[starts_on, retired_on)`. A rule or unconfirmed suggestion targeting an item
+  matches only transactions posted inside its lifespan, falling through to the
+  next rule otherwise, so a rule created for an item that starts next month
+  catches nothing before then and one targeting a retired item stops at its
+  retirement. A member choice is refused for a transaction posted outside the
+  item's lifespan (`spend_target_inactive`), while a choice already made keeps
+  pointing at the item. The default in force on a day whose item is inactive
+  counts as Not budgeted. To send earlier spending to a new item, backdate its
+  start.
+- **Retire, don't delete.** An item spending has ever counted toward (by member
+  choice, rule, suggestion or default) cannot be deleted (`budget_line_has_spend`);
+  it is retired from a day instead, so past rent stays on a retired Rent item
+  rather than falling to the default. Retiring closes its rules' versions at
+  that day. "Change from a date" retires the item and starts a replacement
+  carrying copies of its live rules from the same day, splitting the history
+  between the two. The default item is dated: retiring it names the item that
+  takes over from the retirement day, and changing it from a date hands the
+  default to the replacement.
 - **Period: the pay-cycle fortnight.** The plan is fortnightly, so the
   Budget screen's period is a fortnight on a 14-day grid stepped from the
   household's earliest confirmed payday (`pay_anchor_date`) among its recurring
@@ -599,16 +620,23 @@ the buffer moves with spend.
 ### Implementation
 
 - Schema: `spend_rule`, `spend_rule_version`, `transaction_allocation`, the
-  `current_spend_rules` view, and `households.default_budget_line_id` (see
+  `current_spend_rules` view, `budget_line.starts_on` / `retired_on`, and
+  `household_default_budget_line` (see
   [`data-model.md`](data-model.md#spend-allocation)).
 - Writes: `set_transaction_spend_target` / `clear_transaction_spend_target`
   (a member's whole-transaction choice), `create_spend_rule`,
   `update_spend_rule`, `delete_spend_rule` and `reorder_spend_rules` (each from
-  now, the first three backdatable with `p_apply_from`), and
-  `set_household_default_budget_line`.
+  now, the first three backdatable with `p_apply_from`),
+  `set_household_default_budget_line(p_budget_line_id, p_from)`,
+  `retire_budget_line(p_budget_line_id, p_retire_on, p_new_default_budget_line_id)`
+  and `change_budget_line_from(p_budget_line_id, p_change_on, p_line_group,
+  p_name, p_amount_cents, p_frequency, p_interval_count)`.
 - Reads: `spend_resolution(p_start, p_end, p_transaction_ids)` — where each
   transaction counts and why (member choice, rule and version, suggestion, or
-  default), for review and "why does this count here";
+  default), for review and "why does this count here", over the internal
+  `household_spend_resolution` (which the delete guard reads household-wide);
+  `budget_lines_with_counted_spend()` — the caller's lines spending has counted
+  toward, which can be retired but not deleted;
   `actual_spend_by_target(p_start, p_end)` — spend per target and status;
   `preview_spend_rule(...)` — what a proposed or backdated change would move,
   from what to what, changing nothing.

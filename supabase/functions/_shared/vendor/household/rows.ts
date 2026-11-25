@@ -9,6 +9,8 @@
  * functions pass PostgREST JSON.
  */
 
+import { isBudgetLineActive } from '@nest/plan'
+
 /** The `inflows` columns the estimate and the buffer read. */
 export interface InflowRow {
   member_id: string | null
@@ -142,13 +144,35 @@ export interface SaverRow {
  * line's `amount_cents` (annual) and `frequency` are canonical in the row, so
  * the buffer reads every line the same way and re-derives nothing.
  */
-export interface BudgetLineRow {
+export interface BudgetLineRow extends BudgetLineLifespanRow {
   line_group: string
   amount_cents: number
   frequency: string
   interval_count: number | null
   /** The member whose allowance the line is drawn from; null or absent for an ordinary line. */
   allowance_member_id?: string | null
+}
+
+/** A `budget_line` row's lifespan: active on the local days `[starts_on, retired_on)`, either side open when absent. */
+export interface BudgetLineLifespanRow {
+  starts_on?: string | null
+  retired_on?: string | null
+}
+
+/**
+ * The lines active on the household's local day `today` — started and not yet
+ * retired — which are the only ones today's plan, buffer, and pay splits count.
+ */
+export function activeBudgetLineRows<Row extends BudgetLineLifespanRow>(
+  rows: readonly Row[],
+  today: string,
+): Row[] {
+  return rows.filter((row) =>
+    isBudgetLineActive(
+      { startsOn: row.starts_on ?? null, retiredOn: row.retired_on ?? null },
+      today,
+    ),
+  )
 }
 
 /** The `member_allowance` columns the buffer reads. */
@@ -181,7 +205,10 @@ export interface TaxEstimateRows {
  * draws on.
  */
 export interface BudgetSummaryBundle extends TaxEstimateRows {
+  /** Budget lines; only those active on the household's local day count. */
   budgetLines: readonly BudgetLineRow[]
+  /** The household's timezone (`households.timezone`), whose local day the lines' lifespans are read on; absent ⇒ `HOUSEHOLD_TIME_ZONE`. */
+  timeZone?: string
   /** Members' spending allowances — each the Discretionary outgoing for its member, with drawn lines counting against it. */
   memberAllowances: readonly MemberAllowanceRow[]
   temporaryItems: readonly TemporaryItemRow[]

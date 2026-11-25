@@ -15,6 +15,7 @@ import {
   DEFAULT_ASSUMPTIONS,
   fortnightlyCents,
   grantValueCents,
+  localIsoDate,
   projectNetWorth,
   type EquityGrant,
   type Frequency,
@@ -36,14 +37,16 @@ import {
   type NetWorthEquityGrantRow,
   type NetWorthMemberRow,
 } from './netWorthEquity.ts'
-import type {
-  DeductionRow,
-  HelpDebtRow,
-  InflowRow,
-  MemberRow,
-  SuperContributionRow,
-  TaxProfileRow,
-  TradeRow,
+import {
+  activeBudgetLineRows,
+  type BudgetLineLifespanRow,
+  type DeductionRow,
+  type HelpDebtRow,
+  type InflowRow,
+  type MemberRow,
+  type SuperContributionRow,
+  type TaxProfileRow,
+  type TradeRow,
 } from './rows.ts'
 import { estimateHouseholdTaxFromRows } from './tax/estimate.ts'
 import { helpPayoffByMember } from './tax/helpPayoff.ts'
@@ -76,7 +79,7 @@ export interface NetWorthGoalRow {
 }
 
 /** The `budget_line` columns a goal's funding reads. */
-export interface NetWorthLineRow {
+export interface NetWorthLineRow extends BudgetLineLifespanRow {
   goal_id: string | null
   amount_cents: number
   frequency: string
@@ -447,7 +450,11 @@ export function computeNetWorth<A extends NetWorthAccountRow>({
   const balanceByAccountId = new Map(
     effectiveAccounts.map((account) => [account.id, account.balance_cents]),
   )
-  const savingsGoals = netWorthGoals(goals, budgetLines, balanceByAccountId)
+  const savingsGoals = netWorthGoals(
+    goals,
+    activeBudgetLineRows(budgetLines, localIsoDate(now)),
+    balanceByAccountId,
+  )
   const { cashCents, debtCents } = splitCashAndDebt(breakdown.otherAccounts)
   // A home loan is split out of the accounts into its own liability, so its owed
   // amount joins the projection's debt band alongside the negative-balance

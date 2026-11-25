@@ -14,6 +14,7 @@
  *   line in `lines`.
  */
 
+import { HOUSEHOLD_TIME_ZONE, localIsoDate } from '@nest/plan'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { resolveCaller } from '../_shared/caller.ts'
 import { readHouseholdTable } from '../_shared/householdBuffer.ts'
@@ -64,6 +65,11 @@ Deno.serve(async (request) => {
     },
     loadBudgetLines: async (householdId) =>
       (await readHouseholdTable(admin!, householdId, 'budget_line')) as BudgetLineRow[],
+    today: async (householdId) => {
+      const { data } = await admin!.from('households').select('timezone').eq('id', householdId)
+        .maybeSingle()
+      return localIsoDate(new Date(), (data?.timezone as string | undefined) ?? HOUSEHOLD_TIME_ZONE)
+    },
   })
 
   return json(result.body, result.status)

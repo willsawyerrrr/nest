@@ -120,7 +120,6 @@ struct Household: NestRow {
     static let table = "households"
 
     let createdAt: String
-    let defaultBudgetLineId: String?
     let id: String
     let inviteCode: String?
     let inviteCodeExpiresAt: String?
@@ -131,7 +130,6 @@ struct Household: NestRow {
 
     enum CodingKeys: String, CodingKey, CaseIterable {
         case createdAt = "created_at"
-        case defaultBudgetLineId = "default_budget_line_id"
         case id
         case inviteCode = "invite_code"
         case inviteCodeExpiresAt = "invite_code_expires_at"
@@ -250,6 +248,10 @@ struct BudgetLine: NestRow {
     let lineGroup: BudgetGroup
     let managementUrl: String?
     let name: String
+    /// The first local day the line no longer applies (exclusive); `nil` while live.
+    let retiredOn: String?
+    /// The first local day the line applies; `nil` reads as always started.
+    let startsOn: String?
     let updatedAt: String
 
     enum CodingKeys: String, CodingKey, CaseIterable {
@@ -268,7 +270,48 @@ struct BudgetLine: NestRow {
         case lineGroup = "line_group"
         case managementUrl = "management_url"
         case name
+        case retiredOn = "retired_on"
+        case startsOn = "starts_on"
         case updatedAt = "updated_at"
+    }
+}
+
+extension BudgetLine {
+    /// Whether the line is in the plan on the local day `today` (ISO date):
+    /// started, and not yet retired.
+    func isActive(on today: String) -> Bool {
+        (startsOn.map { $0 <= today } ?? true) && !isRetired(on: today)
+    }
+
+    /// Whether the line has retired by the local day `today`.
+    func isRetired(on today: String) -> Bool { retiredOn.map { $0 <= today } ?? false }
+
+    /// Whether the line starts after the local day `today`.
+    func isUpcoming(on today: String) -> Bool { startsOn.map { $0 > today } ?? false }
+}
+
+extension [BudgetLine] {
+    /// The lines in the plan on the local day `today`.
+    func active(on today: String) -> [BudgetLine] { filter { $0.isActive(on: today) } }
+}
+
+/// Row of `household_default_budget_line`: the household default item from
+/// local day `validFrom` until the next row's; a `nil` item is Not budgeted.
+struct HouseholdDefaultBudgetLine: NestRow {
+    static let table = "household_default_budget_line"
+
+    let budgetLineId: String?
+    let createdAt: String
+    let householdId: String
+    let validFrom: String
+
+    var id: String { "\(householdId):\(validFrom)" }
+
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case budgetLineId = "budget_line_id"
+        case createdAt = "created_at"
+        case householdId = "household_id"
+        case validFrom = "valid_from"
     }
 }
 

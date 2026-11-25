@@ -56,6 +56,16 @@ struct BudgetLineRow: Equatable, Identifiable, Sendable {
     var managementURL: URL?
     /// What a derived line rolls up from; `nil` for a manual line.
     var source: DerivedSource?
+    /// The day a line not yet started starts; `nil` once it is in the plan.
+    var startsOn: String?
+    /// Whether spending has counted toward the line, so it stops rather than deletes.
+    var hasCountedSpend = false
+
+    /// The cadence, route and any start day, as the row's subtitle reads them.
+    var subtitle: String {
+        [cadence, route, startsOn.map(BudgetLifespanCopy.starts)].compactMap { $0 }
+            .joined(separator: " · ")
+    }
 
     /// Where a derived line's amount comes from and is edited.
     enum DerivedSource: Equatable, Sendable {
@@ -139,6 +149,9 @@ struct BudgetPresentation: Sendable {
 
     private var rows: BudgetRows { content.rows }
 
+    /// The household's local day the screen reads lifespans on.
+    var today: String { InflowsPresentation.isoDate(content.now) }
+
     private var allowanceNames: [String: String] {
         Dictionary(
             rows.members.map { ($0.id, Self.allowanceName($0.name)) }, uniquingKeysWith: { $1 })
@@ -155,7 +168,24 @@ struct BudgetPresentation: Sendable {
             route: route(of: line),
             managementURL: line.managementUrl.flatMap(URL.init(string:)),
             source: line.isGiftLine
-                ? .gifts : line.breakdownId.map { BudgetLineRow.DerivedSource.breakdown(id: $0) })
+                ? .gifts : line.breakdownId.map { BudgetLineRow.DerivedSource.breakdown(id: $0) },
+            startsOn: line.isUpcoming(on: today) ? line.startsOn : nil,
+            hasCountedSpend: rows.hasCountedSpend(line.id))
+    }
+
+    /// Whether the line `id` is the household default on `day` or later.
+    func isDefault(_ id: String, from day: String) -> Bool { rows.isDefault(id, from: day) }
+
+    /// The lines that may take over from `id` as the default on `day`: live
+    /// there, not drawn from an allowance, and not `id` itself.
+    func defaultCandidates(replacing id: String, on day: String) -> [(id: String, name: String)] {
+        rows.budgetLines
+            .filter {
+                $0.id != id && $0.allowanceMemberId == nil && $0.retiredOn == nil
+                    && ($0.startsOn.map { $0 <= day } ?? true)
+            }
+            .sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
+            .map { ($0.id, $0.name) }
     }
 
     /// The budget line `id`, as stored (or as the sandbox holds it).
@@ -215,8 +245,9 @@ struct BudgetPresentation: Sendable {
         return rows.accounts.first { $0.id == line.destinationAccountId }?.name.map(accountLabel)
     }
 
-    /// The five groups with the engine's subtotals. The signed-in member's
-    /// allowance items are on the Allowance screen, not here.
+    /// The five groups with the engine's subtotals, listing every line not yet
+    /// retired (one not yet started shows its start day and is not totalled).
+    /// The signed-in member's allowance items are on the Allowance screen, not here.
     var groups: [BudgetGroupSection] {
         let own = content.currentMemberID
         let hasOwnAllowance = own != nil && rows.memberAllowances.contains { $0.memberId == own }
@@ -224,7 +255,7 @@ struct BudgetPresentation: Sendable {
             BudgetGroupSection(
                 group: group, subtotalCents: content.overview.groups[group],
                 lines: rows.budgetLines.enumerated().compactMap { index, line in
-                    guard line.lineGroup == group else { return nil }
+                    guard line.lineGroup == group, !line.isRetired(on: today) else { return nil }
                     if hasOwnAllowance && line.allowanceMemberId == own { return nil }
                     return row(line, at: index)
                 })
@@ -278,11 +309,11 @@ struct BudgetPresentation: Sendable {
     /// The signed-in member's allowance, when they have one.
     var ownAllowance: AllowanceRow? { allowances.first(where: \.isOwn) }
 
-    /// The lines drawn from the signed-in member's allowance.
+    /// The lines drawn from the signed-in member's allowance, not yet retired.
     var drawnLines: [BudgetLineRow] {
         guard let own = content.currentMemberID else { return [] }
         return rows.budgetLines.enumerated().compactMap { index, line in
-            line.allowanceMemberId == own ? row(line, at: index) : nil
+            line.allowanceMemberId == own && !line.isRetired(on: today) ? row(line, at: index) : nil
         }
     }
 

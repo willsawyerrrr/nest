@@ -1,9 +1,9 @@
 import { z } from 'zod'
-import type { Frequency } from '@nest/plan'
+import { localIsoDate, type Frequency } from '@nest/plan'
 import { resolveMember, selectAll, type NestContext } from '../context.ts'
 import { fixedError, ToolError, writeError } from '../errors.ts'
-import { deleteById, requireAccount } from './shared.ts'
-import { centsSchema } from './write.ts'
+import { requireAccount } from './shared.ts'
+import { centsSchema, isoDateSchema } from './write.ts'
 
 export const BUDGET_GROUPS = ['needs', 'wants', 'discretionary', 'savings', 'investments'] as const
 
@@ -52,6 +52,7 @@ export const addBudgetLineInput = z.object({
   goal_id: z.uuid().optional(),
   destination_account_id: z.uuid().optional(),
   allowance_member: z.string().trim().min(1).optional(),
+  starts_on: isoDateSchema.optional(),
 })
 
 export const updateBudgetLineInput = z.object({
@@ -65,9 +66,17 @@ export const updateBudgetLineInput = z.object({
   goal_id: z.uuid().nullable().optional(),
   destination_account_id: z.uuid().nullable().optional(),
   allowance_member: z.string().trim().min(1).nullable().optional(),
+  starts_on: isoDateSchema.optional(),
+  change_from: isoDateSchema.optional(),
 })
 
 export const deleteBudgetLineInput = z.object({ id: z.uuid() })
+
+export const retireBudgetLineInput = z.object({
+  id: z.uuid(),
+  retire_on: isoDateSchema.optional(),
+  new_default_line_id: z.uuid().optional(),
+})
 
 const hasInterval = (frequency: string) =>
   frequency === 'every_n_weeks' || frequency === 'every_n_months'
@@ -193,14 +202,17 @@ export async function addBudgetLine(ctx: NestContext, input: z.infer<typeof addB
       interval_count: intervalCount,
       management_url: managementUrl,
       ...links,
+      ...(input.starts_on !== undefined && { starts_on: input.starts_on }),
     })
-    .select('id')
+    .select('id, starts_on')
     .single()
   if (error || !data) {
     throw writeError(error)
   }
+  const created = data as { id: string; starts_on?: string }
   return {
-    id: (data as { id: string }).id,
+    id: created.id,
+    starts_on: created.starts_on ?? input.starts_on ?? localIsoDate(ctx.now()),
     name: input.name,
     group: input.group,
     amount_cents: input.amount_cents,
@@ -224,33 +236,47 @@ interface ExistingLine {
   goal_id: string | null
   destination_account_id: string | null
   allowance_member_id: string | null
+  starts_on: string
+  retired_on: string | null
 }
 
-/**
- * Edits a manual budget line, changing only the fields given. A line derived
- * from a breakdown or gifts takes its figures from its roll-up and is refused.
- */
-export async function updateBudgetLine(
-  ctx: NestContext,
-  input: z.infer<typeof updateBudgetLineInput>,
-) {
-  const { data: found, error: readError } = await ctx.supabase
+/** The manual line `id`, or the failure for a missing or derived one (`verb` names what was refused). */
+async function manualLine(ctx: NestContext, id: string, verb: string): Promise<ExistingLine> {
+  const { data, error } = await ctx.supabase
     .from('budget_line')
     .select('*')
-    .eq('id', input.id)
+    .eq('id', id)
     .maybeSingle()
-  if (readError) {
+  if (error) {
     throw fixedError('query_failed')
   }
-  const line = found as ExistingLine | null
+  const line = data as ExistingLine | null
   if (!line) {
     throw new ToolError('not_found', 'No budget line matches that id.')
   }
   if (line.breakdown_id !== null || line.is_gift_line) {
     throw new ToolError(
       'derived_line',
-      'This line is derived from a breakdown or gifts; edit it there.',
+      `This line is derived from a breakdown or gifts; ${verb} it there.`,
     )
+  }
+  return line
+}
+
+/**
+ * Edits a manual budget line, changing only the fields given. A line derived
+ * from a breakdown or gifts takes its figures from its roll-up and is refused.
+ * With `change_from`, the change applies from that day instead: the line
+ * retires then and a replacement carrying its rules starts with the new name,
+ * group, amount, or cadence, so spending before the day stays on the old line.
+ */
+export async function updateBudgetLine(
+  ctx: NestContext,
+  input: z.infer<typeof updateBudgetLineInput>,
+) {
+  const line = await manualLine(ctx, input.id, 'edit')
+  if (input.change_from !== undefined) {
+    return changeBudgetLineFrom(ctx, line, { ...input, change_from: input.change_from })
   }
 
   const frequency = input.frequency ?? line.frequency
@@ -285,6 +311,7 @@ export async function updateBudgetLine(
     interval_count: intervalCount,
     management_url: managementUrl,
     ...links,
+    ...(input.starts_on !== undefined && { starts_on: input.starts_on }),
   }
 
   const { data, error } = await ctx.supabase
@@ -299,31 +326,103 @@ export async function updateBudgetLine(
   return { id: input.id, ...next }
 }
 
+/** Retires `line` from `change_from` and starts its replacement with the merged figures. */
+async function changeBudgetLineFrom(
+  ctx: NestContext,
+  line: ExistingLine,
+  input: z.infer<typeof updateBudgetLineInput> & { change_from: string },
+) {
+  const fixed = [
+    'management_url',
+    'goal_id',
+    'destination_account_id',
+    'allowance_member',
+    'starts_on',
+  ]
+  if (fixed.some((field) => input[field as keyof typeof input] !== undefined)) {
+    throw new ToolError(
+      'invalid_details',
+      'change_from changes only name, group, amount_cents, frequency, and interval_count; edit the other fields in place.',
+    )
+  }
+  const frequency = input.frequency ?? line.frequency
+  const intervalCount = intervalFor(
+    frequency,
+    input.frequency === undefined && input.interval_count === undefined
+      ? line.interval_count
+      : input.interval_count,
+  )
+  const next = {
+    name: input.name ?? line.name,
+    line_group: input.group ?? line.line_group,
+    amount_cents: input.amount_cents ?? line.amount_cents,
+    frequency,
+    interval_count: intervalCount,
+  }
+  const { data, error } = await ctx.supabase.rpc('change_budget_line_from', {
+    p_budget_line_id: line.id,
+    p_change_on: input.change_from,
+    p_line_group: next.line_group,
+    p_name: next.name,
+    p_amount_cents: next.amount_cents,
+    p_frequency: next.frequency,
+    ...(intervalCount !== null && { p_interval_count: intervalCount }),
+  })
+  if (error || typeof data !== 'string') {
+    throw writeError(error)
+  }
+  return { id: data, replaces: line.id, starts_on: input.change_from, ...next }
+}
+
 /**
- * Deletes a manual budget line. A line derived from a breakdown or gifts is
- * owned by its roll-up and is refused.
+ * Deletes a manual budget line no spending has ever counted toward. A line with
+ * counted spending is refused (`has_counted_spend`): retire it instead, so its
+ * history stays. A line derived from a breakdown or gifts is owned by its
+ * roll-up and is refused.
  */
 export async function deleteBudgetLine(
   ctx: NestContext,
   input: z.infer<typeof deleteBudgetLineInput>,
 ) {
+  await manualLine(ctx, input.id, 'remove')
   const { data, error } = await ctx.supabase
     .from('budget_line')
-    .select('*')
+    .delete()
     .eq('id', input.id)
-    .maybeSingle()
+    .eq('household_id', ctx.householdId)
+    .select('id')
   if (error) {
-    throw fixedError('query_failed')
+    const refusal = writeError(error)
+    throw refusal.code === 'has_counted_spend' ? refusal : fixedError('delete_failed')
   }
-  const line = data as ExistingLine | null
-  if (!line) {
+  if (!data || data.length === 0) {
     throw new ToolError('not_found', 'No budget line matches that id.')
   }
-  if (line.breakdown_id !== null || line.is_gift_line) {
-    throw new ToolError(
-      'derived_line',
-      'This line is derived from a breakdown or gifts; remove it there.',
-    )
+  return { id: input.id }
+}
+
+/**
+ * Stops budgeting for a manual line from `retire_on` (default today): it leaves
+ * the plan from that day, its rules stop there, and the spending already
+ * counted toward it stays. Retiring the household default needs
+ * `new_default_line_id`, the default from that day. A retired line never
+ * returns.
+ */
+export async function retireBudgetLine(
+  ctx: NestContext,
+  input: z.infer<typeof retireBudgetLineInput>,
+) {
+  await manualLine(ctx, input.id, 'remove')
+  const retiredOn = input.retire_on ?? localIsoDate(ctx.now())
+  const { error } = await ctx.supabase.rpc('retire_budget_line', {
+    p_budget_line_id: input.id,
+    p_retire_on: retiredOn,
+    ...(input.new_default_line_id !== undefined && {
+      p_new_default_budget_line_id: input.new_default_line_id,
+    }),
+  })
+  if (error) {
+    throw writeError(error)
   }
-  return deleteById(ctx, 'budget_line', input.id, 'budget line')
+  return { id: input.id, retired_on: retiredOn }
 }

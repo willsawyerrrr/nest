@@ -16,6 +16,7 @@ import {
   assignmentsByAccount,
   type BudgetGroup,
   type Frequency,
+  isBudgetLineActive,
   isRecommendedSplitAccount,
   roundCentsUpToStep,
 } from '@nest/plan'
@@ -35,6 +36,10 @@ export interface BudgetLineRow {
   goal_id: string | null
   destination_account_id: string | null
   allowance_member_id: string | null
+  /** The item's first local day; absent ⇒ always started. */
+  starts_on?: string | null
+  /** The first local day the item no longer applies; absent ⇒ live. */
+  retired_on?: string | null
 }
 
 /** The `savings_goal` columns this reads. */
@@ -75,6 +80,8 @@ export interface PaySplitRows {
   accounts: readonly AccountRow[]
   /** The account the household's pay lands in, or `null` when none is designated. */
   payAccountId: string | null
+  /** The household's local day; only budget lines active on it route. Absent ⇒ every line. */
+  today?: string
 }
 
 /** One account's fortnightly figure in the response. */
@@ -117,7 +124,16 @@ export function accountLabel(name: string): string {
 
 /** Shapes the household's rows into the recommended splits, mirroring the Splits tab. */
 export function shapePaySplit(rows: PaySplitRows): PaySplitBody {
-  const lines: AssignableLine[] = rows.budgetLines.map((line) => ({
+  const { today } = rows
+  const active = today === undefined
+    ? rows.budgetLines
+    : rows.budgetLines.filter((line) =>
+      isBudgetLineActive(
+        { startsOn: line.starts_on ?? null, retiredOn: line.retired_on ?? null },
+        today,
+      )
+    )
+  const lines: AssignableLine[] = active.map((line) => ({
     id: line.id,
     name: line.name,
     group: line.line_group,

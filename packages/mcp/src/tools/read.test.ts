@@ -99,6 +99,34 @@ describe('listBudgetLines', () => {
   })
 })
 
+describe('listBudgetLines lifespans', () => {
+  const tables = {
+    budget_line: [
+      line({ id: 'old', name: 'Gym', starts_on: '2026-01-01', retired_on: '2026-09-01' }),
+      line({ id: 'new', name: 'Gym', starts_on: '2026-09-01' }),
+      line({ id: 'later', name: 'Holiday', starts_on: '2027-01-01' }),
+    ],
+  }
+
+  it("reports each line's lifespan and leaves retired lines out unless asked", async () => {
+    const { ctx } = fakeContext({
+      tables,
+      rpcResults: { budget_lines_with_counted_spend: ['old', 'new'] },
+    })
+    const { lines } = await listBudgetLines(ctx, {})
+    expect(lines.map((l) => [l.id, l.status, l.has_counted_spend])).toEqual([
+      ['new', 'active', true],
+      ['later', 'upcoming', false],
+    ])
+    const all = await listBudgetLines(ctx, { include_retired: true })
+    expect(all.lines.find((l) => l.id === 'old')).toMatchObject({
+      status: 'retired',
+      retired_on: '2026-09-01',
+      has_counted_spend: true,
+    })
+  })
+})
+
 describe('listSavingsGoals', () => {
   const tables = {
     savings_goal: [

@@ -40,3 +40,18 @@ describe('budgetOverview', () => {
     expect(ada!.remaining.fortnightlyCents).toBe(120_00)
   })
 })
+
+describe('budgetOverview with lifespans', () => {
+  const dated: BudgetLine[] = [
+    { group: 'needs', amountCents: 1_000_00, frequency: 'fortnightly', retiredOn: '2026-10-10' },
+    { group: 'needs', amountCents: 1_100_00, frequency: 'fortnightly', startsOn: '2026-10-10' },
+    { group: 'wants', amountCents: 40_00, frequency: 'fortnightly', startsOn: '2027-01-01' },
+  ]
+
+  it('lists every line but totals only those active today', () => {
+    const overview = budgetOverview(dated, [], '2026-11-25')
+    expect(overview.lines.map((line) => line.fortnightlyCents)).toEqual([1_000_00, 1_100_00, 40_00])
+    expect(overview.groups.needs).toBe(1_100_00)
+    expect(overview.groups.wants).toBe(0)
+  })
+})

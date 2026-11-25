@@ -174,3 +174,16 @@ Deno.test('runPaySplit passes a resolve failure straight through', async () => {
 
   assertEquals(result, { status: 404, body: { error: 'No household membership for this user' } })
 })
+
+Deno.test('shapePaySplit routes only the lines active today', () => {
+  const body = shapePaySplit(rows({
+    today: '2026-11-25',
+    budgetLines: [
+      line({ id: 'old', starts_on: '2026-01-01', retired_on: '2026-11-01' }),
+      line({ id: 'new', amount_cents: 300_00, starts_on: '2026-11-01' }),
+      line({ id: 'later', amount_cents: 999_00, starts_on: '2027-01-01' }),
+    ],
+  }))
+
+  assertEquals(body.splits, [{ accountId: 'bills', name: 'Bills', fortnightlyCents: 300_00 }])
+})

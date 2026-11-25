@@ -106,10 +106,14 @@ private func save(
 /// The manual budget line add/edit form, mirroring the PWA's `BudgetLineForm`
 /// field for field: group, name, frequency (with its interval), amount, then the
 /// goal, allowance or funding account the group offers, and the management link.
+/// Natively it also takes the line's start date and, on an edit with
+/// `onChangeFrom`, "Change from a date": the save then stops the line on that
+/// day and starts a replacement with the new group, name, amount and cadence.
 struct BudgetLineFormView: View {
     let goals: [(id: String, name: String)]
     let accounts: [(id: String, name: String)]
     let onSubmit: (BudgetLineInput) async throws -> Void
+    var onChangeFrom: ((String, BudgetLineInput) async throws -> Void)?
     let onCancel: () -> Void
 
     @State private var form: BudgetLineFormState
@@ -119,18 +123,24 @@ struct BudgetLineFormView: View {
     init(
         form: BudgetLineFormState, goals: [(id: String, name: String)],
         accounts: [(id: String, name: String)],
-        onSubmit: @escaping (BudgetLineInput) async throws -> Void, onCancel: @escaping () -> Void
+        onSubmit: @escaping (BudgetLineInput) async throws -> Void,
+        onChangeFrom: ((String, BudgetLineInput) async throws -> Void)? = nil,
+        onCancel: @escaping () -> Void
     ) {
         _form = State(initialValue: form)
         self.goals = goals
         self.accounts = accounts
         self.onSubmit = onSubmit
+        self.onChangeFrom = onChangeFrom
         self.onCancel = onCancel
     }
 
+    private var changesFromADate: Bool { onChangeFrom != nil && form.changeFrom != nil }
+
     var body: some View {
         BudgetFormShell(
-            submitLabel: form.initial == nil ? "Add item" : "Save changes",
+            submitLabel: form.initial == nil
+                ? "Add item" : changesFromADate ? "Save from that day" : "Save changes",
             canSubmit: form.canSubmit, submitting: submitting, error: error,
             onSubmit: submit, onCancel: onCancel
         ) {
@@ -197,14 +207,96 @@ struct BudgetLineFormView: View {
                 ManagementLinkInput(text: $form.managementUrl)
                 FieldError(message: form.isManagementUrlValid ? nil : ManagementURL.invalidMessage)
             }
+            if onChangeFrom != nil && form.canChangeFrom {
+                InflowSwitch(
+                    label: BudgetLifespanCopy.changeFromLabel,
+                    description: BudgetLifespanCopy.changeFromDescription,
+                    isOn: Binding(
+                        get: { form.changeFrom != nil },
+                        set: { form.changeFrom = $0 ? (form.today ?? form.startsOn) : nil }))
+                .accessibilityIdentifier("budget-line-change-from")
+            }
+            if changesFromADate {
+                InflowField(label: "From") {
+                    InflowDateInput(iso: $form.changeFrom)
+                    FieldError(
+                        message: form.isChangeFromValid ? nil : BudgetLifespanCopy.changeBeforeStart)
+                }
+            } else {
+                InflowField(label: "Starts", description: BudgetLifespanCopy.startsDescription) {
+                    InflowDateInput(iso: $form.startsOn, placeholder: "Today")
+                    FieldError(
+                        message: form.isStartValid
+                            ? nil : "Pick a day before this item stopped.")
+                }
+                .accessibilityIdentifier("budget-line-starts-on")
+            }
         }
         .accessibilityIdentifier("budget-line-form")
     }
 
     private func submit() {
         guard let input = form.input else { return }
+        let changeFrom = changesFromADate ? form.changeFrom : nil
         save(submitting: $submitting, error: $error, message: BudgetLineFormState.failureMessage) {
-            try await onSubmit(input)
+            if let changeFrom, let onChangeFrom {
+                try await onChangeFrom(changeFrom, input)
+            } else {
+                try await onSubmit(input)
+            }
+        }
+    }
+}
+
+/// The "Stop budgeting" form: the day the line stops (today by default, after
+/// its start) and, where the line is the household default then, the item that
+/// takes over. The line leaves the plan from that day; its counted spending stays.
+struct BudgetLineRetireFormView: View {
+    let onSubmit: (BudgetLineRetirement) async throws -> Void
+    let onCancel: () -> Void
+
+    @State private var form: BudgetLineRetireFormState
+    @State private var submitting = false
+    @State private var error: String?
+
+    init(
+        form: BudgetLineRetireFormState,
+        onSubmit: @escaping (BudgetLineRetirement) async throws -> Void,
+        onCancel: @escaping () -> Void
+    ) {
+        _form = State(initialValue: form)
+        self.onSubmit = onSubmit
+        self.onCancel = onCancel
+    }
+
+    var body: some View {
+        BudgetFormShell(
+            submitLabel: "Stop budgeting", canSubmit: form.canSubmit, submitting: submitting,
+            error: error, onSubmit: submit, onCancel: onCancel
+        ) {
+            Text("Stop budgeting for \(form.line.name)")
+                .font(.system(size: 14, weight: .semibold)).foregroundStyle(NestColor.text)
+            InflowField(label: "Stop on", description: BudgetLifespanCopy.stopDescription) {
+                InflowDateInput(iso: $form.retireOn)
+                FieldError(
+                    message: form.retireOn == nil || form.isDayValid
+                        ? nil : BudgetLifespanCopy.changeBeforeStart)
+            }
+            if form.needsNewDefault {
+                InflowField(label: "New default item", description: BudgetLifespanCopy.newDefaultDescription) {
+                    InflowSelect(
+                        options: BudgetFormOptions.clearable(form.candidates, placeholder: "Pick an item"),
+                        selection: $form.newDefaultLineId)
+                }
+            }
+        }
+        .accessibilityIdentifier("budget-line-retire-form")
+    }
+
+    private func submit() {
+        guard let retirement = form.retirement else { return }
+        save(submitting: $submitting, error: $error, message: BudgetLineRetireFormState.failureMessage) {
+            try await onSubmit(retirement)
         }
     }
 }

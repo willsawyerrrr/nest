@@ -199,3 +199,55 @@ describe('summarise', () => {
     expect(broke.groups.needs.portion).toBe(0)
   })
 })
+
+describe('summarise with budget line lifespans', () => {
+  const rent = { group: 'needs', amountCents: 1_000_00, frequency: 'fortnightly' } as const
+  const input: SummaryInput = {
+    afterTaxIncomeAnnualCents: 52_000_00,
+    nonTaxableInflows: [],
+    temporaryItems: [],
+    budgetLines: [
+      { ...rent, startsOn: '2026-01-01', retiredOn: '2026-07-19' },
+      { ...rent, amountCents: 1_100_00, startsOn: '2026-07-19' },
+      { group: 'wants', amountCents: 500_00, frequency: 'fortnightly', startsOn: '2026-08-01' },
+    ],
+    today: '2026-07-19',
+  }
+
+  it('counts only the lines active today, so a future item stays out of the buffer', () => {
+    const summary = summarise(input, NOW)
+    expect(summary.groups.needs.fortnightlyCents).toBe(1_100_00)
+    expect(summary.groups.wants.fortnightlyCents).toBe(0)
+    expect(summary.afterSaving.fortnightlyCents).toBe(2_000_00 - 1_100_00)
+  })
+
+  it('counts the future item once it starts', () => {
+    const summary = summarise({ ...input, today: '2026-08-01' }, NOW)
+    expect(summary.groups.wants.fortnightlyCents).toBe(500_00)
+  })
+
+  it('counts every line without a day to read the lifespans on', () => {
+    const { today: _today, ...undated } = input
+    expect(summarise(undated, NOW).groups.needs.fortnightlyCents).toBe(2_100_00)
+  })
+
+  it('leaves a retired line drawn from an allowance out of what is drawn', () => {
+    const summary = summarise(
+      {
+        ...input,
+        budgetLines: [
+          {
+            group: 'discretionary',
+            amountCents: 50_00,
+            frequency: 'fortnightly',
+            allowanceMemberId: 'ada',
+            retiredOn: '2026-07-01',
+          },
+        ],
+        memberAllowances: [{ memberId: 'ada', amountCents: 200_00, frequency: 'fortnightly' }],
+      },
+      NOW,
+    )
+    expect(summary.allowances[0]!.drawn.fortnightlyCents).toBe(0)
+  })
+})

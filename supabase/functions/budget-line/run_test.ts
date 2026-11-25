@@ -103,6 +103,7 @@ function deps(overrides: Partial<BudgetLineDeps> = {}): BudgetLineDeps {
     query: 'groceries',
     resolveHousehold: () => Promise.resolve({ householdId: 'h1', memberId: 'm1' }),
     loadBudgetLines: () => Promise.resolve([line({ name: 'Groceries' })]),
+    today: () => Promise.resolve('2026-11-25'),
     ...overrides,
   }
 }
@@ -142,4 +143,22 @@ Deno.test('runBudgetLine hides lines drawn from a co-member’s allowance, match
   assertEquals(body.match, null)
   assertEquals(body.names, ['Coffee', 'Rent'])
   assertEquals(body.lines.map((l) => l.name), ['Coffee', 'Rent'])
+})
+
+Deno.test('runBudgetLine answers only the lines active today', async () => {
+  const result = await runBudgetLine(
+    deps({
+      query: 'rent',
+      loadBudgetLines: () =>
+        Promise.resolve([
+          line({ id: 'old', name: 'Rent', starts_on: '2026-01-01', retired_on: '2026-11-01' }),
+          line({ id: 'new', name: 'Rent', starts_on: '2026-11-01' }),
+          line({ id: 'later', name: 'Holiday', starts_on: '2027-01-01' }),
+        ]),
+    }),
+  )
+
+  const body = result.body as BudgetLineBody
+  assertEquals(body.match?.id, 'new')
+  assertEquals(body.names, ['Rent'])
 })

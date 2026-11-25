@@ -62,16 +62,16 @@ select id as bob_acc from public.accounts where external_id = 'sa-acc-bob' \gset
 select id as carol_acc from public.accounts where external_id = 'sa-acc-carol' \gset
 
 update public.member_allowance set amount_cents = 100_00, frequency = 'fortnightly' where member_id = :'amid';
-insert into public.budget_line (household_id, line_group, name, amount_cents, frequency, allowance_member_id) values
-  (:'hid', 'needs', 'Rent', 2_000_00, 'monthly', null),
-  (:'hid', 'needs', 'Water', 60_00, 'monthly', null),
-  (:'hid', 'needs', 'Electricity', 120_00, 'quarterly', null),
-  (:'hid', 'wants', 'Gym', 25_00, 'monthly', null),
-  (:'hid', 'needs', 'Groceries', 200_00, 'fortnightly', null),
-  (:'hid', 'wants', 'Gifts', 50_00, 'monthly', null),
-  (:'hid', 'discretionary', 'Discretionary spend', 100_00, 'fortnightly', null),
-  (:'hid', 'discretionary', 'Alice''s books', 20_00, 'monthly', :'amid'),
-  (:'chid', 'needs', 'Carol groceries', 100_00, 'fortnightly', null);
+insert into public.budget_line (household_id, line_group, name, amount_cents, frequency, allowance_member_id, starts_on) values
+  (:'hid', 'needs', 'Rent', 2_000_00, 'monthly', null, '2026-01-01'),
+  (:'hid', 'needs', 'Water', 60_00, 'monthly', null, '2026-01-01'),
+  (:'hid', 'needs', 'Electricity', 120_00, 'quarterly', null, '2026-01-01'),
+  (:'hid', 'wants', 'Gym', 25_00, 'monthly', null, '2026-01-01'),
+  (:'hid', 'needs', 'Groceries', 200_00, 'fortnightly', null, '2026-01-01'),
+  (:'hid', 'wants', 'Gifts', 50_00, 'monthly', null, '2026-01-01'),
+  (:'hid', 'discretionary', 'Discretionary spend', 100_00, 'fortnightly', null, '2026-01-01'),
+  (:'hid', 'discretionary', 'Alice''s books', 20_00, 'monthly', :'amid', '2026-01-01'),
+  (:'chid', 'needs', 'Carol groceries', 100_00, 'fortnightly', null, '2026-01-01');
 select set_config('sa.rent', (select id::text from public.budget_line where name = 'Rent'), false);
 select set_config('sa.water', (select id::text from public.budget_line where name = 'Water'), false);
 select set_config('sa.power', (select id::text from public.budget_line where name = 'Electricity'), false);
@@ -119,7 +119,7 @@ do $$ begin
   exception when check_violation then
     assert sqlerrm = 'default_budget_line_invalid', sqlerrm;
   end;
-  perform public.set_household_default_budget_line(current_setting('sa.disc')::uuid);
+  perform public.set_household_default_budget_line(current_setting('sa.disc')::uuid, '2026-01-01');
 
   begin
     insert into public.spend_rule (household_id, target_kind) values (current_setting('sa.hid')::uuid, 'not_budgeted');
@@ -549,11 +549,16 @@ begin
   end;
   set constraints check_transaction_allocation deferred;
 
-  delete from public.budget_line where id = current_setting('sa.groceries')::uuid;
+  begin
+    delete from public.budget_line where id = current_setting('sa.groceries')::uuid;
+    raise exception 'a line with counted spend is retired, not deleted';
+  exception when check_violation then
+    assert sqlerrm = 'budget_line_has_spend', sqlerrm;
+  end;
+
+  delete from public.transaction_allocation where transaction_id = v_cafe and target_kind = 'not_budgeted';
   assert not exists (select 1 from public.transaction_allocation where transaction_id = v_cafe),
-    'a set losing a row to a deleted line is discarded whole';
-  assert not exists (select 1 from public.spend_rule where id = current_setting('sa.r_groceries')::uuid),
-    'a rule goes with its line';
+    'a set losing a row is discarded whole';
 end $$;
 
 -- ── Grants ────────────────────────────────────────────────────────────────────

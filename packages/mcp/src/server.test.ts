@@ -142,6 +142,7 @@ describe('the server', () => {
         'list_pay_splits',
         'list_temporary_items',
         'reorder_savings_goal_queue',
+        'retire_budget_line',
         'update_breakdown',
         'update_breakdown_item',
         'update_member_allowance',

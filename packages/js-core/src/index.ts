@@ -130,16 +130,19 @@ export interface BudgetOverviewInput {
   temporaryItems: TemporaryItem[]
   /** ISO 8601 instant; it decides which temporary items are still active. */
   now: string
+  /** The household's local day (ISO date); only lines active on it count toward the subtotals and allowances. */
+  today?: string
 }
 
 /**
  * The Budget screen's figures at `input.now`: each line's amounts, each group's
- * subtotal, each allowance reconciled, and whether each temporary item is active.
+ * subtotal and each allowance over the lines active on `input.today`, and
+ * whether each temporary item is active.
  */
 export function budgetOverviewOf(input: BudgetOverviewInput) {
   const now = new Date(input.now)
   return {
-    ...budgetOverview(input.lines, input.allowances),
+    ...budgetOverview(input.lines, input.allowances, input.today),
     temporaryActive: input.temporaryItems.map((item) => isTemporaryActive(item, now)),
   }
 }

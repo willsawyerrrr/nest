@@ -21,7 +21,12 @@ import {
   updateBreakdownItem,
   updateBreakdownItemInput,
 } from './breakdowns.ts'
-import { deleteBudgetLine, deleteBudgetLineInput } from './budgetLines.ts'
+import {
+  deleteBudgetLine,
+  deleteBudgetLineInput,
+  retireBudgetLine,
+  retireBudgetLineInput,
+} from './budgetLines.ts'
 import {
   addSavingsGoal,
   addSavingsGoalInput,
@@ -66,11 +71,22 @@ export function registerPlanningTools(server: McpServer, ctx: NestContext, respo
     'delete_budget_line',
     {
       description:
-        'Delete a manual budget line by id. Lines derived from a breakdown or gifts cannot be deleted here.',
+        'Delete a manual budget line by id that no spending has ever counted toward (has_counted_spend false in list_budget_lines); one with counted spending is refused with has_counted_spend and should be retired with retire_budget_line instead. Lines derived from a breakdown or gifts cannot be deleted here.',
       inputSchema: deleteBudgetLineInput.shape,
       annotations: { destructiveHint: true },
     },
     (input) => respond(() => deleteBudgetLine(ctx, input)),
+  )
+
+  server.registerTool(
+    'retire_budget_line',
+    {
+      description:
+        'Stop budgeting for a manual budget line from retire_on (YYYY-MM-DD, default today, after the day it starts): it leaves the plan and the fortnightly buffer from that day and its rules stop there, while the spending already counted toward it stays on it. A retired line never returns; add a new one instead. Retiring the household default item needs new_default_line_id, the default from that day (default_replacement_required otherwise). Lines derived from a breakdown or gifts cannot be retired.',
+      inputSchema: retireBudgetLineInput.shape,
+      annotations: { destructiveHint: true },
+    },
+    (input) => respond(() => retireBudgetLine(ctx, input)),
   )
 
   server.registerTool(

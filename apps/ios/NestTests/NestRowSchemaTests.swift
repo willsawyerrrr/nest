@@ -57,6 +57,7 @@ import Testing
         check(Member.self)
         check(Account.self)
         check(BudgetLine.self)
+        check(HouseholdDefaultBudgetLine.self)
         check(SavingsGoal.self)
         check(Inflow.self)
         check(Payslip.self)

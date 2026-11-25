@@ -13,6 +13,7 @@
  *   unassignedFortnightlyCents }`.
  */
 
+import { HOUSEHOLD_TIME_ZONE, localIsoDate } from '@nest/plan'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { resolveCaller } from '../_shared/caller.ts'
 import { readHouseholdTable } from '../_shared/householdBuffer.ts'
@@ -62,7 +63,8 @@ Deno.serve(async (request) => {
         readHouseholdTable(admin!, householdId, 'member_allowance'),
         readHouseholdTable(admin!, householdId, 'members'),
         readHouseholdTable(admin!, householdId, 'accounts'),
-        admin!.from('households').select('pay_account_id').eq('id', householdId).maybeSingle(),
+        admin!.from('households').select('pay_account_id, timezone').eq('id', householdId)
+          .maybeSingle(),
       ])
       if (household.error) {
         throw new Error(`Failed to read households: ${household.error.message}`)
@@ -74,6 +76,10 @@ Deno.serve(async (request) => {
         members: members as MemberRow[],
         accounts: accounts as AccountRow[],
         payAccountId: (household.data?.pay_account_id as string | null | undefined) ?? null,
+        today: localIsoDate(
+          new Date(),
+          (household.data?.timezone as string | undefined) ?? HOUSEHOLD_TIME_ZONE,
+        ),
       }
     },
   })

@@ -38,6 +38,8 @@ enum BudgetEditing: Equatable {
     /// A group's own add form.
     case add(BudgetGroup)
     case line(String)
+    /// The "Stop budgeting" form of a line spending has counted toward.
+    case retire(String)
     case allowance(String)
     /// The temporary item add form.
     case addTemporary
@@ -70,7 +72,7 @@ struct BudgetContentView: View {
                     lineForm(
                         BudgetLineFormState(
                             draft: draft, defaultGroup: .discretionary,
-                            allowances: presentation.allowanceChoices),
+                            allowances: presentation.allowanceChoices, today: model.today),
                         onSaved: { self.draft = nil }
                     ) { try await model.createLine($0) }
                 }
@@ -81,7 +83,9 @@ struct BudgetContentView: View {
             BudgetSearchField(text: $search)
             SortBar(sort: Bindable(model).lineSort)
             if editing == .addItem {
-                lineForm(BudgetLineFormState(allowances: presentation.allowanceChoices)) {
+                lineForm(
+                    BudgetLineFormState(allowances: presentation.allowanceChoices, today: model.today)
+                ) {
                     try await model.createLine($0)
                 }
             }
@@ -110,7 +114,7 @@ struct BudgetContentView: View {
                             lineForm(
                                 BudgetLineFormState(
                                     defaultGroup: section.group,
-                                    allowances: presentation.allowanceChoices)
+                                    allowances: presentation.allowanceChoices, today: model.today)
                             ) { try await model.createLine($0) }
                         } else {
                             InflowAddButton(label: "Add \(section.title) item") {
@@ -174,9 +178,25 @@ struct BudgetContentView: View {
                     onCancel: { editing = nil })
             } else {
                 lineForm(
-                    BudgetLineFormState(initial: line, allowances: presentation.allowanceChoices)
+                    BudgetLineFormState(
+                        initial: line, allowances: presentation.allowanceChoices, today: model.today),
+                    onChangeFrom: model.isPlanning
+                        ? nil : { try await model.changeLine(id: row.id, from: $0, $1) }
                 ) { try await model.updateLine(id: row.id, $0) }
             }
+        } else if editing == .retire(row.id), let line = presentation.line(id: row.id) {
+            BudgetLineRetireFormView(
+                form: BudgetLineRetireFormState(
+                    line: line, today: model.today,
+                    isDefault: { [presentation] in presentation.isDefault(row.id, from: $0) },
+                    defaultCandidates: { [presentation] in
+                        presentation.defaultCandidates(replacing: row.id, on: $0)
+                    }),
+                onSubmit: { retirement in
+                    try await model.retireLine(id: row.id, retirement)
+                    editing = nil
+                },
+                onCancel: { editing = nil })
         } else if row.source != nil {
             // A derived line's edit writes its breakdown, which the sandbox does
             // not cover, so it is read-only in planning mode.
@@ -184,12 +204,16 @@ struct BudgetContentView: View {
                 row: row, onEdit: model.isPlanning ? nil : { editing = .line(row.id) })
         } else {
             BudgetLineRowView(
-                row: row, onEdit: { editing = .line(row.id) }, onDelete: { deleting = row })
+                row: row, onEdit: { editing = .line(row.id) },
+                onDelete: row.hasCountedSpend ? nil : { deleting = row },
+                onRetire: row.hasCountedSpend && !model.isPlanning
+                    ? { editing = .retire(row.id) } : nil)
         }
     }
 
     private func lineForm(
         _ form: BudgetLineFormState, onSaved: (() -> Void)? = nil,
+        onChangeFrom: ((String, BudgetLineInput) async throws -> Void)? = nil,
         submit: @escaping (BudgetLineInput) async throws -> Void
     ) -> some View {
         BudgetLineFormView(
@@ -198,6 +222,12 @@ struct BudgetContentView: View {
                 try await submit(input)
                 editing = nil
                 onSaved?()
+            },
+            onChangeFrom: onChangeFrom.map { change in
+                { day, input in
+                    try await change(day, input)
+                    editing = nil
+                }
             },
             onCancel: {
                 if let onSaved { onSaved() } else { editing = nil }
@@ -296,20 +326,19 @@ private struct GroupCard<Header: View, Lines: View>: View {
     }
 }
 
-/// One budget line: name (with its management link), cadence and route, the
-/// amount and its fortnightly figure, then its controls — edit and delete for a
-/// manual line, edit (when offered) and a chevron to its source for a derived one.
+/// One budget line: name (with its management link), cadence, route and any
+/// start day, the amount and its fortnightly figure, then its controls — edit and
+/// delete (or stop budgeting, once spending has counted toward it) for a manual
+/// line, edit (when offered) and a chevron to its source for a derived one.
 struct BudgetLineRowView: View {
     let row: BudgetLineRow
     var onEdit: (() -> Void)?
     var onDelete: (() -> Void)?
+    var onRetire: (() -> Void)?
 
     var body: some View {
         HStack(spacing: NestSpacing.xs) {
-            NestListRow(
-                title: row.name,
-                subtitle: [row.cadence, row.route].compactMap { $0 }.joined(separator: " · ")
-            ) {
+            NestListRow(title: row.name, subtitle: row.subtitle) {
                 VStack(alignment: .trailing, spacing: NestSpacing.xxs) {
                     MoneyText(cents: row.amountCents, colouring: false).font(NestFont.body)
                     Text(MoneyFormat.perFortnight(Int(row.fortnightlyCents)))
@@ -327,6 +356,14 @@ struct BudgetLineRowView: View {
             }
             if let onEdit {
                 EditDeleteActions(onEdit: onEdit, onDelete: row.source == nil ? onDelete : nil)
+            }
+            if let onRetire, row.source == nil {
+                Button(action: onRetire) {
+                    Image(systemName: "calendar.badge.minus").font(.system(size: 14))
+                        .foregroundStyle(NestColor.negative).frame(width: 28, height: 28)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Stop budgeting for \(row.name)")
             }
             if let source = row.source {
                 NavigationLink(value: source.route) {

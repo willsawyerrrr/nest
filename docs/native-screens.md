@@ -182,6 +182,19 @@ Both screens edit as the PWA does, inline in place of the row
   overdraw copy and cannot be saved; a database `allowance_overdrawn` refusal
   (`NestError.refusal`) shows the same copy. Edit and delete (behind "Delete budget
   item?") sit on each manual line; a line with a management link opens it.
+  Natively the form also takes **Starts** (default today; backdated or future) and,
+  on an edit, a **Change from a date** switch with its day: saving then calls
+  `change_budget_line_from`, stopping the item that day and starting a replacement
+  with the new group, name, amount and cadence and copies of its rules, while
+  leaving it off edits in place to correct the item for every period. A line
+  spending has counted toward (`budget_lines_with_counted_spend`, read through
+  `NestData.rpcRows`) has **Stop budgeting** instead of delete: an inline
+  `BudgetLineRetireFormView` takes the stop day (default today, after the start)
+  and, when the line is the household default then
+  (`household_default_budget_line`), the item that takes over, and calls
+  `retire_budget_line`. A future item lists as "Starts <date>" and stays out of
+  the subtotals (`budgetOverview` reads `today`); a retired item is hidden. Both
+  are real, dated writes, withheld in planning mode.
 - **Derived lines** (a gift line or a generic breakdown's) carry an edit pencil and
   a chevron to Gifts or Breakdowns instead of delete. `DerivedLineFormView`
   (`DerivedBudgetLineForm`) edits the group (Needs, Wants or Discretionary), the

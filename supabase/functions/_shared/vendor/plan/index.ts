@@ -10,6 +10,8 @@
  * this package the after-tax income the tax engine produces).
  */
 
+import type { Lifespan } from './lifespan.ts'
+
 export {
   annualCents,
   fortnightlyCents,
@@ -22,6 +24,14 @@ export {
 } from './normalize.ts'
 
 export { MS_PER_DAY } from './constants.ts'
+
+export {
+  HOUSEHOLD_TIME_ZONE,
+  isBudgetLineActive,
+  isBudgetLineRetired,
+  localIsoDate,
+} from './lifespan.ts'
+export type { Lifespan } from './lifespan.ts'
 
 export { isDrawnFromAllowance, summariseAllowances } from './allowance.ts'
 export type { AllowanceSummary, MemberAllowance } from './allowance.ts'
@@ -182,8 +192,11 @@ export type Frequency =
  */
 export type BudgetGroup = 'needs' | 'wants' | 'discretionary' | 'savings' | 'investments'
 
-/** A planned recurring allocation to one group, at an amount on a frequency. */
-export interface BudgetLine {
+/**
+ * A planned recurring allocation to one group, at an amount on a frequency,
+ * over its lifespan (absent bounds are open).
+ */
+export interface BudgetLine extends Lifespan {
   readonly group: BudgetGroup
   readonly amountCents: Money
   readonly frequency: Frequency

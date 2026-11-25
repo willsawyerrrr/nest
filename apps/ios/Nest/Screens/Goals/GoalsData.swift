@@ -61,10 +61,12 @@ struct GoalsRows: Codable, Sendable, Equatable {
             allowances: [], temporaryItems: [], now: SummaryRows.iso(now))
     }
 
-    /// Each goal's fortnightly funding: the sum of its linked lines' fortnightly figures.
-    func contributions(overview: BudgetOverview) -> [String: Int] {
+    /// Each goal's fortnightly funding: the sum of the fortnightly figures of its
+    /// linked lines active on the local day at `now`.
+    func contributions(overview: BudgetOverview, now: Date) -> [String: Int] {
+        let today = InflowsPresentation.isoDate(now)
         var totals: [String: Int] = [:]
-        for (line, amounts) in zip(budgetLines, overview.lines) {
+        for (line, amounts) in zip(budgetLines, overview.lines) where line.isActive(on: today) {
             if let goalID = line.goalId { totals[goalID, default: 0] += Int(amounts.fortnightlyCents) }
         }
         return totals
@@ -153,7 +155,7 @@ struct GoalsEngine: Sendable {
 
     func figures(for rows: GoalsRows, now: Date) async throws -> GoalsFigures {
         let contributions = rows.contributions(
-            overview: try await overview(rows.overviewInput(now: now)))
+            overview: try await overview(rows.overviewInput(now: now)), now: now)
         let (active, queued) = rows.partition(contributions: contributions)
         let projection = try await queue(rows.queueInput(contributions: contributions, now: now))
         return GoalsFigures(

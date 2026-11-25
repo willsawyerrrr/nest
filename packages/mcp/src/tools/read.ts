@@ -3,9 +3,17 @@ import {
   type BudgetSummaryBundle,
   type SaverRow,
 } from '@nest/household'
-import { annualCents, fortnightlyCents, type Frequency } from '@nest/plan'
+import {
+  annualCents,
+  fortnightlyCents,
+  isBudgetLineActive,
+  isBudgetLineRetired,
+  localIsoDate,
+  type Frequency,
+} from '@nest/plan'
 import { financialYearForDate } from '@nest/tax'
 import { listMembers, selectAll, type NestContext } from '../context.ts'
+import { fixedError } from '../errors.ts'
 
 interface BudgetLineRecord {
   id: string
@@ -20,18 +28,41 @@ interface BudgetLineRecord {
   goal_id: string | null
   destination_account_id: string | null
   allowance_member_id: string | null
+  starts_on: string
+  retired_on: string | null
+}
+
+/** Where a line's lifespan stands on `today`: in the plan, starting later, or retired. */
+function lifespanStatus(row: BudgetLineRecord, today: string): 'active' | 'upcoming' | 'retired' {
+  const lifespan = { startsOn: row.starts_on, retiredOn: row.retired_on }
+  if (isBudgetLineRetired(lifespan, today)) return 'retired'
+  return isBudgetLineActive(lifespan, today) ? 'active' : 'upcoming'
 }
 
 /**
  * The household's budget lines, optionally narrowed to those whose name contains
  * `name` (case-insensitive), each with its amount normalised to a fortnight and
- * a year.
+ * a year, its lifespan and where it stands today, and whether spending has ever
+ * counted toward it (such a line can be retired but not deleted). Retired lines
+ * are listed only with `include_retired`.
  */
-export async function listBudgetLines(ctx: NestContext, input: { name?: string | undefined }) {
-  const rows = await selectAll<BudgetLineRecord>(ctx, 'budget_line')
+export async function listBudgetLines(
+  ctx: NestContext,
+  input: { name?: string | undefined; include_retired?: boolean | undefined },
+) {
+  const today = localIsoDate(ctx.now())
+  const [rows, counted] = await Promise.all([
+    selectAll<BudgetLineRecord>(ctx, 'budget_line'),
+    ctx.supabase.rpc('budget_lines_with_counted_spend'),
+  ])
+  if (counted.error) {
+    throw fixedError('query_failed')
+  }
+  const withSpend = new Set(Array.isArray(counted.data) ? (counted.data as string[]) : [])
   const needle = input.name?.trim().toLowerCase()
   const lines = rows
     .filter((row) => needle === undefined || row.name.toLowerCase().includes(needle))
+    .filter((row) => input.include_retired === true || lifespanStatus(row, today) !== 'retired')
     .sort((a, b) => a.line_group.localeCompare(b.line_group) || a.name.localeCompare(b.name))
     .map((row) => {
       const interval = row.interval_count ?? undefined
@@ -49,6 +80,10 @@ export async function listBudgetLines(ctx: NestContext, input: { name?: string |
         goal_id: row.goal_id,
         destination_account_id: row.destination_account_id,
         allowance_member_id: row.allowance_member_id,
+        starts_on: row.starts_on,
+        retired_on: row.retired_on,
+        status: lifespanStatus(row, today),
+        has_counted_spend: withSpend.has(row.id),
       }
     })
   return { lines }
@@ -78,7 +113,7 @@ interface GoalRecord {
  * The household's savings goals with progress. A goal's saved amount is its
  * linked saver's synced balance where that saver is visible to the member, else
  * the balance entered on the goal. A goal with a linked Savings/Investments
- * budget line is active; one with none is queued.
+ * budget line active today is active; one with none is queued.
  */
 export async function listSavingsGoals(ctx: NestContext) {
   const [goals, accounts, lines] = await Promise.all([
@@ -87,8 +122,11 @@ export async function listSavingsGoals(ctx: NestContext) {
     selectAll<BudgetLineRecord>(ctx, 'budget_line'),
   ])
   const balanceByAccount = new Map(accounts.map((a) => [a.id, a.balance_cents ?? 0]))
+  const today = localIsoDate(ctx.now())
   const fundedGoalIds = new Set(
-    lines.flatMap((line) => (line.goal_id === null ? [] : [line.goal_id])),
+    lines.flatMap((line) =>
+      line.goal_id === null || lifespanStatus(line, today) !== 'active' ? [] : [line.goal_id],
+    ),
   )
 
   const shaped = goals

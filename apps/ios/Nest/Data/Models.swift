@@ -120,6 +120,7 @@ struct Household: NestRow {
     static let table = "households"
 
     let createdAt: String
+    let defaultBudgetLineId: String?
     let id: String
     let inviteCode: String?
     let inviteCodeExpiresAt: String?
@@ -130,6 +131,7 @@ struct Household: NestRow {
 
     enum CodingKeys: String, CodingKey, CaseIterable {
         case createdAt = "created_at"
+        case defaultBudgetLineId = "default_budget_line_id"
         case id
         case inviteCode = "invite_code"
         case inviteCodeExpiresAt = "invite_code_expires_at"

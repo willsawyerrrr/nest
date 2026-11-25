@@ -826,7 +826,21 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   no group included (`up_category_group`), and
   `budget_actual_spend` (SECURITY INVOKER, so only the member's visible
   accounts) sums settled spend by default, nets refunds, never counts transfers
-  or uncategorised income, and reports spend in no group on its own; see
+  or uncategorised income, and reports spend in no group on its own. Per
+  target, every spend transaction counts toward a budget item, a member's
+  allowance, or Not budgeted: a member's choice (`transaction_allocation`,
+  split-capable, written whole by `set_transaction_spend_target`) beats the
+  household's ordered rules (`spend_rule`, conditions on payee, Up category,
+  account, amount, and message/note text, versioned in `spend_rule_version` so
+  an edit, reorder, or retirement applies from now and a backdate from a chosen
+  day), then an unconfirmed suggestion, then the default (a member's own
+  account → their allowance, else `households.default_budget_line_id`, else Not
+  budgeted). `spend_resolution` computes this live (pure over the transaction
+  and the rule versions, so a settled or re-noted transaction re-resolves for
+  free), `actual_spend_by_target` sums it per target with pending apart, and
+  `preview_spend_rule` shows what a backdated change would move. Pending always
+  counts there. An allowance rule or choice is its member's alone, reading to a
+  co-member as that member's allowance with nothing named; see
   [`docs/up-ledger-sync.md`](docs/up-ledger-sync.md#3-reconcile-actual-spend-vs-budget).
   Each line carries an
   amount on a frequency (weekly through annual, or an arbitrary every-N-weeks or

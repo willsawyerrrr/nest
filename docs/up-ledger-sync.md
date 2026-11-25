@@ -525,83 +525,124 @@ Purely PostgREST + RLS (no new edge functions): the household already reads
 
 ## 3. Reconcile actual spend vs budget
 
-The native Budget screen shows each group's actual spend for a fortnight beside its planned
-fortnightly subtotal: what was spent, and what is left or by how much it went
-over. The plan stays plan-only — nothing about a line or the buffer moves with
-spend.
+Every spend transaction counts toward a **target**: a budget item, a member's
+allowance, or Not budgeted. The native Budget screen shows each group's actual
+spend for a fortnight beside its planned fortnightly subtotal, through the
+category → group map; the per-target reads below give each item, allowance and
+Not budgeted its own actual. The plan stays plan-only — nothing about a line or
+the buffer moves with spend.
 
 ### Decisions
 
-- **Category → group mapping.** Each Up child category counts toward one
-  `budget_group`. `up_category_default_group` holds a seeded default shared by
-  every household (essentials such as groceries, rent, utilities, fuel and
-  health → Needs; dining, streaming, clothing, travel and gifts → Wants; bars,
-  booze, events, hobbies and gambling → Discretionary; `investments` →
-  Investments; nothing → Savings). `up_category_group` holds a household's
-  override per category, including a null group that counts it toward none;
-  no row falls back to the default. Group-level mapping is coarse but needs no
-  configuration to be useful. Per-line mapping and description rules are a
-  later refinement, and the destination-account view was set aside because
-  spend from one account rarely belongs to the lines routed to it alone.
+- **Where spend counts, first that applies.** A member's choice (or a confirmed
+  suggestion) → the household's rules → an unconfirmed suggestion → the
+  default. The default is the member's allowance for spend from an account they
+  own, else the household's default item (`households.default_budget_line_id`,
+  e.g. Discretionary spend), else Not budgeted. Real spending does not line up
+  with Up categories — rent is a fixed-amount Pay Anyone to the landlord, other
+  payments to the same payee are not, and a servo milk run is groceries — so a
+  category is one rule condition among several rather than the mapping itself.
+- **Rules.** Household-wide and ordered, first match winning. A rule sends its
+  matches to an item, the member's own allowance, or Not budgeted, and ANDs its
+  conditions: the description (the payee Up shows) contains or equals a
+  pattern, case-insensitively; the Up category is one of a set; the account is
+  one of a set; the amount equals a figure or falls in a range (positive cents,
+  against the absolute amount, so a refund matches its purchase's rule); the Up
+  message, Up note, or the household's note contains a pattern. Up exposes no
+  counterparty BSB or account number, so a bank payment matches on payee name.
+- **Rules are versioned.** A change applies from a moment on: a new rule, an
+  edit, a reorder, and a retirement each take effect from now, so a transaction
+  resolves under the versions in force at its `posted_at` and earlier ones never
+  move on their own. "Also apply to earlier transactions" backdates a create,
+  edit or retirement to the start of a chosen local day, re-resolving
+  everything posted since, after a preview of what would move.
+- **Resolution is computed, not stored.** Only member choices and suggestions
+  are stored (`transaction_allocation`); `spend_resolution` evaluates the rules
+  and default live, as a pure function of the transaction and the rule
+  versions. A transaction that settles, is re-priced, or gains a note is
+  therefore checked again on the next read with no trigger or re-check pass,
+  and a backdate needs no rewrite of stored results. At a household's scale
+  (thousands of transactions, tens of rules) the per-read cost is small; the
+  rule lookup is indexed on household and `valid_from`.
+- **Allocations split.** A choice is a set of rows summing to the transaction's
+  spend, so one transaction can later count toward several targets; every
+  writer allocates whole transactions. A set follows its transaction when a
+  held amount settles differently, and is discarded whole if its line goes.
 - **Period: the pay-cycle fortnight.** The plan is fortnightly, so the
-  reconciled period is a fortnight, on a 14-day grid stepped from the
+  Budget screen's period is a fortnight on a 14-day grid stepped from the
   household's earliest confirmed payday (`pay_anchor_date`) among its recurring
   salary and wage inflows, else from the calendar feed's `2020-07-01` epoch
-  (`payCycleAnchor`, `spendFortnight` in `@nest/plan`). A fortnight therefore
-  opens on a payday. Planning mode never moves the grid: it reads the real
-  inflows. The screen opens on the fortnight holding today and steps back through
-  earlier ones.
+  (`payCycleAnchor`, `spendFortnight` in `@nest/plan`). Planning mode never moves
+  the grid. The per-target reads take any local date range.
 - **Days are local.** A transaction counts on its `posted_at` date in the
   household's `timezone`, so a purchase at 11pm counts that day.
-- **Settled spend by default.** A held transaction can still change amount or
-  drop, so only settled spend counts unless the member turns on "Include
-  pending" for the view.
-- **What counts as spend.** A row with an Up category counts whatever its sign,
-  so a refund back into a category nets off that category's spend. An
-  uncategorised `expense` (a Pay Anyone or BPAY payment, say) counts as spend
-  in no group. `kind = 'transfer'` never counts: every move between the owner's
-  own accounts — round-ups, covers from a saver, saver transfers — carries
-  Up's `transferAccount` and lands as a transfer. Uncategorised income (pay, a
-  transfer in from someone else) never counts.
-- **Spend in no group is shown, not hidden.** Spend in a category mapped to
-  none, and uncategorised spend, total to one "in no group" figure on the screen,
-  so remapping a category never makes money silently disappear.
-- **Privacy.** `budget_actual_spend` is SECURITY INVOKER, so the
-  `transactions` policies apply: the figure covers the accounts the member can
-  see, never a co-member's private spending account, and never a gift claimed
-  for them. The two partners can therefore see different actuals beside the
-  same plan.
+- **Pending counts, marked as pending.** The per-target reads always include
+  held transactions and report them apart from settled ones; there is no
+  toggle. The group view sums settled spend unless "Include pending" is on.
+- **What counts as spend.** Any row but a transfer, except uncategorised income.
+  A refund nets off the target it resolves to. An uncategorised `expense` (a Pay
+  Anyone or BPAY payment such as rent) counts. `kind = 'transfer'` never counts:
+  every move between the owner's own accounts — round-ups, covers from a saver,
+  saver transfers — carries Up's `transferAccount` and lands as a transfer, so
+  funding a saver is not spend and the bill paid out of it is. Uncategorised
+  income (pay, a transfer in from someone else) never counts.
+- **Not budgeted is shown, not hidden.** It is a target with its own total, so
+  sending spend nowhere never makes money silently disappear.
+- **Privacy.** The reads cover the transactions the member can see — never a
+  co-member's private spending account, never a gift claimed for them — so the
+  two partners can see different actuals beside the same plan. A rule or choice
+  sending spend to an allowance, or to a line drawn from one, is its member's
+  alone; a co-member reads such a joint transaction as counting toward that
+  member's allowance, with neither rule nor line named. Resolution reads every
+  rule, so a joint transaction resolves the same for both.
 
 ### Implementation
 
-- `budget_actual_spend(p_start date, p_end date, p_include_pending boolean
-  default false)` returns `(line_group, spent_cents)`, one row per group with
-  spend and a null `line_group` row for spend in no group.
-- The native Budget screen (`apps/ios/Nest/Screens/Budget`) reads it.
-  `ActualSpendViewModel` reads the household's stored `inflows` (never the
+- Schema: `spend_rule`, `spend_rule_version`, `transaction_allocation`, the
+  `current_spend_rules` view, and `households.default_budget_line_id` (see
+  [`data-model.md`](data-model.md#spend-allocation)).
+- Writes: `set_transaction_spend_target` / `clear_transaction_spend_target`
+  (a member's whole-transaction choice), `create_spend_rule`,
+  `update_spend_rule`, `delete_spend_rule` and `reorder_spend_rules` (each from
+  now, the first three backdatable with `p_apply_from`), and
+  `set_household_default_budget_line`.
+- Reads: `spend_resolution(p_start, p_end, p_transaction_ids)` — where each
+  transaction counts and why (member choice, rule and version, suggestion, or
+  default), for review and "why does this count here";
+  `actual_spend_by_target(p_start, p_end)` — spend per target and status;
+  `preview_spend_rule(...)` — what a proposed or backdated change would move,
+  from what to what, changing nothing.
+- The category → group view: `up_category_default_group` holds a seeded default
+  per Up child category shared by every household, `up_category_group` a
+  household's override (a null group counting the category toward none), and
+  `budget_actual_spend(p_start date, p_end date, p_include_pending boolean
+  default false)` returns `(line_group, spent_cents)`, a null `line_group` row
+  for spend in no group. SECURITY INVOKER over the same eligibility rules.
+- The native Budget screen (`apps/ios/Nest/Screens/Budget`) reads the group
+  view. `ActualSpendViewModel` reads the household's stored `inflows` (never the
   planning sandbox), asks the engine's `spendFortnight` entry
   (`payCycleAnchor` + `spendFortnight`) for the fortnight at the chosen offset,
-  then calls the RPC through `NestData.rpcRows` (cached first under
-  `budget_actual_spend`, keyed by its arguments) and folds the rows with the
-  engine's `actualSpend` entry (`actualSpendByGroup`). `ActualSpendBar` renders
-  the fortnight, its steppers, the "Include pending" switch, the in-no-group
-  total and the Category groups button above the groups; each group card shows
-  spent and left or over beneath its subtotal (`GroupSpendLine`, copy in
-  `ActualSpendPresentation`).
+  then calls `budget_actual_spend` through `NestData.rpcRows` (cached first
+  under `budget_actual_spend`, keyed by its arguments) and folds the rows with
+  the engine's `actualSpend` entry (`actualSpendByGroup`). `ActualSpendBar`
+  renders the fortnight, its steppers, the "Include pending" switch, the
+  in-no-group total and the Category groups button above the groups; each group
+  card shows spent and left or over beneath its subtotal (`GroupSpendLine`, copy
+  in `ActualSpendPresentation`).
 - `CategoryGroupsSheet` (`CategoryGroupsViewModel`) lists `up_category`'s child
   categories under their parents with `up_category_default_group` and the
   household's `up_category_group` rows. Picking a group or "No group" upserts
   the override (a null `line_group` for none); picking "Default (…)" deletes it.
   Each write drops the cached `budget_actual_spend` results, and closing the
   sheet reloads the spend.
-- The PWA's Budget tab reads it through `useActualSpend` (`BudgetSection`
-  steps the fortnight with `payCycleAnchor` / `spendFortnight` from `@nest/plan`
-  over the stored inflows and folds the rows with `actualSpendByGroup`).
-  `ActualSpendBar` renders the fortnight, its steppers, the "Include pending"
-  switch, the in-no-group total and the Category groups button above the
-  groups; each `GroupSection` shows spent and left or over beneath its
-  subtotal. `CategoryGroupsModal` (`useCategoryGroups`) maps categories to
-  groups with the same default, group, or no-group choices.
+- The PWA's Budget tab reads the group view through `useActualSpend`
+  (`BudgetSection` steps the fortnight with `payCycleAnchor` / `spendFortnight`
+  from `@nest/plan` over the stored inflows and folds the rows with
+  `actualSpendByGroup`). `ActualSpendBar` renders the fortnight, its steppers,
+  the "Include pending" switch, the in-no-group total and the Category groups
+  button above the groups; each `GroupSection` shows spent and left or over
+  beneath its subtotal. `CategoryGroupsModal` (`useCategoryGroups`) maps
+  categories to groups with the same default, group, or no-group choices.
 
 ## 4. Actual PAYG tax paid vs estimate
 

@@ -1186,6 +1186,7 @@ export type Database = {
       households: {
         Row: {
           created_at: string
+          default_budget_line_id: string | null
           id: string
           invite_code: string | null
           invite_code_expires_at: string | null
@@ -1197,6 +1198,7 @@ export type Database = {
         ComputedFields: never
         Insert: {
           created_at?: string
+          default_budget_line_id?: string | null
           id?: string
           invite_code?: string | null
           invite_code_expires_at?: string | null
@@ -1207,6 +1209,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          default_budget_line_id?: string | null
           id?: string
           invite_code?: string | null
           invite_code_expires_at?: string | null
@@ -1216,6 +1219,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: 'households_default_budget_line_id_fkey'
+            columns: ['default_budget_line_id', 'id']
+            isOneToOne: false
+            referencedRelation: 'budget_line'
+            referencedColumns: ['id', 'household_id']
+          },
           {
             foreignKeyName: 'households_pay_account_id_fkey'
             columns: ['pay_account_id', 'id']
@@ -1972,6 +1982,133 @@ export type Database = {
           },
         ]
       }
+      spend_rule: {
+        Row: {
+          allowance_member_id: string | null
+          budget_line_id: string | null
+          created_at: string
+          household_id: string
+          id: string
+          target_kind: Database['public']['Enums']['spend_target_kind']
+        }
+        ComputedFields: never
+        Insert: {
+          allowance_member_id?: string | null
+          budget_line_id?: string | null
+          created_at?: string
+          household_id: string
+          id?: string
+          target_kind: Database['public']['Enums']['spend_target_kind']
+        }
+        Update: {
+          allowance_member_id?: string | null
+          budget_line_id?: string | null
+          created_at?: string
+          household_id?: string
+          id?: string
+          target_kind?: Database['public']['Enums']['spend_target_kind']
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'spend_rule_allowance_member_id_household_id_fkey'
+            columns: ['allowance_member_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'member_allowance'
+            referencedColumns: ['member_id', 'household_id']
+          },
+          {
+            foreignKeyName: 'spend_rule_budget_line_id_household_id_fkey'
+            columns: ['budget_line_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'budget_line'
+            referencedColumns: ['id', 'household_id']
+          },
+          {
+            foreignKeyName: 'spend_rule_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      spend_rule_version: {
+        Row: {
+          account_ids: string[] | null
+          amount_cents: number | null
+          amount_max_cents: number | null
+          amount_min_cents: number | null
+          created_at: string
+          description_match: Database['public']['Enums']['spend_rule_text_match'] | null
+          description_pattern: string | null
+          household_id: string
+          rule_id: string
+          sort_order: number
+          text_pattern: string | null
+          up_category_ids: string[] | null
+          valid_from: string
+          valid_until: string | null
+          version: number
+        }
+        ComputedFields: never
+        Insert: {
+          account_ids?: string[] | null
+          amount_cents?: number | null
+          amount_max_cents?: number | null
+          amount_min_cents?: number | null
+          created_at?: string
+          description_match?: Database['public']['Enums']['spend_rule_text_match'] | null
+          description_pattern?: string | null
+          household_id: string
+          rule_id: string
+          sort_order: number
+          text_pattern?: string | null
+          up_category_ids?: string[] | null
+          valid_from: string
+          valid_until?: string | null
+          version: number
+        }
+        Update: {
+          account_ids?: string[] | null
+          amount_cents?: number | null
+          amount_max_cents?: number | null
+          amount_min_cents?: number | null
+          created_at?: string
+          description_match?: Database['public']['Enums']['spend_rule_text_match'] | null
+          description_pattern?: string | null
+          household_id?: string
+          rule_id?: string
+          sort_order?: number
+          text_pattern?: string | null
+          up_category_ids?: string[] | null
+          valid_from?: string
+          valid_until?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'spend_rule_version_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'spend_rule_version_rule_id_household_id_fkey'
+            columns: ['rule_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'current_spend_rules'
+            referencedColumns: ['id', 'household_id']
+          },
+          {
+            foreignKeyName: 'spend_rule_version_rule_id_household_id_fkey'
+            columns: ['rule_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'spend_rule'
+            referencedColumns: ['id', 'household_id']
+          },
+        ]
+      }
       super_contribution: {
         Row: {
           amount_cents: number | null
@@ -2314,6 +2451,82 @@ export type Database = {
             isOneToOne: false
             referencedRelation: 'households'
             referencedColumns: ['id']
+          },
+        ]
+      }
+      transaction_allocation: {
+        Row: {
+          allowance_member_id: string | null
+          amount_cents: number
+          budget_line_id: string | null
+          created_at: string
+          household_id: string
+          id: string
+          member_id: string | null
+          origin: Database['public']['Enums']['spend_allocation_origin']
+          target_kind: Database['public']['Enums']['spend_target_kind']
+          transaction_id: string
+        }
+        ComputedFields: never
+        Insert: {
+          allowance_member_id?: string | null
+          amount_cents: number
+          budget_line_id?: string | null
+          created_at?: string
+          household_id: string
+          id?: string
+          member_id?: string | null
+          origin: Database['public']['Enums']['spend_allocation_origin']
+          target_kind: Database['public']['Enums']['spend_target_kind']
+          transaction_id: string
+        }
+        Update: {
+          allowance_member_id?: string | null
+          amount_cents?: number
+          budget_line_id?: string | null
+          created_at?: string
+          household_id?: string
+          id?: string
+          member_id?: string | null
+          origin?: Database['public']['Enums']['spend_allocation_origin']
+          target_kind?: Database['public']['Enums']['spend_target_kind']
+          transaction_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'transaction_allocation_allowance_member_id_household_id_fkey'
+            columns: ['allowance_member_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'member_allowance'
+            referencedColumns: ['member_id', 'household_id']
+          },
+          {
+            foreignKeyName: 'transaction_allocation_budget_line_id_household_id_fkey'
+            columns: ['budget_line_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'budget_line'
+            referencedColumns: ['id', 'household_id']
+          },
+          {
+            foreignKeyName: 'transaction_allocation_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'transaction_allocation_member_id_household_id_fkey'
+            columns: ['member_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'members'
+            referencedColumns: ['id', 'household_id']
+          },
+          {
+            foreignKeyName: 'transaction_allocation_transaction_id_household_id_fkey'
+            columns: ['transaction_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'transactions'
+            referencedColumns: ['id', 'household_id']
           },
         ]
       }
@@ -2686,8 +2899,65 @@ export type Database = {
           },
         ]
       }
+      current_spend_rules: {
+        Row: {
+          account_ids: string[] | null
+          allowance_member_id: string | null
+          amount_cents: number | null
+          amount_max_cents: number | null
+          amount_min_cents: number | null
+          budget_line_id: string | null
+          created_at: string | null
+          description_match: Database['public']['Enums']['spend_rule_text_match'] | null
+          description_pattern: string | null
+          first_valid_from: string | null
+          household_id: string | null
+          id: string | null
+          sort_order: number | null
+          target_kind: Database['public']['Enums']['spend_target_kind'] | null
+          text_pattern: string | null
+          up_category_ids: string[] | null
+          valid_from: string | null
+          version: number | null
+        }
+        ComputedFields: never
+        Relationships: [
+          {
+            foreignKeyName: 'spend_rule_allowance_member_id_household_id_fkey'
+            columns: ['allowance_member_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'member_allowance'
+            referencedColumns: ['member_id', 'household_id']
+          },
+          {
+            foreignKeyName: 'spend_rule_budget_line_id_household_id_fkey'
+            columns: ['budget_line_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'budget_line'
+            referencedColumns: ['id', 'household_id']
+          },
+          {
+            foreignKeyName: 'spend_rule_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+        ]
+      }
     }
     Functions: {
+      actual_spend_by_target: {
+        Args: { p_end: string; p_start: string }
+        Returns: {
+          allowance_member_id: string
+          budget_line_id: string
+          spent_cents: number
+          status: Database['public']['Enums']['transaction_status']
+          target_kind: Database['public']['Enums']['spend_target_kind']
+          transaction_count: number
+        }[]
+      }
       anthropic_api_key: { Args: Record<PropertyKey, never>; Returns: string }
       apns_keys: {
         Args: Record<PropertyKey, never>
@@ -2697,6 +2967,15 @@ export type Database = {
           private_key: string
           team_id: string
         }[]
+      }
+      assert_spend_target: {
+        Args: {
+          p_allowance_member_id: string
+          p_budget_line_id: string
+          p_household_id: string
+          p_target_kind: Database['public']['Enums']['spend_target_kind']
+        }
+        Returns: undefined
       }
       budget_actual_spend: {
         Args: { p_end: string; p_include_pending?: boolean; p_start: string }
@@ -2717,6 +2996,7 @@ export type Database = {
         }
         Returns: Record<string, unknown>
       }
+      clear_transaction_spend_target: { Args: { p_transaction_id: string }; Returns: undefined }
       clear_up_token: { Args: { p_member_id: string }; Returns: undefined }
       clear_up_webhook: { Args: { p_member_id: string }; Returns: undefined }
       commit_planning_changes: {
@@ -2753,6 +3033,23 @@ export type Database = {
           token: string
         }[]
       }
+      create_spend_rule: {
+        Args: {
+          p_account_ids?: string[]
+          p_allowance_member_id?: string
+          p_amount_cents?: number
+          p_amount_max_cents?: number
+          p_amount_min_cents?: number
+          p_apply_from?: string
+          p_budget_line_id?: string
+          p_description_match?: Database['public']['Enums']['spend_rule_text_match']
+          p_description_pattern?: string
+          p_target_kind: Database['public']['Enums']['spend_target_kind']
+          p_text_pattern?: string
+          p_up_category_ids?: string[]
+        }
+        Returns: string
+      }
       create_trades_with_document: {
         Args: {
           p_document_id: string
@@ -2763,6 +3060,7 @@ export type Database = {
         Returns: number
       }
       current_member_ids: { Args: Record<PropertyKey, never>; Returns: string[] }
+      delete_spend_rule: { Args: { p_apply_from?: string; p_rule_id: string }; Returns: undefined }
       delete_up_transactions: {
         Args: { p_external_ids: string[]; p_household_id: string }
         Returns: undefined
@@ -2784,6 +3082,39 @@ export type Database = {
       household_super_account_ids: { Args: Record<PropertyKey, never>; Returns: string[] }
       join_household: { Args: { p_code: string; p_member_name: string }; Returns: string }
       payslip_financial_year: { Args: { paid_on: string; period_end: string }; Returns: number }
+      preview_spend_rule: {
+        Args: {
+          p_account_ids?: string[]
+          p_allowance_member_id?: string
+          p_amount_cents?: number
+          p_amount_max_cents?: number
+          p_amount_min_cents?: number
+          p_apply_from?: string
+          p_budget_line_id?: string
+          p_description_match?: Database['public']['Enums']['spend_rule_text_match']
+          p_description_pattern?: string
+          p_retire?: boolean
+          p_rule_id?: string
+          p_target_kind?: Database['public']['Enums']['spend_target_kind']
+          p_text_pattern?: string
+          p_up_category_ids?: string[]
+        }
+        Returns: {
+          amount_cents: number
+          from_allowance_member_id: string
+          from_budget_line_id: string
+          from_reason: Database['public']['Enums']['spend_resolution_reason']
+          from_target_kind: Database['public']['Enums']['spend_target_kind']
+          posted_at: string
+          status: Database['public']['Enums']['transaction_status']
+          to_allowance_member_id: string
+          to_budget_line_id: string
+          to_reason: Database['public']['Enums']['spend_resolution_reason']
+          to_rule_id: string
+          to_target_kind: Database['public']['Enums']['spend_target_kind']
+          transaction_id: string
+        }[]
+      }
       reconcile_annual_cents: {
         Args: {
           p_amount: number
@@ -2816,6 +3147,7 @@ export type Database = {
         Returns: undefined
       }
       register_apns_device: { Args: { p_environment: string; p_token: string }; Returns: undefined }
+      reorder_spend_rules: { Args: { p_rule_ids: string[] }; Returns: undefined }
       resend_api_key: { Args: Record<PropertyKey, never>; Returns: string }
       review_transaction: {
         Args: { p_note?: string; p_reviewed?: boolean; p_transaction_id: string }
@@ -2857,14 +3189,43 @@ export type Database = {
       revoke_calendar_feed_token: { Args: Record<PropertyKey, never>; Returns: undefined }
       revoke_invite_code: { Args: Record<PropertyKey, never>; Returns: undefined }
       revoke_share_grant: { Args: Record<PropertyKey, never>; Returns: undefined }
+      set_household_default_budget_line: { Args: { p_budget_line_id: string }; Returns: undefined }
       set_household_pay_account: { Args: { p_account_id: string }; Returns: undefined }
       set_member_date_of_birth: {
         Args: { p_date_of_birth: string; p_member_id: string }
         Returns: undefined
       }
+      set_transaction_spend_target: {
+        Args: {
+          p_allowance_member_id?: string
+          p_budget_line_id?: string
+          p_target_kind: Database['public']['Enums']['spend_target_kind']
+          p_transaction_id: string
+        }
+        Returns: undefined
+      }
       set_up_transaction_category: {
         Args: { p_category: string; p_transaction_id: string }
         Returns: boolean
+      }
+      spend_resolution: {
+        Args: { p_end?: string; p_start?: string; p_transaction_ids?: string[] }
+        Returns: {
+          allowance_member_id: string
+          amount_cents: number
+          budget_line_id: string
+          posted_at: string
+          reason: Database['public']['Enums']['spend_resolution_reason']
+          rule_id: string
+          rule_version: number
+          status: Database['public']['Enums']['transaction_status']
+          target_kind: Database['public']['Enums']['spend_target_kind']
+          transaction_id: string
+        }[]
+      }
+      spend_rule_effective_from: {
+        Args: { p_apply_from: string; p_household_id: string }
+        Returns: string
       }
       store_up_token: { Args: { p_member_id: string; p_token: string }; Returns: undefined }
       store_up_webhook: {
@@ -2888,6 +3249,21 @@ export type Database = {
       }
       up_token_for_member: { Args: { p_member_id: string }; Returns: string }
       up_webhook_secret_for_member: { Args: { p_member_id: string }; Returns: string }
+      update_spend_rule: {
+        Args: {
+          p_account_ids?: string[]
+          p_amount_cents?: number
+          p_amount_max_cents?: number
+          p_amount_min_cents?: number
+          p_apply_from?: string
+          p_description_match?: Database['public']['Enums']['spend_rule_text_match']
+          p_description_pattern?: string
+          p_rule_id: string
+          p_text_pattern?: string
+          p_up_category_ids?: string[]
+        }
+        Returns: number
+      }
       upsert_accounts: { Args: { rows: Json }; Returns: undefined }
       upsert_payslip_with_lines: { Args: { p_lines: Json; p_payslip: Json }; Returns: string }
       vapid_keys: {
@@ -2899,6 +3275,23 @@ export type Database = {
         }[]
       }
       visible_balance_account_ids: { Args: Record<PropertyKey, never>; Returns: string[] }
+      visible_spend_rule_ids: { Args: Record<PropertyKey, never>; Returns: string[] }
+      write_spend_rule_version: {
+        Args: {
+          p_account_ids: string[]
+          p_amount_cents: number
+          p_amount_max_cents: number
+          p_amount_min_cents: number
+          p_description_match: Database['public']['Enums']['spend_rule_text_match']
+          p_description_pattern: string
+          p_from: string
+          p_rule_id: string
+          p_sort_order: number
+          p_text_pattern: string
+          p_up_category_ids: string[]
+        }
+        Returns: number
+      }
     }
     Enums: {
       account_type: 'transaction' | 'savings' | 'credit' | 'offset' | 'other' | 'home_loan'
@@ -2933,6 +3326,11 @@ export type Database = {
         'ordinary' | 'genuine_redundancy' | 'employment_termination' | 'unused_leave'
       payslip_line_kind: 'earning' | 'tax'
       payslip_tax_component: 'payg' | 'stsl'
+      spend_allocation_origin: 'member_choice' | 'confirmed_suggestion' | 'suggestion'
+      spend_resolution_reason:
+        'member_choice' | 'confirmed_suggestion' | 'rule' | 'suggestion' | 'default'
+      spend_rule_text_match: 'contains' | 'equals'
+      spend_target_kind: 'budget_line' | 'allowance' | 'not_budgeted'
       super_contribution_kind:
         'salary_sacrifice' | 'personal_deductible' | 'personal_non_concessional' | 'spouse'
       super_contribution_mode: 'amount' | 'percent'
@@ -3092,6 +3490,16 @@ export const Constants = {
       ],
       payslip_line_kind: ['earning', 'tax'],
       payslip_tax_component: ['payg', 'stsl'],
+      spend_allocation_origin: ['member_choice', 'confirmed_suggestion', 'suggestion'],
+      spend_resolution_reason: [
+        'member_choice',
+        'confirmed_suggestion',
+        'rule',
+        'suggestion',
+        'default',
+      ],
+      spend_rule_text_match: ['contains', 'equals'],
+      spend_target_kind: ['budget_line', 'allowance', 'not_budgeted'],
       super_contribution_kind: [
         'salary_sacrifice',
         'personal_deductible',

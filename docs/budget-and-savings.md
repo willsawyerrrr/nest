@@ -104,18 +104,47 @@ the unit read from the frequency.
 
 ### Actual spend
 
-Above the groups, the Budget tab names a fortnight on the household's
-pay cycle — the one holding today, with steppers back through earlier ones and
-forward again, never past today's — and each group shows what was spent in it,
-and what is left or by how much it went over its fortnightly subtotal. Spend
-reaches a group through its Up category: a seeded default map every household
-shares, which a household can override per category, including to no group, in
-the Category groups sheet (each child category picks its default, a
-group, or no group). Only settled spend counts unless "Include pending" is on;
-transfers between the household's own accounts and uncategorised income never
-count; refunds net off their category. Spend in no group shows as its own total.
-It covers the accounts the signed-in member can see. The decisions behind each rule are in
+Every spend transaction counts toward a **target**: a budget item, a member's
+allowance, or **Not budgeted**. Where it counts, first that applies:
+
+1. **Member choice** — a member sent it somewhere by hand, or confirmed a
+   suggestion. It never changes on its own.
+2. **Rules** — the household's ordered rules, under the versions in force when
+   the transaction was posted; the first match wins.
+3. **Suggestion** — one not yet confirmed.
+4. **Default** — spend from a member's own account counts toward their
+   allowance; anything else toward the household's default item (say,
+   Discretionary spend), or Not budgeted while it has none.
+
+A rule sends spend to an item, the member's own allowance, or Not budgeted, and
+matches on every condition it sets: the payee contains or equals a phrase
+(ignoring case), the Up category is one of a set, the account is one of a set,
+the amount equals a figure or falls in a range, or the Up message, Up note, or
+the household's note contains a phrase. So rent is the landlord at the rent
+amount, water is the landlord from the water saver or a note saying "water",
+and gym is "Planet Fitness"; a servo purchase is sent to groceries by hand, and
+a charity payment to Not budgeted against a gifts-and-charity category rule. A
+rule, an edit, a reorder, or a retirement applies to transactions posted from
+then on, earlier ones keeping where they counted; "Also apply to earlier
+transactions" backdates it to a chosen day after a preview of what would move.
+Rules are household-wide; one sending spend to an allowance is that member's
+alone.
+
+Pending transactions always count, shown as pending. Transfers between the
+household's own accounts never count, so funding a saver is not spend and the
+bill paid out of it is; uncategorised income never counts; refunds net off the
+target they count toward. It covers the accounts the signed-in member can see.
+The decisions behind each rule are in
 [`up-ledger-sync.md`](up-ledger-sync.md#3-reconcile-actual-spend-vs-budget).
+
+Above the groups, the Budget tab names a fortnight on the household's pay
+cycle — the one holding today, with steppers back through earlier ones and
+forward again, never past today's — and each group shows what was spent in it,
+and what is left or by how much it went over its fortnightly subtotal. The
+group figure reaches a group through its Up category: a seeded default map
+every household shares, which a household can override per category, including
+to no group, in the Category groups sheet. Only settled spend counts there
+unless "Include pending" is on, and spend in no group shows as its own total.
 
 ### Member spending allowances
 
@@ -459,6 +488,14 @@ income tables.
   - `id`, `household_id`, `member_id` (unique), `amount_cents` (>= 0), `frequency`,
     `interval_count`, `destination_account_id` (nullable).
   - Budget lines drawn from it reference it by `allowance_member_id`.
+- **SpendRule** — a household rule sending matching spend to a target.
+  - `id`, `household_id`, target (`target_kind` with `budget_line_id` or
+    `allowance_member_id`), and versions (`spend_rule_version`: `valid_from`,
+    `valid_until`, `sort_order`, and the conditions).
+- **TransactionAllocation** — where a member sent a transaction's spend, or a
+  suggestion places it: target and `amount_cents` rows summing to the spend.
+- The household's default item is `households.default_budget_line_id`. See
+  [`data-model.md`](data-model.md#spend-allocation).
 - **SavingsGoal** — a persistent target.
   - `id`, `household_id`, `name`, `target_cents`, `target_date` (nullable),
     `current_cents` (manual fallback), `linked_account_id` (nullable → a synced
@@ -532,8 +569,6 @@ reload-safe; keyboard shortcuts jump between them.
 
 - **Netting non-taxable inflows against categories** — assign a non-taxable
   inflow to a specific budget category so it nets against that spend.
-- **Per-line actual spend** — mapping Up categories (or description rules) to
-  individual budget lines rather than to groups.
 - **Linking temporary items to Up Saver accounts** — the Up API exposes account
   types `SAVER`, `TRANSACTIONAL`, and `HOME_LOAN`, including balances and
   transactions. Savings goals already link to a synced saver for their balance; a

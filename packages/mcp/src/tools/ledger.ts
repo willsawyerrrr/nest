@@ -238,6 +238,7 @@ interface TransactionRow {
   notes: string | null
   reviewed_at: string | null
   reviewed_by_member_id: string | null
+  category_flagged_wrong_at: string | null
 }
 
 const MAX_TRANSACTIONS = 200
@@ -310,6 +311,7 @@ export async function listTransactions(
       notes: row.notes,
       reviewed_at: row.reviewed_at,
       reviewed_by_member_id: row.reviewed_by_member_id,
+      category_flagged_wrong_at: row.category_flagged_wrong_at,
     })),
   }
 }

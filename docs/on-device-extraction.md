@@ -99,6 +99,17 @@ an app rejects such a file. The scorer treats it as a decline: correct for a
 non-document, a missed document (all fields missing, a false decline) for a
 real one, and not as a failed run.
 
+A request the model refuses as rate limited (a warm phone does this within
+milliseconds) is retried up to four times with exponential backoff (1 s,
+doubling to a 30 s cap, or the model's own reset time when later), and before
+every attempt the run waits, up to 120 s, while `thermalState` is `serious` or
+`critical`. Each wait is printed, and `Run.progress` redirects it to a host
+app's log. Every run records `retries` and `waitedMs` (backoff plus cooling,
+which `ms` excludes). A document still rate limited after the last attempt is
+recorded with `rateLimited: true`; the scorer reports it as `rateLimited`, a
+cannot-answer that counts in the cannot-answer rate but is neither wrong nor
+failed, and the report has its own column for it.
+
 Results go to `results/fm-<model>-<path>.json`, or `…-greedy.json` for greedy
 sampling. Each result is its first repeat, so the scorer reads it unchanged,
 plus `runs`, every repeat, which the report scores as repeats (stability, and a

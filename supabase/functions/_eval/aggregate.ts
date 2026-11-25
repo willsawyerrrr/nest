@@ -35,28 +35,30 @@ interface Line {
 function figures(docs: CorpusDoc[], engine: EngineResults): string[] {
   const kind = docs[0].kind
   if (kind === 'other') {
-    let [negatives, declined, failed] = [0, 0, 0]
+    let [negatives, declined, failed, limited] = [0, 0, 0, 0]
     for (const extractor of EXTRACTORS) {
       const outcomes = outcomesFor(docs, engine, extractor)
       const stats = declineStats(outcomes)
       negatives += stats.negatives
       declined += stats.declinedNegatives
-      failed += summarise(outcomes).failed
+      const summary = summarise(outcomes)
+      failed += summary.failed
+      limited += summary.rateLimited
     }
-    return ['-', `declined ${percent(declined, negatives)}`, '-', String(failed)]
+    return ['-', `declined ${percent(declined, negatives)}`, '-', `${failed}, ${limited}`]
   }
   const summary = summarise(outcomesFor(docs, engine, kind))
   return [
     percent(summary.correctWeight, summary.weight),
     '-',
     `${summary.wrongConfident}/${summary.filled}`,
-    String(summary.failed),
+    `${summary.failed}, ${summary.rateLimited}`,
   ]
 }
 
 /**
  * One table per engine: a row per stratum with its document count, impact-weighted accuracy,
- * decline rate (non-documents), wrong-but-confident over filled fields and failed runs.
+ * decline rate (non-documents), wrong-but-confident over filled fields, and failed and rate-limited runs.
  */
 export function aggregateReport(
   docs: CorpusDoc[],
@@ -83,7 +85,7 @@ export function aggregateReport(
     }
     out.push(
       `### ${engine.engine}\n`,
-      '| Stratum | Documents | Accuracy | Non-documents | Wrong but confident | Failed |',
+      '| Stratum | Documents | Accuracy | Non-documents | Wrong but confident | Failed, rate limited |',
       '| -- | -- | -- | -- | -- | -- |',
     )
     for (const line of lines) {

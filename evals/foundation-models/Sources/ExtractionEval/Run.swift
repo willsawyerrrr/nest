@@ -36,6 +36,9 @@ enum Run {
   /// Whether the process has generated yet; the first generation pays model load and warm-up.
   nonisolated(unsafe) private static var generated = false
 
+  /// Where waits and progress lines go; a host app sets this to show them in its own log.
+  nonisolated(unsafe) static var progress: (String) -> Void = { print($0) }
+
   static func run(
     dir: URL, path: InputPath, model: ModelChoice, sampling: Sampling, repeats: Int, only: Set<String>, cross: Bool = false,
     progress: (@Sendable (DocumentProgress) -> Void)? = nil
@@ -60,20 +63,26 @@ enum Run {
         let thermal = Device.thermalState
         let started = ContinuousClock.now
         var result = RunResult(ms: 0)
-        do {
-          if let reason = Pages.unreadable(files.appending(path: "\(doc.id).pdf")) {
-            result.unreadable = reason
-          } else {
-            let (raw, tokens) = try await extract(
-              doc, kind: kind, path: path, model: model, sampling: sampling, dir: dir)
+        if let reason = Pages.unreadable(files.appending(path: "\(doc.id).pdf")) {
+          result.unreadable = reason
+        } else {
+          let attempt = await Retry.perform(label: "\(doc.id):\(kind)#\(repeatIndex)", progress: Run.progress) {
+            try await extract(doc, kind: kind, path: path, model: model, sampling: sampling, dir: dir)
+          }
+          result.retries = attempt.stats.retries
+          result.waitedMs = attempt.stats.waitedMs
+          result.rateLimited = attempt.rateLimited
+          switch attempt.result {
+          case .success(let (raw, tokens)):
             result.raw = raw
             result.promptTokens = tokens
+          case .failure(let error):
+            result.error = describe(error)
           }
-        } catch {
-          result.error = describe(error)
         }
         let elapsed = ContinuousClock.now - started
-        result.ms = Int(elapsed.components.seconds * 1000 + elapsed.components.attoseconds / 1_000_000_000_000_000)
+        result.ms = max(
+          0, Int(elapsed.components.seconds * 1000 + elapsed.components.attoseconds / 1_000_000_000_000_000) - result.waitedMs)
         var json = result.json
         json["repeat"] = repeatIndex
         json["sampling"] = sampling.rawValue
@@ -83,7 +92,8 @@ enum Run {
         json.merge(device) { $1 }
         runs.append(json)
         print(
-          "\(doc.id):\(kind)#\(repeatIndex)", result.error ?? result.unreadable.map { "unreadable(\($0))" } ?? "ok", "\(result.ms)ms", timing, thermal,
+          "\(doc.id):\(kind)#\(repeatIndex)", result.rateLimited ? "rate_limited" : result.error ?? result.unreadable.map { "unreadable(\($0))" } ?? "ok", "\(result.ms)ms", timing, thermal,
+          result.retries > 0 || result.waitedMs > 0 ? "\(result.retries) retries, waited \(result.waitedMs)ms" : "",
           result.promptTokens.map { "\($0) tokens" } ?? "")
       }
       // The first repeat is the result the scorer reads; `runs` holds every repeat.

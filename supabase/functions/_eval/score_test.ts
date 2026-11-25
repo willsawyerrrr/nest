@@ -92,7 +92,7 @@ Deno.test('the report lists one row per engine and extractor', () => {
   }])
   assertEquals(table.split('\n').length, 3)
   assertEquals(
-    table.includes('| stub | deduction | 3/3 (100%) | 3/3 (100%) | 0 | 0/1 | 5 | 300 |'),
+    table.includes('| stub | deduction | 3/3 (100%) | 3/3 (100%) | 0 | 0/1 | 0/1 | 5 | 300 |'),
     true,
   )
 })
@@ -409,4 +409,31 @@ Deno.test("runRecordsReport lists each run's hardware, OS, corpus hash and arm s
       '  - arms: fm-pcc failed (pcc unavailable); fm-device completed',
     ].join('\n'),
   )
+})
+
+Deno.test('a rate-limited run answers nothing and is a cannot-answer, not a failed or wrong one', () => {
+  const doc = receipt('receipt-1')
+  const limited = outcomeOf(doc, 'deduction', {
+    error: 'rate limited',
+    rateLimited: true,
+    retries: 4,
+    waitedMs: 31000,
+    ms: 40,
+  })
+  assertEquals(limited.status, 'rateLimited')
+  assertEquals(limited.fields.every((u) => u.cls === 'missing' && !u.filled), true)
+  const summary = summarise([limited])
+  assertEquals([summary.failed, summary.rateLimited, summary.wrongConfident], [0, 1, 0])
+  const other = find('other-letter')
+  const limitedOther = outcomeOf(other, 'payslip', { rateLimited: true, ms: 1 })
+  assertEquals(declineStats([limitedOther]).negatives, 0)
+})
+
+Deno.test('the report counts a rate-limited run apart from a failed one', () => {
+  const doc = receipt('receipt-1')
+  const engine = {
+    engine: 'e',
+    results: { [resultKey(doc.id, 'deduction')]: { rateLimited: true, error: 'x', ms: 1 } },
+  }
+  assertEquals(report([doc], [engine]).includes('| 0/1 | 1/1 |'), true)
 })

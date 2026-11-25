@@ -149,6 +149,20 @@ instance and can also be run locally.
   allowance, and `commit_planning_changes` is held to the same policy;
   no function exposes the drawn totals; a released line is an ordinary shared
   line; and the owner role still reads every line.
+- `spend_allocation.sql` — the assertions for where spend counts: a member's
+  choice beats every rule, rules resolve under the version in force at a
+  transaction's posting time (an edit, a reorder, or a retirement from now
+  leaves earlier transactions as they were; a backdated edit moves them), first
+  match by order, then the default item or, from a member's own account, their
+  allowance; the household's real cases (rent by payee and amount, water and
+  electricity by saver or note, gym, groceries plus a servo choice, gifts by
+  category with charity sent to Not budgeted); `preview_spend_rule` reporting
+  what a backdate would move and changing nothing; pending and settled told
+  apart, transfers and uncategorised income left out, refunds netting off; an
+  allocation set following its transaction's amount, held to its spend, and
+  discarded whole with a deleted line; and privacy: a co-member's private
+  account never counts, an allowance rule or choice reads to a co-member as that
+  member's allowance with nothing named, and another household sees nothing.
 - `transaction_review.sql` — the assertions that `review_transaction` is the
   only client write path to `transactions`: members hold no update grant, a note
   is stored trimmed (blank clears, null leaves) and a review stamps the caller's

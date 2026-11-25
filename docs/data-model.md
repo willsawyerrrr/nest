@@ -4,10 +4,12 @@ Relational, stack-agnostic. Amounts are integer minor units (cents), stored in
 `bigint` columns. Financial years are AU FYs (1 Jul – 30 Jun), labelled by their
 ending year. Row-Level Security is the isolation boundary: every table is scoped
 to a `household_id`, and a member sees or changes only rows in a household they
-belong to. Five tables narrow that further: `accounts` limits which account
+belong to. Several tables narrow that further: `accounts` limits which account
 identities a member reads, `account_balance` and `transactions` add per-account
 balance privacy (a co-member's balances and spend are not visible),
-`gift_purchase` withholds the spend on gifts meant for the caller, and
+`gift_purchase` withholds the spend on gifts meant for the caller, `budget_line`,
+`spend_rule`, `spend_rule_version`, and `transaction_allocation` withhold what
+is drawn from or sent to a co-member's allowance, and
 `push_subscription` and `apns_device` are own-member-only (see the security model in
 [`architecture.md`](architecture.md#security)). Cross-household references are
 additionally blocked by composite foreign keys on `(id, household_id)`.
@@ -37,6 +39,14 @@ and so without the trigger.
     columnless set-null on this FK would also target the `households.id` half of
     the reference. Written only through the `set_household_pay_account` RPC (see
     RPCs), not a broad households update.
+  - `default_budget_line_id` (nullable) — the **default item**: the budget line
+    spend counts toward when no member choice, rule, or suggestion places it and
+    it is not from a member's own account (see [Spend allocation](#spend-allocation));
+    null counts such spend as Not budgeted. A composite FK
+    `(default_budget_line_id, id) → budget_line (id, household_id)`,
+    `on delete set null (default_budget_line_id)`. Written through
+    `set_household_default_budget_line`, which refuses a line drawn from an
+    allowance.
 - **members** — a person in a household, linked to an auth user.
   - `id`, `household_id`, `user_id` (→ `auth.users`), `name`, `email`
     (nullable), `date_of_birth` (date, nullable), `up_connected_at` (nullable),
@@ -1131,12 +1141,87 @@ null; Up's own taxonomy is mirrored in `up_category`.
     (nullable: null counts the category toward no group), `updated_at`. No row
     falls back to `up_category_default_group`.
   - Household-wide RLS; members manage every row.
+  - The Budget tab's group-level actuals read it; per-item actual spend is
+    [Spend allocation](#spend-allocation).
 - **up_webhook** — the Up webhook each connected member registered.
   - `member_id` (primary key, `on delete cascade` from `members`), `webhook_id`
     (Up's id, for replacing or deleting it), `created_at`. Its secret lives in
     Vault, never here.
   - Server-only: no `authenticated` grant or policy; `service_role` holds
     `select` and writes through `store_up_webhook` / `clear_up_webhook`.
+
+## Spend allocation
+
+Where each transaction's spend counts: a **target**, which is a budget line
+(`target_kind = 'budget_line'`), a member's allowance (`'allowance'`, keyed by
+`allowance_member_id`), or Not budgeted (`'not_budgeted'`). Resolution, first
+that applies:
+
+1. a member's choice, or a suggestion a member confirmed (`transaction_allocation`);
+2. the household's rules, under the rule versions in force at the transaction's
+   `posted_at`, first match by `sort_order`;
+3. an unconfirmed suggestion (`transaction_allocation`);
+4. the default: spend from an account a member owns counts toward that member's
+   allowance, anything else toward `households.default_budget_line_id`, or Not
+   budgeted while it is null.
+
+Only choices and suggestions are stored. Rule and default resolution is computed
+live by `spend_resolution` (see RPCs), a pure function of the transaction, the
+rule versions, and the default item, so a transaction that settles, is
+re-priced, or gains a note re-resolves on the next read with nothing to
+re-check or keep in step. Versioning keeps that stable: every rule change applies
+from a moment on, so earlier transactions keep resolving as they did. A spend
+transaction is any but `kind = 'transfer'`, except uncategorised income; pending
+ones count.
+
+- **spend_rule** — a household rule's identity and target.
+  - `id`, `household_id`, `target_kind`, `budget_line_id` (nullable, composite
+    FK → `budget_line`, `on delete cascade`), `allowance_member_id` (nullable,
+    composite FK → `member_allowance (member_id, household_id)`,
+    `on delete cascade`), `created_at`. `spend_rule_target` holds each kind to
+    its own column. The target is fixed: sending a rule's matches elsewhere is a
+    new rule, the old one retired from the same moment.
+- **spend_rule_version** — a rule's conditions and order over time.
+  - `rule_id`, `version` (together the primary key; numbers only grow),
+    `household_id`, `valid_from`, `valid_until` (nullable; in force on
+    `[valid_from, valid_until)`, at most one open version per rule — its current
+    one), `sort_order` (ascending, ties broken by the rule's `created_at`),
+    `created_at`, and the conditions, ANDed, at least one set
+    (`spend_rule_version_condition`):
+    `description_pattern` + `description_match` (`contains` | `equals`,
+    case-insensitive, on the description — the payee Up shows; Up exposes no
+    counterparty BSB or account), `up_category_ids` (`text[]`, the Up category
+    is one of), `account_ids` (`uuid[]`, the account is one of), `amount_cents`
+    (exact) or `amount_min_cents` / `amount_max_cents` (inclusive range), all
+    positive and compared with the transaction's absolute amount so a refund
+    matches the rule its purchase did, and `text_pattern` (contained,
+    case-insensitively, in `up_message`, `up_note`, or `notes`). Patterns are
+    stored trimmed.
+- **transaction_allocation** — member choices and suggestions.
+  - `id`, `household_id`, `transaction_id` (composite FK → `transactions`,
+    `on delete cascade`), `target_kind`, `budget_line_id`, `allowance_member_id`
+    (as on `spend_rule`, both `on delete cascade`), `amount_cents`, `origin`
+    (`member_choice` | `confirmed_suggestion` | `suggestion`), `member_id`
+    (nullable: who chose or confirmed; null for an unconfirmed suggestion),
+    `created_at`.
+  - One set per transaction, of one origin, its rows the spend's sign and
+    summing to the spend (the negated `amount_cents`; a suggestion is a single
+    row): split-capable, though every writer allocates a whole transaction. The
+    `check_transaction_allocation` constraint trigger (deferred) holds this. A
+    set losing any row is discarded whole (`discard_transaction_allocation_set`),
+    so a deleted line or member returns the transaction to rule and default
+    resolution, and a set follows its transaction when the sync re-prices it
+    (`follow_transaction_allocation_amount`, the remainder on its largest row).
+    Nothing writes suggestions yet.
+- **current_spend_rules** (view) — each live rule at its current version: the
+  `spend_rule` columns, the current version's columns, and `first_valid_from`
+  (the earliest posting time it applies to). A plain invoker view.
+- **Privacy.** A rule, or an allocation, targeting an allowance or a line drawn
+  from one is its member's alone: `visible_spend_rule_ids()` (SECURITY DEFINER)
+  gates both rule tables, and `transaction_allocation`'s policy adds the
+  `transactions` and `budget_line` policies. Every table is `select`-only for
+  `authenticated`; writes go through the RPCs, which hold the versioning and
+  allocation invariants.
 
 ## Pay splits
 
@@ -1393,6 +1478,60 @@ that live in Vault:
   `p_include_pending`, grouped by the household's override else the default; a
   null `line_group` is spend in no group. SECURITY INVOKER, so it sums only the
   transactions the caller can see.
+- `set_household_default_budget_line(p_budget_line_id)` — set (or, with null,
+  clear) the caller's household default item; `default_budget_line_invalid`
+  for a line outside the household or drawn from an allowance.
+- `set_transaction_spend_target(p_transaction_id, p_target_kind, p_budget_line_id default null, p_allowance_member_id default null)`
+  — sends the whole of a spend transaction the caller can see to a target as
+  their `member_choice`, replacing any choice or suggestion; a joint-account
+  transaction's choice is shared, the last write winning. Raises
+  `no_data_found` (`transaction not found`), `transaction_not_spend` (a
+  transfer or uncategorised income), or `spend_target_invalid` (a line outside
+  the household or drawn from a co-member's allowance, or any allowance but the
+  caller's own). `clear_transaction_spend_target(p_transaction_id)` removes the
+  choice or confirmed suggestion. Both SECURITY DEFINER, re-applying the
+  `transactions` read predicate.
+- `create_spend_rule(p_target_kind, p_budget_line_id, p_allowance_member_id, p_description_pattern, p_description_match default 'contains', p_up_category_ids, p_account_ids, p_amount_cents, p_amount_min_cents, p_amount_max_cents, p_text_pattern, p_apply_from date)`
+  → `uuid` — a rule at the end of the order. `update_spend_rule(p_rule_id, <the
+  conditions>, p_apply_from)` → `integer` (the new version) replaces a live
+  rule's conditions, keeping its place. `delete_spend_rule(p_rule_id,
+  p_apply_from)` retires it; one retired from before it first applied is
+  removed. Each applies from now, or with `p_apply_from` from the start of that
+  local day (backdating, re-resolving the transactions posted since):
+  versions starting at or after that moment are superseded, the one spanning
+  it ends there. `reorder_spend_rules(p_rule_ids uuid[])` orders every live rule
+  the caller can see, from now; the rules share out the `sort_order` slots they
+  already hold, so a co-member's private rules keep their places, and only a
+  moved rule gains a version. Errors: `spend_target_invalid`,
+  `spend_rule_condition_required`, `spend_rule_amount_invalid`,
+  `spend_rule_account_invalid` (an account the caller cannot name),
+  `spend_rule_apply_from_future`, `spend_rule_not_found`, `spend_rule_retired`,
+  `spend_rule_order_mismatch`. A rule may target only the caller's own
+  allowance.
+- `spend_resolution(p_start date default null, p_end date default null, p_transaction_ids uuid[] default null)`
+  → `(transaction_id, posted_at, status, target_kind, budget_line_id,
+  allowance_member_id, amount_cents, reason, rule_id, rule_version)` — one row
+  per allocation of every spend transaction the caller can see (posted on local
+  dates `p_start`..`p_end` and among `p_transaction_ids` when given), with
+  `amount_cents` positive spend (a refund negative) and `reason`
+  (`member_choice` | `confirmed_suggestion` | `rule` | `suggestion` |
+  `default`, the rule and version for `rule`). SECURITY DEFINER so a joint
+  transaction resolves alike for both partners under every rule, a co-member's
+  private ones included; it re-applies the `transactions` read predicate, and a
+  target private to a co-member reads as `allowance` with their member id and no
+  line, rule, or version.
+- `actual_spend_by_target(p_start date, p_end date)` → `(target_kind,
+  budget_line_id, allowance_member_id, status, spent_cents, transaction_count)`
+  — `spend_resolution` summed per target and status (pending apart from
+  settled). SECURITY INVOKER.
+- `preview_spend_rule(p_rule_id, p_target_kind, p_budget_line_id, p_allowance_member_id, <the conditions>, p_apply_from, p_retire default false)`
+  → `(transaction_id, posted_at, status, amount_cents, from_target_kind,
+  from_budget_line_id, from_allowance_member_id, from_reason, to_target_kind,
+  to_budget_line_id, to_allowance_member_id, to_reason, to_rule_id)` — applies a
+  create (no `p_rule_id`), edit (`p_rule_id`), or retirement (`p_retire`) exactly
+  as the RPC would, reads the resolution of each transaction posted since it
+  applies, rolls it back, and returns those whose target would change. Only a
+  backdated change returns rows. Raises what the change would.
 - `reconcile_source_accounts(household_id, owner_member_id, source, present_external_ids text[])`
   — the `up-sync` / `redbark-sync` per-member account reconcile: over one
   member's individually-owned accounts of the given `source`, clears
@@ -1500,6 +1639,9 @@ described under [Gift tables](#gift-tables).
 - Tax estimate: the tax engine over each member's `tax_profile`, `help_debt`,
   `deduction` rows, concessional `super_contribution` rows, and taxable inflows
   for a financial year.
-- Actual spend vs plan: `budget_actual_spend` over `transactions`, each Up
+- Where each transaction's spend counts, and per-target actual spend:
+  `spend_resolution` and `actual_spend_by_target` over `transactions`, the rule
+  versions, and the allocations.
+- Actual spend vs plan per group: `budget_actual_spend` over `transactions`, each Up
   category's spend grouped by `up_category_group` else `up_category_default_group`,
   for one pay-cycle fortnight (`payCycleAnchor` / `spendFortnight` in `@nest/plan`).

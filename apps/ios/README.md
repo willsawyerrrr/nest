@@ -9,11 +9,10 @@ though no route uses one; the native app owns the Supabase session and mirrors
 it into that web view. See [`docs/ios.md`](../../docs/ios.md) for the design and
 [`docs/native-screens.md`](../../docs/native-screens.md) for the screens.
 
-The `Nest` target is a single iOS codebase built for two destinations — iOS and
-Mac Catalyst — with no source changes between them: the same shell, screens,
-`AuthModel`/Keychain session, and App Intents run on both. The one behavioural
-difference is Siri voice invocation, which macOS does not support for App
-Intents at all (see
+The `Nest` target is the iOS app; `NestMac` is the native macOS app compiled
+from the same sources: the same shell, screens, `AuthModel`/Keychain session,
+and App Intents run on both. The one behavioural difference is Siri voice
+invocation, which macOS does not support for App Intents at all (see
 [`docs/ios.md`](../../docs/ios.md#apple-developer-program)) — the Shortcuts app
 and Spotlight still work on both platforms.
 
@@ -62,13 +61,13 @@ and Spotlight still work on both platforms.
     and only the iOS one receives the APNs token.
   - `NestApp+iOS.swift` / `NestApp+macOS.swift` — the per-platform half of
     `requestNotificationAuthorization()`: iOS registers for remote
-    notifications once authorised (skipped under Mac Catalyst), macOS does
-    nothing.
+    notifications once authorised, macOS does nothing.
   - `Auth+iOS.swift` / `Auth+macOS.swift` — the `UIViewController` /
     `NSWindow` Google Sign-In presenter.
   - `ContentView+iOS.swift` / `ContentView+macOS.swift` — the `Color(light:
     dark:)` initialiser backing `UIColor` / `NSColor`.
-  - `NestiOS.entitlements` — the iOS entitlements, adding `aps-environment`.
+  - `Nest.entitlements` — the iOS entitlements: `aps-environment`, the App
+    Group, and the keychain access group.
   - `ShareBridge.swift` — builds the JavaScript that hands a shared file to the
     page in chunks, and reads the page's acknowledgement.
   - `Engine/Engine.swift` / `Engine/EngineTypes.swift` — the actor running the
@@ -151,22 +150,11 @@ xcodebuild -project apps/ios/Nest.xcodeproj -scheme NestMac \
   -skipPackagePluginValidation -skipMacroValidation CODE_SIGNING_ALLOWED=NO build
 ```
 
-For Mac Catalyst, swap the destination; a CI runner (or any Mac with no
-development team configured) also needs `CODE_SIGNING_ALLOWED=NO`, since
-Catalyst — unlike the Simulator — always signs:
-
-```sh
-xcodebuild -project apps/ios/Nest.xcodeproj -scheme Nest \
-  -destination 'platform=macOS,variant=Mac Catalyst' \
-  -skipPackagePluginValidation -skipMacroValidation CODE_SIGNING_ALLOWED=NO build
-```
-
 Do not pass `SWIFT_EXEC=` — it breaks App Intents metadata extraction.
 
-`xcodebuild test` (with a concrete simulator `-destination`, the same
-Catalyst `-destination` above, or the `NestMac` scheme) runs the `NestTests`
-suite, which passes identically on all three.
-`.github/workflows/ci.yml`'s `build-ios` / `build-catalyst` / `build-macos` jobs do the
+`xcodebuild test` (with a concrete simulator `-destination`, or the `NestMac`
+scheme) runs the `NestTests` suite, which passes identically on both.
+`.github/workflows/ci.yml`'s `build-ios` / `build-macos` jobs do the
 generate + build + test for each on every PR/push that touches
 `apps/ios/**`; both are required checks (see
 [`docs/ios.md`](../../docs/ios.md#ci)).
@@ -199,7 +187,7 @@ either platform.
    fails to invoke an App Shortcut ("Unable to run App Shortcut") whatever the
    code; it is fine for the sign-in flow, the app's screens, and `xcodebuild test`.
 
-A Mac Catalyst build has no simulator equivalent — running it from Xcode (or a
+A `NestMac` build has no simulator equivalent — running it from Xcode (or a
 built `.app`) is already the "real device" case above: the sign-in flow, the App
 Shortcuts, and Spotlight all work the same way they do on an iPhone, except
 Siri voice invocation, which macOS does not support at all (see

@@ -6,8 +6,8 @@
   Auth, auto-generated REST API (PostgREST), Edge Functions (Deno/TypeScript),
   Vault (secrets), and Storage. Hosted in the **Sydney (AU)** region on the
   **Pro** tier (no project pausing; daily backups).
-- **Clients:** native iOS first. The **native SwiftUI app** (`apps/ios`: iOS,
-  Mac Catalyst and macOS) is the primary client and renders every screen
+- **Clients:** native iOS first. The **native SwiftUI app** (`apps/ios`: iOS and
+  macOS) is the primary client and renders every screen
   natively; every feature is built for iOS, with Mac alongside or next. A
   **React PWA** (TypeScript) serves the web on the same backend and RLS; it gets
   no new work, and anything it needs is filed as a backlog issue. See
@@ -645,25 +645,24 @@ the workflow token is scoped `contents: read`:
 - **functions** — Deno `fmt --check` / `lint` / `check` / `test` over
   `supabase/functions` (the edge functions live outside the pnpm workspace, with
   their own Deno harness).
-- **build-ios** / **build-catalyst** / **build-macos** — `macos-latest` runners; `xcodegen
+- **build-ios** / **build-macos** — `macos-latest` runners; `xcodegen
   generate` then `xcodebuild build` (which runs `appintentsmetadataprocessor`,
   validating every App Shortcut phrase) then `xcodebuild test`, for the iOS
-  Simulator, Mac Catalyst, and native macOS (`NestMac` scheme) destinations
-  respectively. Gated on a `changes`
+  Simulator and native macOS (`NestMac` scheme) destinations respectively. Gated on a `changes`
   job (`dorny/paths-filter`, `apps/ios/**` or `ci.yml` itself) rather than a
   workflow-level path filter, so they still report a definitive `skipped` — not
   silence — on a PR that leaves `apps/ios/` untouched; `ci-status` treats that
-  `skipped` as a pass for these three jobs only. See
+  `skipped` as a pass for these two jobs only. See
   [`ios.md`](ios.md#ci).
 
 A `ci-status` job `needs` every other job (`check`, `test-shard`, `test`,
-`functions`, `rls`, `changes`, `build-ios`, `build-catalyst`, `build-macos`) and is the single
+`functions`, `rls`, `changes`, `build-ios`, `build-macos`) and is the single
 check the `Protect main` ruleset requires (the ruleset also requires a pull
 request, squash merges only, and blocks force pushes and deletion; admins
 bypass); it fails on any non-`success` result from
 `check` / `test-shard` / `test` / `functions` / `rls` / `changes`, and on any
-result from `build-ios` / `build-catalyst` / `build-macos` other than `success` or `skipped`.
-Unlike the four Linux jobs, `build-ios`, `build-catalyst` and `build-macos` run on macOS
+result from `build-ios` / `build-macos` other than `success` or `skipped`.
+Unlike the four Linux jobs, `build-ios` and `build-macos` run on macOS
 runners several minutes slower than the rest of the pipeline; there is no fixed
 time budget across the whole workflow, only the expectation that the four
 always-run jobs stay fast and that an iOS-touching PR accepts the macOS build

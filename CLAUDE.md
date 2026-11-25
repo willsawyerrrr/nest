@@ -9,15 +9,13 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
 ## Fixed scope decisions
 
 - Platform priority: Nest is native iOS first. Every feature is built for the
-  native iOS app (`apps/ios`). Native Mac (Mac Catalyst and `NestMac`) ships
+  native iOS app (`apps/ios`). Native Mac (`NestMac`) ships
   alongside iOS or as the next piece of work. The PWA gets no new work: any
   change it would need is filed as a backlog issue in the Nest Linear project,
   not built.
 - Platform: two clients over one backend. The native app (`apps/ios`: the `Nest`
-  target is one codebase built for two destinations — iOS and Mac Catalyst, via
-  `project.yml`'s `supportedDestinations: [iOS, macCatalyst]` — and `NestMac` is
-  a native AppKit/SwiftUI macOS target compiled from the same sources, with its
-  own macOS share extension) is a SwiftUI app: a navigation shell (burger menu
+  target is the iOS app, and `NestMac` is a native AppKit/SwiftUI macOS target
+  compiled from the same sources, with its own macOS share extension) is a SwiftUI app: a navigation shell (burger menu
   and drawer on iPhone, persistent sidebar on iPad and Mac, both the PWA's
   collapsible nav groups) over a route registry (`Route.swift`) whose every route
   is a native screen. Native screens (Summary, Budget, Allowance, Breakdowns, Goals, Payslips, Deductions, Planning mode, Wishlist, Tax estimate, EOFY, Inflows, Gifts, Pay splits, Members, Household, Connections, Notifications, What's new, Equity, Net worth, Accounts, Super, Investments, HELP debt, Transactions and Transaction review) follow
@@ -1329,9 +1327,9 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
 - The four Linux jobs (`check`, `test`, `rls`, `functions`) must stay fast —
   each targets well under a minute. If one regresses noticeably, diagnosing and
   reducing its time takes priority over other work. `build-ios` /
-  `build-catalyst` / `build-macos` (macOS runners, gated to PRs touching
-  `apps/ios/**`) are the exception: an Xcode build and test run is inherently
-  several minutes, and there is no fixed time budget for them. All seven are aggregated by a
+  `build-macos` (macOS runners, gated to PRs touching `apps/ios/**`) are the
+  exception: an Xcode build and test run is inherently several minutes, and
+  there is no fixed time budget for them. All six are aggregated by a
   `ci-status` job that is the single required `CI Status` check, so overall
   wall-clock is the slowest single job, not the sum; the job/coverage/shard
   specifics are canonical in [`docs/architecture.md`](docs/architecture.md#ci).

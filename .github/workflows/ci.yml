@@ -111,11 +111,10 @@ jobs:
       # in deno.json alongside the other function commands.
       - run: deno task test
 
-  # Whether this push/PR touches the native app, so `build-ios`,
-  # `build-catalyst` and `build-macos` below can still report a definitive
-  # result (`skipped` counts as passing) on every run rather than being gated
-  # at the workflow level, which would leave `ci-status` waiting forever on a
-  # check that never started.
+  # Whether this push/PR touches the native app, so `build-ios` and
+  # `build-macos` below can still report a definitive result (`skipped` counts
+  # as passing) on every run rather than being gated at the workflow level,
+  # which would leave `ci-status` waiting forever on a check that never started.
   changes:
     runs-on: ubuntu-latest
     permissions:
@@ -190,53 +189,6 @@ jobs:
             -destination "id=${{ steps.sim.outputs.udid }}" \
             -skipPackagePluginValidation \
             -skipMacroValidation \
-            test
-
-  build-catalyst:
-    needs: [changes]
-    if: ${{ needs.changes.outputs.ios == 'true' }}
-    runs-on: macos-latest
-    defaults:
-      run:
-        working-directory: apps/ios
-    steps:
-      - uses: actions/checkout@v7
-      - uses: willsawyerrrr/platform/.github/actions/xcode-cache@main
-      - uses: willsawyerrrr/platform/.github/actions/load-op-environment@main
-        with:
-          service-account-token: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-          environments: ${{ vars.OP_ENVIRONMENT_IDS }}
-
-      - name: Install XcodeGen
-        run: brew install xcodegen
-
-      - name: Generate the Xcode project
-        run: xcodegen generate
-
-      # A runner carries no development team, so signing is off for this
-      # build-and-test-only run — nothing here is installed anywhere. This
-      # still runs appintentsmetadataprocessor (see `build-ios`'s comment), so
-      # a bad App Shortcut phrase fails here too.
-      - name: Build for Mac Catalyst (validates App Intents metadata)
-        run: |
-          xcodebuild \
-            -project Nest.xcodeproj \
-            -scheme Nest \
-            -destination 'platform=macOS,variant=Mac Catalyst' \
-            -skipPackagePluginValidation \
-            -skipMacroValidation \
-            CODE_SIGNING_ALLOWED=NO \
-            build
-
-      - name: Test
-        run: |
-          xcodebuild \
-            -project Nest.xcodeproj \
-            -scheme Nest \
-            -destination 'platform=macOS,variant=Mac Catalyst' \
-            -skipPackagePluginValidation \
-            -skipMacroValidation \
-            CODE_SIGNING_ALLOWED=NO \
             test
 
   build-macos:
@@ -366,11 +318,10 @@ jobs:
   ci-status:
     name: CI Status
     if: ${{ always() }}
-    needs:
-      [check, test-shard, test, functions, rls, changes, build-ios, build-catalyst, build-macos]
+    needs: [check, test-shard, test, functions, rls, changes, build-ios, build-macos]
     runs-on: ubuntu-latest
     steps:
-      # `build-ios` / `build-catalyst` / `build-macos` are gated on `changes.outputs.ios`
+      # `build-ios` / `build-macos` are gated on `changes.outputs.ios`
       # (see that job's comment), so `skipped` is a pass for those two only —
       # every other job runs unconditionally and must actually succeed.
       - name: Verify all required jobs succeeded
@@ -394,6 +345,5 @@ jobs:
           require_success rls "${{ needs.rls.result }}"
           require_success changes "${{ needs.changes.result }}"
           require_success_or_skipped build-ios "${{ needs.build-ios.result }}"
-          require_success_or_skipped build-catalyst "${{ needs.build-catalyst.result }}"
           require_success_or_skipped build-macos "${{ needs.build-macos.result }}"
           echo "all required jobs succeeded"

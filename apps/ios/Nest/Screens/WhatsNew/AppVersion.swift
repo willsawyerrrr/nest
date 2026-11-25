@@ -39,7 +39,7 @@ struct LatestRelease: Equatable, Sendable {
 
 /// How the app is distributed, and so where a newer version is looked up.
 enum UpdateChannel: Sendable {
-    /// iOS and Mac Catalyst.
+    /// The iOS app.
     case appStore
     /// The native macOS app, installed from the `willsawyerrrr/tap` cask.
     case homebrew

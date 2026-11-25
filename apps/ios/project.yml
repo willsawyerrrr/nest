@@ -24,7 +24,7 @@ settings:
 targets:
   Nest:
     type: application
-    supportedDestinations: [iOS, macCatalyst]
+    supportedDestinations: [iOS]
     deploymentTarget:
       iOS: '17.0'
     sources:
@@ -41,9 +41,7 @@ targets:
       - package: GoogleSignIn
         product: GoogleSignIn
       - target: ShareExtension
-      # iOS only: Mac Catalyst receives no APNs pushes to expand.
       - target: NotificationContent
-        destinationFilters: [iOS]
     info:
       path: Nest/Info.plist
       properties:
@@ -77,13 +75,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: dev.willsawyerrrr.nest
         PRODUCT_NAME: Nest
         ENABLE_PREVIEWS: true
-        # Without this, Keychain writes — the PKCE code verifier included —
-        # fail silently with errSecMissingEntitlement (-34018) on Mac
-        # Catalyst, which macOS enforces far more strictly here than iOS.
         CODE_SIGN_ENTITLEMENTS: Nest/Nest.entitlements
-        # Only iOS carries the push entitlement: Mac Catalyst keys it differently
-        # and does not receive APNs.
-        CODE_SIGN_ENTITLEMENTS[sdk=iphone*]: Nest/NestiOS.entitlements
         # The household's Apple Developer team — resolving
         # `$(AppIdentifierPrefix)` in Nest.entitlements needs one. CI builds
         # with `CODE_SIGNING_ALLOWED=NO` and never reaches this.
@@ -93,7 +85,7 @@ targets:
   # App Group inbox the app reads on its next foreground.
   ShareExtension:
     type: app-extension
-    supportedDestinations: [iOS, macCatalyst]
+    supportedDestinations: [iOS]
     deploymentTarget:
       iOS: '17.0'
     sources:
@@ -213,7 +205,7 @@ targets:
         GENERATE_INFOPLIST_FILE: true
 
   # The native Mac app: the same shell, sign-in, and App Intents sources as
-  # `Nest`, built for macOS (AppKit) rather than Catalyst.
+  # `Nest`, built for macOS (AppKit).
   NestMac:
     type: application
     platform: macOS
@@ -223,7 +215,6 @@ targets:
         excludes:
           - Info.plist
           - Nest.entitlements
-          - NestiOS.entitlements
           - Auth+iOS.swift
           - ContentView+iOS.swift
           - NestAppDelegate+iOS.swift

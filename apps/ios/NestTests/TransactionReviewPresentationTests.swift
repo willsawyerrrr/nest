@@ -42,10 +42,23 @@ import Testing
         #expect(row.title == "Cafe Lune")
         #expect(row.category == "Good Life › Restaurants & Cafes")
         #expect(row.pending)
-        #expect(!row.reviewed && row.categorisable && !row.isGift)
+        #expect(!row.reviewed && !row.flaggedWrong && row.categorisable && !row.isGift)
         #expect(row.upNote == "Brunch")
         #expect(row.upMessage == nil)
         #expect(row.deepLink == URL(string: "up://transaction/t1"))
+    }
+
+    @Test func marksAFlaggedCategoryOnlyWhileItAwaitsReview() throws {
+        let flagged = TransactionReviewPresentation.row(
+            try transaction(ReviewFixtures.transaction("t1", flaggedAt: "2026-11-21T00:00:00Z")),
+            categories: categories, accountName: nil)
+        #expect(flagged.flaggedWrong && !flagged.reviewed)
+        let reviewed = TransactionReviewPresentation.row(
+            try transaction(
+                ReviewFixtures.transaction(
+                    "t2", reviewedAt: "2026-11-22T00:00:00Z", flaggedAt: "2026-11-21T00:00:00Z")),
+            categories: categories, accountName: nil)
+        #expect(!reviewed.flaggedWrong)
     }
 
     @Test func namesAnUnnamedUncategorisedGiftPlainly() throws {

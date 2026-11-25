@@ -2567,6 +2567,8 @@ export type Database = {
         Row: {
           account_id: string
           amount_cents: number
+          category_flagged_wrong_at: string | null
+          category_flagged_wrong_by_member_id: string | null
           category_id: string | null
           created_at: string
           deep_link_url: string | null
@@ -2596,6 +2598,8 @@ export type Database = {
         Insert: {
           account_id: string
           amount_cents: number
+          category_flagged_wrong_at?: string | null
+          category_flagged_wrong_by_member_id?: string | null
           category_id?: string | null
           created_at?: string
           deep_link_url?: string | null
@@ -2624,6 +2628,8 @@ export type Database = {
         Update: {
           account_id?: string
           amount_cents?: number
+          category_flagged_wrong_at?: string | null
+          category_flagged_wrong_by_member_id?: string | null
           category_id?: string | null
           created_at?: string
           deep_link_url?: string | null
@@ -2669,6 +2675,13 @@ export type Database = {
             columns: ['account_id', 'household_id']
             isOneToOne: false
             referencedRelation: 'accounts_with_balance'
+            referencedColumns: ['id', 'household_id']
+          },
+          {
+            foreignKeyName: 'transactions_category_flagged_wrong_by_member_id_fkey'
+            columns: ['category_flagged_wrong_by_member_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'members'
             referencedColumns: ['id', 'household_id']
           },
           {
@@ -3118,6 +3131,45 @@ export type Database = {
         Returns: undefined
       }
       fail_up_token: { Args: { p_member_id: string }; Returns: undefined }
+      flag_transaction_category: {
+        Args: { p_transaction_id: string }
+        Returns: {
+          account_id: string
+          amount_cents: number
+          category_flagged_wrong_at: string | null
+          category_flagged_wrong_by_member_id: string | null
+          category_id: string | null
+          created_at: string
+          deep_link_url: string | null
+          description: string
+          external_category: string | null
+          external_category_since: string
+          external_id: string | null
+          external_parent_category: string | null
+          household_id: string
+          id: string
+          is_categorizable: boolean | null
+          kind: Database['public']['Enums']['transaction_kind']
+          member_id: string | null
+          notes: string | null
+          performing_customer_name: string | null
+          posted_at: string
+          reviewed_at: string | null
+          reviewed_by_member_id: string | null
+          source: Database['public']['Enums']['ledger_source']
+          status: Database['public']['Enums']['transaction_status']
+          transaction_type: string | null
+          up_message: string | null
+          up_note: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: '*'
+          to: 'transactions'
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       hidden_gift_budget_ids_for_current_member: {
         Args: Record<PropertyKey, never>
         Returns: string[]
@@ -3280,6 +3332,8 @@ export type Database = {
         Returns: {
           account_id: string
           amount_cents: number
+          category_flagged_wrong_at: string | null
+          category_flagged_wrong_by_member_id: string | null
           category_id: string | null
           created_at: string
           deep_link_url: string | null

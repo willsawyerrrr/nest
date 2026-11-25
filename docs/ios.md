@@ -486,13 +486,21 @@ with Web Push (see [`architecture.md`](architecture.md#push-notifications)).
   action the payload cannot route (no `url`, or an empty `transactionId` for the
   dismiss action) is ignored. `transaction_review` (sent for
   `transaction_review`, with the transaction's id as `transactionId`) offers
-  **Looks right**, which also needs the device unlocked and runs without opening
-  the app: `TransactionReviewMarker` calls `review_transaction` with no note,
-  the review screen's Looks right write, leaving the note and category.
+  **Looks right** and **Wrong category** (destructive), both needing the device
+  unlocked and running without opening the app, from the collapsed
+  notification's long-press and the expanded view alike. Looks right has
+  `TransactionReviewMarker` call `review_transaction` with no note, the review
+  screen's Looks right write, leaving the note and category and clearing any
+  wrong-category flag. Wrong category calls `flag_transaction_category`, which
+  flags the category wrong without changing it and leaves the transaction
+  unreviewed: it stays in To review, marked **Wrong category**, until its
+  category is changed in the app (on the native or PWA review screen, or the
+  Transactions list) or it is confirmed there with Looks right. The notification
+  never changes a category, and ignoring it leaves the transaction unreviewed.
   Expanding the notification shows the
-  [notification content extension](#notification-content-extension)'s category
-  picker, and a plain tap still opens the review screen on the transaction. A
-  Looks right without a uuid `transactionId` is ignored. `NotificationResponse`
+  [notification content extension](#notification-content-extension), and a
+  plain tap still opens the review screen on the transaction. A review action
+  without a uuid `transactionId` is ignored. `NotificationResponse`
   maps an action identifier and payload to what the delegate does. Mac Catalyst
   receives no APNs pushes to act on, and `NestMac` registers no categories.
   Notifications that arrive in the foreground are shown as banners. The delegate
@@ -513,22 +521,18 @@ with Web Push (see [`architecture.md`](architecture.md#push-notifications)).
 `NotificationContent/` (bundle `dev.willsawyerrrr.nest.notification-content`,
 iOS only — Mac Catalyst receives no APNs pushes, so `Nest` embeds it under a
 `destinationFilters: [iOS]` dependency) is a Notification Content Extension for
-the `transaction_review` category. Expanding a review notification shows the
-transaction's current category and Up's categories grouped by parent, the same
-`UpCategories.groups` list the review screen's picker uses, with the current
-one checked. Picking one runs `NotificationRecategoriser.review`, the review
-screen's writes: `up-categorise` with the new category (Uncategorised clears
-it), then `review_transaction` with no note. Picking the current category only
-marks the transaction reviewed. Any failure, `save_failed` included, leaves the
-transaction unreviewed and shows the review screen's copy for its code
-(`ReviewFailure.message`), with **Try again** (back to the list) and **Open in
-Nest** (`performNotificationDefaultAction`, opening the review screen). A pick
-that saved shows its done state in place, and a Looks right tapped afterwards
-just dismisses; before a pick, Looks right is forwarded to the app.
-`RecategoriseModel` holds that state and is compiled into the app too, so
-`NestTests` covers it; the extension compiles only the data-layer files it needs
-(`SupabaseConfig`, `Data/Models`, `Data/TaxModels`, `Data/NestError`,
-`Data/SupabaseAPI`) and the review files, listed in `project.yml`.
+the `transaction_review` category. Expanding a review notification shows its
+title (merchant and amount) and the transaction's current Up category, read
+live by `ReviewNotificationLoader` (labelled by `UpCategories.label`), with
+whether it is reviewed or already flagged wrong, or the reason it could not be
+read. It offers no controls of its own: the category's **Looks right** and
+**Wrong category** actions sit beneath it, and the extension does not handle
+them, so the system forwards both to the app (see
+[Actions](#push-notifications)). `ReviewNotificationModel` holds the view's
+state and is compiled into the app too, so `NestTests` covers it; the extension
+compiles only the data-layer files it needs (`SupabaseConfig`, `Data/Models`,
+`Data/TaxModels`, `Data/NestError`, `Data/SupabaseAPI`) and the review files,
+listed in `project.yml`.
 
 **Session.** The app stays the single session owner. The extension's only
 entitlement is `keychain-access-groups` holding the app's default group
@@ -545,8 +549,8 @@ through and drops deletes. Why this shape:
   whole session. An extension that refreshed without writing back would leave
   the app holding the redeemed token, so the app's next refresh would end the
   session. Never refreshing would avoid that, but the access token lasts an hour
-  and the app does not run in the background to keep it fresh, so the picker
-  would fail for almost every notification. The extension therefore writes the
+  and the app does not run in the background to keep it fresh, so reading the
+  category would fail for almost every notification. The extension therefore writes the
   rotated tokens back to the one shared item.
 - **A race with the app cannot lose the session.** Neither process keeps the
   session in memory: `supabase-swift` reads the item for every request and
@@ -679,8 +683,8 @@ the anon key.
   the share inbox (storing, limits, ordering, cleanup), and for
   push registration (token encoding, notification destinations, the register/unregister
   requests, and the registrar's retry behaviour), notification actions and the
-  review notification's category picker (payload parsing, request shapes, and
-  its saved and failed states), money formatting and sign
+  review notification's expanded view (payload parsing, the category read, and
+  its loaded and failed states), money formatting and sign
   colour, the route table and route-to-URL mapping, for the data layer (request
   shapes, error mapping, the row cache and its invalidation, and the model-vs-schema
   drift guard), and for `Engine` (the parity fixtures in `NestTests/Fixtures/`).

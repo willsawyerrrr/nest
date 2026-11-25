@@ -37,8 +37,8 @@ final class NestAppDelegate: NSObject, UIApplicationDelegate, UNUserNotification
 
     /// Acts on the member's response: opens the screen a tapped notification (or
     /// its link action) names, sets a gift candidate aside from its dismiss
-    /// action, or marks a transaction reviewed from its Looks right action, then
-    /// completes on the main thread.
+    /// action, or marks a transaction reviewed or flags its category wrong from
+    /// its review actions, then completes on the main thread.
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse,
@@ -54,6 +54,8 @@ final class NestAppDelegate: NSObject, UIApplicationDelegate, UNUserNotification
                 try? await GiftCandidateDismisser().dismiss(transactionID: id)
             case .markReviewed(let id):
                 try? await TransactionReviewMarker().markReviewed(transactionID: id)
+            case .flagWrongCategory(let id):
+                try? await TransactionReviewMarker().flagWrongCategory(transactionID: id)
             case .ignore: break
             }
             completionHandler()

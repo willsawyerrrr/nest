@@ -3,7 +3,7 @@ import { GIFT_TRANSACTION_CATEGORY } from './giftCandidates'
 
 /** The columns the review and transaction list screens read from a transaction. */
 export const REVIEW_TRANSACTION_COLUMNS =
-  'id,account_id,member_id,amount_cents,description,posted_at,kind,status,external_category,external_parent_category,deep_link_url,is_categorizable,performing_customer_name,up_message,up_note,notes,reviewed_at'
+  'id,account_id,member_id,amount_cents,description,posted_at,kind,status,external_category,external_parent_category,deep_link_url,is_categorizable,performing_customer_name,up_message,up_note,notes,reviewed_at,category_flagged_wrong_at'
 
 /** A transaction as the review and transaction list screens read it. */
 export type ReviewTransaction = Pick<
@@ -25,6 +25,7 @@ export type ReviewTransaction = Pick<
   | 'up_note'
   | 'notes'
   | 'reviewed_at'
+  | 'category_flagged_wrong_at'
 >
 
 /** One of Up's categories: a parent (`parent_id` null) or a child under one. */

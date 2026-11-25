@@ -103,9 +103,9 @@ and Spotlight still work on both platforms.
   (`group.dev.willsawyerrrr.nest`); the app hands them to the PWA's deduction
   receipt queue. See [`docs/ios.md`](../../docs/ios.md#share-extension).
 - `NotificationContent/` — the notification content extension: expanding a
-  transaction review notification lists Up's categories, and picking one
-  recategorises and reviews the transaction over the app's shared Keychain
-  session. See [`docs/ios.md`](../../docs/ios.md#notification-content-extension).
+  transaction review notification shows the transaction's current Up category,
+  read over the app's shared Keychain session, above its Looks right and Wrong
+  category actions. See [`docs/ios.md`](../../docs/ios.md#notification-content-extension).
 - `Shared/` — `ShareInbox.swift` and `ShareSummary.swift`, compiled into both the
   app and the share extension.
 - `NestTests/` — Swift Testing unit tests over the pieces each `perform()`

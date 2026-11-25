@@ -34,11 +34,12 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   pay-split accounts are named inline in the Siri phrase and indexed in Spotlight,
   and App Shortcuts open the Gifts, Summary, Goals, Budget and transaction-review
   screens. A gift-candidate notification offers Link to a gift and Not a gift
-  actions; a transaction review notification offers Looks right, and expanding
+  actions; a transaction review notification offers Looks right and Wrong
+  category (which flags the category wrong without changing it), and expanding
   it on iOS (a notification content extension, `apps/ios/NotificationContent`,
   reading and refreshing the app's Keychain session through a shared keychain
-  access group, never deleting it) picks another Up category without opening
-  the app. The native app is the single session owner: one Google OAuth at
+  access group, never deleting it) shows the transaction's current Up category
+  above those actions. The native app is the single session owner: one Google OAuth at
   launch (`supabase-swift`, Keychain-stored), so an in-process App Shortcut can
   answer with the app closed, and it mirrors that session into its `WKWebView`
   of the PWA (`WebRouteView`, kept for a `.web` route though none uses one; a `.atDocumentStart` `window.__NEST_NATIVE_SHELL__` marker, `setSession` on
@@ -1063,12 +1064,17 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   by its settlement. Each account resumes 24 hours behind its latest synced
   non-gift `posted_at`, an account with none, or with `ledger_resync_pending`,
   backfilling from the start of the prior financial year. `notes`,
-  `reviewed_at` and `reviewed_by_member_id` are the household's own and the sync
-  never writes them: a member annotates and confirms a transaction through
-  `review_transaction`, the only client write path to `transactions` (members
-  hold no table `update` grant, so synced amounts and ids are out of their
-  reach), and a joint-account transaction's note and review are shared with both
-  partners, the last write winning. Because Up raises no event when a
+  `reviewed_at`, `reviewed_by_member_id` and the wrong-category flag
+  (`category_flagged_wrong_at`, `category_flagged_wrong_by_member_id`) are the
+  household's own and the sync never sets them: a member annotates and confirms
+  a transaction through `review_transaction` and flags its Up category wrong
+  through `flag_transaction_category`, the only client write paths to
+  `transactions` (members hold no table `update` grant, so synced amounts and
+  ids are out of their reach), and a joint-account transaction's note, review
+  and flag are shared with both partners, the last write winning. A flagged
+  transaction stays unreviewed, marked "Wrong category" on the review and
+  Transactions screens, until its Up category changes (a trigger clears the
+  flag, whichever path writes the category) or it is marked reviewed. Because Up raises no event when a
   transaction is recategorised — which is how most gift spend gets categorised —
   each run also rescans the `gifts-and-charity` category over a 365-day trailing
   window: a stored gift row Up no longer lists there is re-read and refreshed in
@@ -1190,8 +1196,9 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   anything else); a gift-candidate payload also carries a `native` action
   (category and transaction id, sent to APNs only) whose notification actions
   open Gifts or set the candidate aside; a transaction-review payload carries one
-  too, whose Looks right action marks it reviewed and whose expanded view picks
-  another Up category. The native app's web view reports its device as on
+  too, whose Looks right action marks it reviewed, whose Wrong category action
+  flags its category wrong, and whose expanded view shows its current
+  category. The native app's web view reports its device as on
   in the Notifications settings (status `native`, gated on
   `__NEST_NATIVE_SHELL__`), with no web opt-in; the native Notifications screen
   shows the same state, reads and upserts `notification_preference` on

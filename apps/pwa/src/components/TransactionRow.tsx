@@ -193,7 +193,7 @@ function ReviewForm({
 
 /**
  * One transaction: a header summarising it — description, pending, transfer,
- * reviewed and deduction pills, who it belongs to when `attribution` is given,
+ * reviewed, wrong-category and deduction pills, who it belongs to when `attribution` is given,
  * account and date, Up's category and its words, the signed
  * amount — that expands to the review form, beside an "Open in Up" link that
  * stays outside the disclosure. Up exposes no cover data, so the link is how a
@@ -283,6 +283,11 @@ export function TransactionRow({
               {transaction.reviewed_at && (
                 <Badge size="xs" color="positive" style={{ flexShrink: 0 }}>
                   Reviewed
+                </Badge>
+              )}
+              {!transaction.reviewed_at && transaction.category_flagged_wrong_at && (
+                <Badge size="xs" color="negative" style={{ flexShrink: 0 }}>
+                  Wrong category
                 </Badge>
               )}
               {deducted && (

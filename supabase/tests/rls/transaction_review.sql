@@ -1,12 +1,14 @@
--- Assertions for review_transaction, the only client write path to
--- `transactions`.
+-- Assertions for review_transaction and flag_transaction_category, the only
+-- client write paths to `transactions`.
 --
 -- Members hold no table `update` grant, so a synced row's amounts and ids are
 -- out of their reach. The function sets the note (trimmed, blank clears, null
 -- leaves) and the review state (true stamps the caller's member, false clears,
 -- null leaves) on a transaction the caller can see: a joint-account row is
 -- shared, so the last write wins; a co-member's individual account, and another
--- household, are out of reach.
+-- household, are out of reach. Flagging the category wrong leaves the category
+-- and note and returns the row to unreviewed; marking it reviewed, or any change
+-- to its Up category, clears the flag.
 --
 -- Any failed assertion aborts the script (psql ON_ERROR_STOP). Wrapped in a
 -- transaction and rolled back.
@@ -112,6 +114,58 @@ begin
   end;
 end $$;
 
+-- ── Bob flags the joint transaction's category as wrong ──────────────────────
+
+do $$
+declare r public.transactions;
+begin
+  r := public.flag_transaction_category(current_setting('rev.tx_joint')::uuid);
+  assert r.category_flagged_wrong_at is not null
+    and r.category_flagged_wrong_by_member_id = current_setting('rev.bmid')::uuid,
+    'flagging stamps the caller''s member';
+  assert r.reviewed_at is null and r.reviewed_by_member_id is null,
+    'a flagged transaction awaits review';
+  assert r.external_category is null and r.notes is null, 'flagging leaves the category and note';
+
+  r := public.review_transaction(current_setting('rev.tx_joint')::uuid, 'Still checking', null);
+  assert r.category_flagged_wrong_at is not null, 'a note without a review leaves the flag';
+
+  r := public.review_transaction(current_setting('rev.tx_joint')::uuid, null, false);
+  assert r.category_flagged_wrong_at is not null, 'returning it to unreviewed leaves the flag';
+
+  r := public.review_transaction(current_setting('rev.tx_joint')::uuid);
+  assert r.category_flagged_wrong_at is null and r.category_flagged_wrong_by_member_id is null,
+    'marking it reviewed clears the flag';
+  assert r.reviewed_by_member_id = current_setting('rev.bmid')::uuid, 'and reviews it';
+
+  perform public.flag_transaction_category(current_setting('rev.tx_joint')::uuid);
+
+  begin
+    perform public.flag_transaction_category(current_setting('rev.tx_alice')::uuid);
+    raise exception 'Bob must not flag a transaction on Alice''s individual account';
+  exception when no_data_found then null;
+  end;
+end $$;
+
+-- ── A category change clears the flag ────────────────────────────────────────
+
+reset role;
+do $$ begin
+  perform public.set_up_transaction_category(current_setting('rev.tx_joint')::uuid, null);
+  assert (select category_flagged_wrong_at is not null from public.transactions
+    where id = current_setting('rev.tx_joint')::uuid),
+    'writing the same category leaves the flag';
+
+  perform public.set_up_transaction_category(current_setting('rev.tx_joint')::uuid, 'restaurants-and-cafes');
+  assert (select category_flagged_wrong_at is null and category_flagged_wrong_by_member_id is null
+    from public.transactions where id = current_setting('rev.tx_joint')::uuid),
+    'a category change clears the flag';
+  assert (select reviewed_at is null from public.transactions
+    where id = current_setting('rev.tx_joint')::uuid),
+    'a category change alone leaves it awaiting review';
+end $$;
+set local role authenticated;
+
 -- ── Another household cannot reach either row ────────────────────────────────
 
 select set_config('request.jwt.claims', '{"sub":"81200000-0000-0000-0000-000000000003","email":"review-carol@example.com"}', true);
@@ -119,6 +173,11 @@ do $$ begin
   begin
     perform public.review_transaction(current_setting('rev.tx_joint')::uuid, 'Peeked');
     raise exception 'Carol must not review another household''s transaction';
+  exception when no_data_found then null;
+  end;
+  begin
+    perform public.flag_transaction_category(current_setting('rev.tx_joint')::uuid);
+    raise exception 'Carol must not flag another household''s transaction';
   exception when no_data_found then null;
   end;
 end $$;
@@ -134,6 +193,8 @@ end $$;
 do $$ begin
   assert not has_function_privilege('anon', 'public.review_transaction(uuid, text, boolean)', 'execute'),
     'anon must not execute review_transaction';
+  assert not has_function_privilege('anon', 'public.flag_transaction_category(uuid)', 'execute'),
+    'anon must not execute flag_transaction_category';
 end $$;
 
 rollback;

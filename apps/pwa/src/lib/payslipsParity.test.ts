@@ -124,6 +124,8 @@ const credit = (overrides: Partial<Tables<'transactions'>>): Tables<'transaction
   posted_at: '2026-07-22T02:00:00Z',
   reviewed_at: null,
   reviewed_by_member_id: null,
+  category_flagged_wrong_at: null,
+  category_flagged_wrong_by_member_id: null,
   source: 'up',
   status: 'settled',
   transaction_type: 'Direct Credit',

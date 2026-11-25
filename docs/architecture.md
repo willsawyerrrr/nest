@@ -329,8 +329,9 @@ channel:
   `transactionId` and Web Push omits; `gift_candidate_new` carries the
   `gift_candidate` category, whose actions link the candidate (opening Gifts) or
   set it aside as not a gift, and `transaction_review` the `transaction_review`
-  category, whose Looks right action marks the transaction reviewed and whose
-  expanded view picks another Up category. Like a
+  category, whose Looks right action marks the transaction reviewed, whose
+  Wrong category action flags its category wrong, and whose expanded view
+  shows its current category. Like a
   subscription, a token is readable and deletable only by its member.
 - `push-key` returns the VAPID public key for
   `pushManager.subscribe({ applicationServerKey })`. Serving it beats baking it
@@ -422,10 +423,12 @@ channel:
   shows the Summary's "N to review" card. The payload is `<merchant> · <amount>`
   / `<Up category> — right category?`, opening `/transactions/review?id=<id>`,
   with the `transaction_review` native action, so on iOS the member answers
-  from the notification: **Looks right** marks it reviewed, and expanding it
-  lists Up's categories, a pick calling `up-categorise` then
-  `review_transaction` as the review screen does (see
-  [`ios.md`](ios.md#notification-content-extension)).
+  from the notification: **Looks right** marks it reviewed
+  (`review_transaction`), **Wrong category** flags the category wrong without
+  changing it (`flag_transaction_category`), leaving it to fix in the app, and
+  expanding it shows the transaction's current category (see
+  [`ios.md`](ios.md#notification-content-extension)). The notification never
+  changes a category; ignoring it leaves the transaction unreviewed.
 - VAPID setup and rotation, and the iOS install/version requirements, are in
   [`operations.md`](operations.md#web-push-vapid-keypair-setup); the APNs auth key
   setup is in [`operations.md`](operations.md#apns-auth-key-setup).

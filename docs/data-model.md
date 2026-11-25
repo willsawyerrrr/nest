@@ -1111,7 +1111,9 @@ null; Up's own taxonomy is mirrored in `up_category`.
     `deep_link_url`, `up_message`, `up_note`, `performing_customer_name`,
     `notes`, `reviewed_at`, `reviewed_by_member_id` (nullable,
     `(reviewed_by_member_id, household_id)` → `members`, `on delete set null`),
-    `created_at`, `updated_at`.
+    `category_flagged_wrong_at`, `category_flagged_wrong_by_member_id` (nullable,
+    `(category_flagged_wrong_by_member_id, household_id)` → `members`,
+    `on delete set null`), `created_at`, `updated_at`.
     `unique (source, external_id)` is the sync's dedupe key, and
     `unique (id, household_id)` lets a gift purchase or dismissal reference a
     transaction without leaving the household.
@@ -1135,6 +1137,17 @@ null; Up's own taxonomy is mirrored in `up_category`.
     means the transaction awaits review when it is categorisable. A
     joint-account transaction is one shared row, so its note and review are
     shared with both partners, the last write winning.
+  - `category_flagged_wrong_at` and `category_flagged_wrong_by_member_id` are
+    the wrong-category flag, also the household's own and never set by the sync:
+    a member flags the Up category wrong through `flag_transaction_category`
+    (the review notification's Wrong category), which leaves the category and
+    the transaction unreviewed. It is distinct from "not yet reviewed": a
+    flagged row awaits review and is known to be miscategorised. The
+    `clear_category_flag_on_category_change` trigger (`before update of
+    external_category`) clears it whenever the category changes, whichever path
+    writes it (`set_up_transaction_category` for `up-categorise`, or a sync
+    picking up a change made in Up), and `review_transaction` clears it when it
+    marks the transaction reviewed.
   - RLS gates each transaction to the balance-visible account set, so a member
     reads and writes transactions only on accounts whose balance they can see: a
     co-member's spending account is outside that set, so their gift-category spend
@@ -1401,14 +1414,22 @@ not-yet-member can act past RLS in the narrow ways allowed:
   `type = 'transaction'` account in the caller's household, so households writes
   stay controlled without opening a broad column update.
 - `review_transaction(p_transaction_id, p_note default null, p_reviewed default true) returns transactions`
-  — the only client write path to `transactions`. Sets the note (null leaves it,
-  blank clears it, anything else is stored trimmed) and the review state (true
-  stamps `reviewed_at = now()` and the caller's member in the transaction's
-  household, false returns it to unreviewed, null leaves it), returning the row.
+  — with `flag_transaction_category`, the only client write paths to
+  `transactions`. Sets the note (null leaves it, blank clears it, anything else
+  is stored trimmed) and the review state (true stamps `reviewed_at = now()` and
+  the caller's member in the transaction's household and clears the
+  wrong-category flag, false returns it to unreviewed, null leaves it),
+  returning the row.
   It runs as its owner so a member cannot stamp a co-member as the reviewer, and
   re-applies the read policy's predicate itself — the balance-visible account set
   and the gift gate — raising `no_data_found` for a transaction the caller cannot
   see.
+- `flag_transaction_category(p_transaction_id) returns transactions` — flags the
+  Up category wrong: stamps `category_flagged_wrong_at = now()` and the caller's
+  member and returns the transaction to unreviewed, leaving the category and
+  note, returning the row. Runs as its owner and re-applies the same visibility
+  predicate as `review_transaction`, raising `no_data_found` for a transaction
+  the caller cannot see.
 - `household_ids_for_current_user()` — the households the caller belongs to;
   the basis for every RLS policy.
 - `current_member_ids()`, `household_super_account_ids()`, and

@@ -75,10 +75,14 @@ from Nest are built and deployed.
   `kind` (`income`/`expense`/`transfer`), `status` (`pending`/`settled`),
   `source` (`up`/`manual`), `external_id`, `is_categorizable`,
   `transaction_type`, `deep_link_url`, `up_message`, `up_note`,
-  `performing_customer_name`, and `notes`, `reviewed_at` and
-  `reviewed_by_member_id` — the household's own, which the sync never writes and
-  members set through `review_transaction`, their only write path to the
-  table. `unique (source, external_id)` and `unique (id, household_id)`;
+  `performing_customer_name`, and `notes`, `reviewed_at`,
+  `reviewed_by_member_id` and the wrong-category flag
+  (`category_flagged_wrong_at`, `category_flagged_wrong_by_member_id`) — the
+  household's own, which the sync never sets and members set through
+  `review_transaction` and `flag_transaction_category`, their only write paths
+  to the table. A change to `external_category`, by the sync or
+  `up-categorise`, clears the flag (a `before update of external_category`
+  trigger). `unique (source, external_id)` and `unique (id, household_id)`;
   RLS gates each row on the balance-visible account set and withholds a row
   claimed as a gift for the caller
   (`hidden_gift_transaction_ids_for_current_member()`: the spend behind
@@ -302,7 +306,9 @@ which shows every transaction rather than only those awaiting review.
 
 Each row (`components/TransactionRow.tsx`, shared with the transactions list)
 shows the description, signed amount, account, date, a `Pending` pill while Up
-holds it, a `Transfer` pill for a transfer, its Up category (`Parent › Child` from `up_category`), and
+holds it, a `Transfer` pill for a transfer, a `Wrong category` pill while a
+member's flag from the review notification awaits a fix (changing the category,
+or Looks right, clears it), its Up category (`Parent › Child` from `up_category`), and
 Up's own note and message, read-only — Up's API cannot write either. Expanding
 a row offers a category picker (Up's child categories grouped by parent) and
 the household's own note, prefilled from `notes`, with three actions:
@@ -403,7 +409,10 @@ to send.
 - **Opt-in.** An absent `notification_preference` row means off for this
   trigger alone; the same toggle shows the Summary's "N to review" card.
 - **Payload.** `Myer · $42.10` / `Clothing & Accessories — right category?`
-  (the `up_category` name), opening `/transactions/review?id=<id>`.
+  (the `up_category` name), opening `/transactions/review?id=<id>`. On iOS it
+  offers **Looks right** (marks it reviewed) and **Wrong category** (flags the
+  category wrong, leaving it unreviewed to fix in the app); the notification
+  never changes a category.
 
 ### Field mapping (Up transaction → `public.transactions`)
 
@@ -431,7 +440,7 @@ lookup it takes is resolved in the sync layer, so the mapper stays I/O-free:
 | `up_note` | `tx.attributes.note?.text` |
 | `performing_customer_name` | `tx.attributes.performingCustomer?.displayName` |
 | `reviewed_at` | on insert only: now for `transaction_type` `Salary`, `Interest` or `Transfer`, else null; never written on update |
-| `notes`, `reviewed_by_member_id` | never written — the household's own |
+| `notes`, `reviewed_by_member_id`, `category_flagged_wrong_at`, `category_flagged_wrong_by_member_id` | never written — the household's own (a category change clears the flag through a trigger) |
 | `category_id` | null — see below |
 
 **Categories/tags.** Up's category is a fixed child-under-parent taxonomy;

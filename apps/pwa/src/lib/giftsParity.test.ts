@@ -95,6 +95,8 @@ const transaction = (
   performing_customer_name: null,
   reviewed_at: null,
   reviewed_by_member_id: null,
+  category_flagged_wrong_at: null,
+  category_flagged_wrong_by_member_id: null,
   external_id: `ext-${id}`,
   kind: 'expense',
   member_id: ME,

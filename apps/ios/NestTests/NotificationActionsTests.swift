@@ -22,15 +22,18 @@ import UserNotifications
         #expect(category.actions[1].options.contains(.authenticationRequired))
     }
 
-    @Test func registersTheTransactionReviewCategoryWithLooksRight() throws {
+    @Test func registersTheTransactionReviewCategoryWithLooksRightAndWrongCategory() throws {
         let category = try #require(
             NotificationActions.categories.first { $0.identifier == "transaction_review" })
-        let action = try #require(category.actions.first)
-        #expect(category.actions.count == 1)
-        #expect(action.identifier == NotificationActions.markReviewed)
-        #expect(action.title == "Looks right")
-        #expect(!action.options.contains(.foreground))
-        #expect(action.options.contains(.authenticationRequired))
+        #expect(
+            category.actions.map(\.identifier)
+                == [NotificationActions.markReviewed, NotificationActions.flagWrongCategory])
+        #expect(category.actions.map(\.title) == ["Looks right", "Wrong category"])
+        for action in category.actions {
+            #expect(!action.options.contains(.foreground))
+            #expect(action.options.contains(.authenticationRequired))
+        }
+        #expect(category.actions[1].options.contains(.destructive))
     }
 
     private static let reviewID = "6f1c2a4e-1111-4222-8333-944455556666"
@@ -46,11 +49,19 @@ import UserNotifications
                 == .markReviewed(transactionID: Self.reviewID))
     }
 
-    @Test func looksRightNeedsAUUIDTransactionID() {
+    @Test func wrongCategoryNamesTheTransaction() {
+        #expect(
+            NotificationResponse(
+                actionIdentifier: NotificationActions.flagWrongCategory, userInfo: review)
+                == .flagWrongCategory(transactionID: Self.reviewID))
+    }
+
+    @Test(arguments: [NotificationActions.markReviewed, NotificationActions.flagWrongCategory])
+    func theReviewActionsNeedAUUIDTransactionID(_ action: String) {
         for id: Any in ["", "tx-1", 3] {
             #expect(
                 NotificationResponse(
-                    actionIdentifier: NotificationActions.markReviewed,
+                    actionIdentifier: action,
                     userInfo: ["url": "/transactions/review", "transactionId": id]) == .ignore)
         }
     }
@@ -186,13 +197,12 @@ import UserNotifications
         #expect(requests.all.allSatisfy { $0.method == "GET" })
     }
 
-    // MARK: Marking reviewed
+    // MARK: Review actions
 
-    @Test func looksRightMarksTheTransactionReviewedLeavingItsNote() async throws {
-        let requests = Requests()
+    private func marker(_ requests: Requests) -> TransactionReviewMarker {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("NotificationActionsTests-\(UUID().uuidString)", isDirectory: true)
-        let marker = TransactionReviewMarker(
+        return TransactionReviewMarker(
             data: NestData(
                 api: SupabaseAPI(
                     baseURL: URL(string: "https://example.supabase.co")!, anonKey: "a",
@@ -206,11 +216,24 @@ import UserNotifications
                                 headerFields: nil)!)
                     }),
                 cache: RowCache(directory: directory), userID: { "u" }))
-        try await marker.markReviewed(transactionID: Self.reviewID)
+    }
+
+    @Test func looksRightMarksTheTransactionReviewedLeavingItsNote() async throws {
+        let requests = Requests()
+        try await marker(requests).markReviewed(transactionID: Self.reviewID)
         let write = try #require(requests.all.last)
         #expect(write.method == "POST")
         #expect(write.path.hasSuffix("/rpc/review_transaction"))
         #expect(write.body["p_transaction_id"] as? String == Self.reviewID)
         #expect(write.body["p_note"] == nil)
+    }
+
+    @Test func wrongCategoryFlagsTheTransaction() async throws {
+        let requests = Requests()
+        try await marker(requests).flagWrongCategory(transactionID: Self.reviewID)
+        let write = try #require(requests.all.last)
+        #expect(write.method == "POST")
+        #expect(write.path.hasSuffix("/rpc/flag_transaction_category"))
+        #expect(write.body as NSDictionary == ["p_transaction_id": Self.reviewID])
     }
 }

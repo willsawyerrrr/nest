@@ -156,23 +156,14 @@ jobs:
       - name: Generate the Xcode project
         run: xcodegen generate
 
-      # `xcodebuild build` runs appintentsmetadataprocessor, which validates the
-      # App Shortcut phrases (`Metadata.appintents` in the built app) — a phrase
-      # missing `\(.applicationName)`, a duplicate identifier, or an unresolvable
-      # parameter type fails here. Do NOT set SWIFT_EXEC: it drops
-      # `--compile-time-extraction` and breaks that extraction on Xcode 16+.
-      - name: Build (validates App Intents metadata)
-        run: |
-          xcodebuild \
-            -project Nest.xcodeproj \
-            -scheme Nest \
-            -destination 'generic/platform=iOS Simulator' \
-            -skipPackagePluginValidation \
-            -skipMacroValidation \
-            build
-
-      # A booted simulator's udid, resolved rather than hard-coded so the
-      # workflow does not break when the runner image's device list shifts.
+      # One `xcodebuild test` builds and tests in a single pass, so the app is
+      # compiled once. The build step still runs appintentsmetadataprocessor,
+      # which validates the App Shortcut phrases (`Metadata.appintents` in the
+      # built app) — a phrase missing `\(.applicationName)`, a duplicate
+      # identifier, or an unresolvable parameter type fails here. Do NOT set
+      # SWIFT_EXEC: it drops `--compile-time-extraction` and breaks that
+      # extraction on Xcode 16+. The suite uses Swift Testing, so xcodebuild's
+      # XCTest summary reads "Executed 0 tests" even though every test runs.
       - name: Pick a simulator
         id: sim
         run: |
@@ -181,7 +172,7 @@ jobs:
           test -n "$udid" || { echo "no iPhone simulator available"; exit 1; }
           echo "udid=$udid" >> "$GITHUB_OUTPUT"
 
-      - name: Test
+      - name: Build and test (validates App Intents metadata)
         run: |
           xcodebuild \
             -project Nest.xcodeproj \
@@ -213,21 +204,10 @@ jobs:
         run: xcodegen generate
 
       # A runner carries no development team, so signing is off for this
-      # build-and-test-only run — nothing here is installed anywhere. This
+      # build-and-test run — nothing here is installed anywhere. This
       # still runs appintentsmetadataprocessor (see `build-ios`'s comment), so
       # a bad App Shortcut phrase fails here too.
-      - name: Build for macOS (validates App Intents metadata)
-        run: |
-          xcodebuild \
-            -project Nest.xcodeproj \
-            -scheme NestMac \
-            -destination 'platform=macOS' \
-            -skipPackagePluginValidation \
-            -skipMacroValidation \
-            CODE_SIGNING_ALLOWED=NO \
-            build
-
-      - name: Test
+      - name: Build and test for macOS (validates App Intents metadata)
         run: |
           xcodebuild \
             -project Nest.xcodeproj \

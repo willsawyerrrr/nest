@@ -5,13 +5,16 @@ import {
   decisionMatrix,
   diagnostics,
   evaluate,
+  isRunRecord,
   report,
+  runRecordsReport,
   timingReport,
   variantReport,
 } from './report.ts'
 import {
   agreementConfidence,
   declineStats,
+  isEngineResults,
   outcomeOf,
   readEngine,
   resultKey,
@@ -374,4 +377,36 @@ Deno.test('the report does not count an unreadable file as a failed run', () => 
     results: { [resultKey(other.id, 'payslip')]: { unreadable: 'corrupt', ms: 1 } },
   }
   assertEquals(report([other], [engine]).includes('| 0/1 |'), true)
+})
+
+const runRecord = {
+  startedAt: '2026-11-25T01:00:00Z',
+  hardware: 'iPhone18,3',
+  osVersion: 'Version 27.2',
+  corpusSha256: 'abcdef0123456789',
+  arms: [{ engine: 'fm-pcc', status: 'failed', error: 'pcc unavailable' }, {
+    engine: 'fm-device',
+    status: 'completed',
+  }],
+}
+
+Deno.test('a run record is not an engine result, an engine file is', () => {
+  assertEquals(isEngineResults(runRecord), false)
+  assertEquals(isRunRecord(runRecord), true)
+  const engine = { engine: 'fm', results: {} }
+  assertEquals(isEngineResults(engine), true)
+  assertEquals(isRunRecord(engine), false)
+  assertEquals(isEngineResults(null), false)
+  assertEquals(isRunRecord({ unrelated: 1 }), false)
+})
+
+Deno.test("runRecordsReport lists each run's hardware, OS, corpus hash and arm status", () => {
+  const out = runRecordsReport([runRecord])
+  assertEquals(
+    out,
+    [
+      '- 2026-11-25T01:00:00Z: iPhone18,3, Version 27.2, corpus abcdef012345',
+      '  - arms: fm-pcc failed (pcc unavailable); fm-device completed',
+    ].join('\n'),
+  )
 })

@@ -123,7 +123,9 @@ runs the selected models, input paths and sampling modes with `--repeats`,
 `--only` and `--cross` equivalents, and writes `results/fm-<model>-<path>.json`
 in the same format, plus `results/run-<time>.json` recording hardware, OS,
 corpus hash and every arm's outcome. Share a result from the app's list, or
-collect `results/` from the Files app.
+collect `results/` from the Files app. `report.ts` reads only engine files as
+results; it lists each run record's hardware, OS, corpus hash and arm statuses
+in a `Runs` section at the top of the report.
 
 The PCC arm checks `PrivateCloudComputeLanguageModel().availability` first;
 until the managed entitlement is granted it writes the results file with an

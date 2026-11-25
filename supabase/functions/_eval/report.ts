@@ -5,7 +5,8 @@
  *
  * `deno run --allow-read report.ts <dir> [--baseline <engine>]` reads
  * `<dir>/corpus.json`, `strata.json` and the noisy variants of `manifest.json` when
- * present (a variant is scored against its source document's label), every `<dir>/results/*.json` and, when present,
+ * present (a variant is scored against its source document's label), every engine file in `<dir>/results/*.json` (run records, which have no
+ * `results`, head the report instead) and, when present,
  * `<dir>/profiles.json` (engine name to `ArmProfile`).
  */
 
@@ -15,6 +16,7 @@ import {
   agreementConfidence,
   declineStats,
   type EngineResults,
+  isEngineResults,
   outcomeOf,
   readEngine,
   resultKey,
@@ -567,6 +569,43 @@ export function diagnostics(
   return lines.join('\n')
 }
 
+/** What `results/run-<time>.json` records of a run on a device. */
+export interface RunRecord {
+  startedAt?: string
+  finishedAt?: string
+  hardware?: string
+  osVersion?: string
+  corpusSha256?: string
+  appVersion?: string
+  gitCommit?: string
+  arms?: { engine: string; status: string; error?: string }[]
+}
+
+/** Whether a parsed results file is a run record: a file with no engine `results`. */
+export function isRunRecord(file: unknown): file is RunRecord {
+  return typeof file === 'object' && file !== null && !isEngineResults(file) &&
+    ('hardware' in file || 'arms' in file || 'corpusSha256' in file)
+}
+
+/** A line per run record: hardware, OS, corpus hash and each arm's status, oldest first. */
+export function runRecordsReport(records: RunRecord[]): string {
+  const ordered = records.toSorted((a, b) => (a.startedAt ?? '').localeCompare(b.startedAt ?? ''))
+  return ordered.map((record) => {
+    const arms = (record.arms ?? []).map((arm) =>
+      `${arm.engine} ${arm.status}${arm.error ? ` (${arm.error})` : ''}`
+    )
+    return [
+      `- ${record.startedAt ?? 'unknown time'}: ${record.hardware ?? '-'}, ${
+        record.osVersion ?? '-'
+      }, corpus ${record.corpusSha256?.slice(0, 12) ?? '-'}`,
+      ...(record.appVersion || record.gitCommit
+        ? [`  - build: ${record.appVersion || '-'} ${record.gitCommit ?? ''}`.trimEnd()]
+        : []),
+      ...(arms.length ? [`  - arms: ${arms.join('; ')}`] : []),
+    ].join('\n')
+  }).join('\n')
+}
+
 if (import.meta.main) {
   const [dir, ...rest] = Deno.args
   if (!dir) throw new Error('usage: report.ts <dir> [--baseline <engine>]')
@@ -574,16 +613,17 @@ if (import.meta.main) {
   const baseline = baselineAt >= 0 ? rest[baselineAt + 1] : undefined
   const { docs: corpus } = await loadDocs(dir)
   const engines: EngineResults[] = []
+  const runs: RunRecord[] = []
   for await (const entry of Deno.readDir(`${dir}/results`)) {
-    if (entry.name.endsWith('.json')) {
-      engines.push(
-        readEngine(JSON.parse(await Deno.readTextFile(`${dir}/results/${entry.name}`))),
-      )
-    }
+    if (!entry.name.endsWith('.json')) continue
+    const file = JSON.parse(await Deno.readTextFile(`${dir}/results/${entry.name}`))
+    if (isEngineResults(file)) engines.push(readEngine(file))
+    else if (isRunRecord(file)) runs.push(file)
   }
   engines.sort((a, b) => a.engine.localeCompare(b.engine))
   const profiles: Record<string, ArmProfile> = await Deno.readTextFile(`${dir}/profiles.json`)
     .then(JSON.parse, () => ({}))
+  if (runs.length) console.log(`## Runs\n\n${runRecordsReport(runs)}\n`)
   console.log(report(corpus, engines))
   const variants = variantReport(corpus, engines)
   if (variants) console.log(`\n## Noise and two-up pages\n\n${variants}`)

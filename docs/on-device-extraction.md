@@ -125,6 +125,15 @@ in the same format, plus `results/run-<time>.json` recording hardware, OS,
 corpus hash and every arm's outcome. Share a result from the app's list, or
 collect `results/` from the Files app.
 
+During a run the app keeps the screen on, holds a background-task assertion
+(renewed per document) so a brief lock finishes the current generation, and
+shows the arm and document position, current document id, elapsed time, a
+rolling estimate of the time left in the arm and a scrolling log. Each arm's
+results file is written when that arm completes. With Resume on, arms whose
+results file exists without an `armError` are skipped. A tick gap over five
+seconds shows a "suspended while locked" hint. A local notification, requested
+on first run, reports when the run finishes or has failed arms.
+
 The PCC arm checks `PrivateCloudComputeLanguageModel().availability` first;
 until the managed entitlement is granted it writes the results file with an
 `armError` and no documents, so the failure is recorded.

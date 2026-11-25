@@ -21,10 +21,36 @@ struct EvalView: View {
           Stepper("Repeats: \(model.repeats)", value: $model.repeats, in: 1...20)
           TextField("Only document ids (comma-separated)", text: $model.only).textInputAutocapitalization(.never).autocorrectionDisabled()
           Toggle("Every kind per document", isOn: $model.cross)
+          Toggle("Resume: skip arms with results", isOn: $model.resume)
           Button(model.running ? "Running" : "Run \(model.arms.count) arms") { model.start() }
             .disabled(model.running || model.arms.isEmpty || model.corpusCount == nil)
           Text(model.status).font(.footnote)
-          ForEach(model.log, id: \.self) { Text($0).font(.footnote).foregroundStyle(.red) }
+          if let progress = model.progress {
+            VStack(alignment: .leading, spacing: 4) {
+              Text("Arm \(progress.arm)/\(progress.arms), document \(progress.document.index)/\(progress.document.total)")
+              Text(progress.document.id).foregroundStyle(.secondary)
+              Text("Elapsed \(clock(progress.elapsed))" + (progress.remaining.map { ", about \(clock($0)) left in this arm" } ?? ""))
+            }
+            .font(.footnote.monospacedDigit())
+          }
+          if let gap = model.suspendedFor {
+            Label("Suspended for \(clock(gap)) while locked. Keep the screen on to avoid stalls.", systemImage: "lock.fill")
+              .font(.footnote).foregroundStyle(.orange)
+          }
+        }
+        Section("Log") {
+          ScrollViewReader { proxy in
+            ScrollView {
+              LazyVStack(alignment: .leading) {
+                ForEach(Array(model.log.enumerated()), id: \.offset) { _, line in
+                  Text(line).font(.caption2.monospaced()).frame(maxWidth: .infinity, alignment: .leading)
+                }
+              }
+              .padding(.vertical, 4)
+            }
+            .frame(height: 200)
+            .onChange(of: model.log.count) { _, count in proxy.scrollTo(count - 1) }
+          }
         }
         Section("Results") {
           ForEach(model.results, id: \.self) { url in ShareLink(item: url) { Text(url.lastPathComponent) } }

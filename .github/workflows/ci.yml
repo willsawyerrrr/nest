@@ -142,6 +142,7 @@ jobs:
         working-directory: apps/ios
     steps:
       - uses: actions/checkout@v7
+      - uses: willsawyerrrr/platform/.github/actions/xcode-cache@main
       - uses: willsawyerrrr/platform/.github/actions/load-op-environment@main
         with:
           service-account-token: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
@@ -200,6 +201,7 @@ jobs:
         working-directory: apps/ios
     steps:
       - uses: actions/checkout@v7
+      - uses: willsawyerrrr/platform/.github/actions/xcode-cache@main
       - uses: willsawyerrrr/platform/.github/actions/load-op-environment@main
         with:
           service-account-token: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
@@ -246,6 +248,7 @@ jobs:
         working-directory: apps/ios
     steps:
       - uses: actions/checkout@v7
+      - uses: willsawyerrrr/platform/.github/actions/xcode-cache@main
       - uses: willsawyerrrr/platform/.github/actions/load-op-environment@main
         with:
           service-account-token: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}

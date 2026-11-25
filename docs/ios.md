@@ -707,7 +707,10 @@ on Xcode 16+) and both pass `-skipMacroValidation` /
 `-skipPackagePluginValidation` so a fresh runner does not stall on a macro or
 plugin approval prompt. `build-catalyst` and `build-macos` additionally pass
 `CODE_SIGNING_ALLOWED=NO`, since a runner carries no development team and
-Catalyst and macOS builds, unlike the Simulator, always sign.
+Catalyst and macOS builds, unlike the Simulator, always sign. Each job restores
+and saves its DerivedData, Swift packages included, with platform's
+[`xcode-cache`](https://github.com/willsawyerrrr/platform/blob/main/docs/xcode-cache.md)
+action.
 
 All three are **required** — the `changes` job (`dorny/paths-filter`) gates them on
 `apps/ios/**` (or the workflow file itself) having changed, and `ci-status`

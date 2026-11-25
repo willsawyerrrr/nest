@@ -118,6 +118,7 @@ function rows(overrides: Partial<NetWorthRows> = {}): NetWorthRows {
     ],
     horizon: '5y',
     now: NOW,
+    timeZone: 'Australia/Sydney',
     ...overrides,
   }
 }
@@ -179,6 +180,32 @@ describe('netWorthOfRows', () => {
       }),
     )
     expect(breakdown.superTotalCents).toBe(50_000_00)
+  })
+
+  it("funds goals from the lines active on a Brisbane household's own day", () => {
+    const goal = {
+      id: 'g',
+      linked_account_id: null,
+      current_balance_cents: 0,
+      target_amount_cents: 1_000_000_00,
+      queue_position: null,
+      planned_contribution_cents: null,
+    }
+    const line = { goal_id: 'g', amount_cents: 500_00, frequency: 'fortnightly' }
+    const projected = (budgetLines: NetWorthRows['budgetLines'], now: Date) =>
+      netWorthOfRows(rows({ goals: [goal], budgetLines, now, timeZone: 'Australia/Brisbane' }))
+        .projection
+    // 12:30am on 1 December in Brisbane, and 11:30pm on 30 November (1 December in Sydney).
+    const afterMidnight = new Date('2026-11-30T14:30:00Z')
+    const beforeMidnight = new Date('2026-11-30T13:30:00Z')
+    const starts = { ...line, starts_on: '2026-12-01' }
+    const retires = { ...line, retired_on: '2026-12-01' }
+
+    expect(projected([starts], afterMidnight)).toEqual(projected([line], afterMidnight))
+    expect(projected([retires], afterMidnight)).toEqual(projected([], afterMidnight))
+    expect(projected([starts], beforeMidnight)).toEqual(projected([], beforeMidnight))
+    expect(projected([retires], beforeMidnight)).toEqual(projected([line], beforeMidnight))
+    expect(projected([line], afterMidnight)).not.toEqual(projected([], afterMidnight))
   })
 })
 

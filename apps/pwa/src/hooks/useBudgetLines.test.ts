@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeBudgetLine } from '../test/fixtures'
 import { makeWrapper } from '../test/queryWrapper'
 import { useBudgetLines, type BudgetLineInput } from './useBudgetLines'
@@ -48,5 +48,33 @@ describe('useBudgetLines', () => {
     expect(builder.update).toHaveBeenCalledWith(input)
     expect(builder.delete).toHaveBeenCalled()
     expect(builder.eq).toHaveBeenCalledWith('id', 'b1')
+  })
+
+  describe("on a Brisbane household's own day", () => {
+    afterEach(() => vi.useRealTimers())
+
+    const activeIds = async (now: string) => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(new Date(now))
+      builder.result = {
+        data: [
+          makeBudgetLine({ id: 'starts', starts_on: '2026-12-01' }),
+          makeBudgetLine({ id: 'retires', starts_on: '2026-01-01', retired_on: '2026-12-01' }),
+        ],
+        error: null,
+      }
+      const { result } = renderHook(() => useBudgetLines(), {
+        wrapper: makeWrapper('Australia/Brisbane'),
+      })
+      await waitFor(() => expect(result.current.lines).not.toBeNull())
+      return result.current.lines?.map((line) => line.id)
+    }
+
+    it('starts and retires lines at Brisbane midnight, not Sydney’s', async () => {
+      // 12:30am on 1 December in Brisbane.
+      expect(await activeIds('2026-11-30T14:30:00Z')).toEqual(['starts'])
+      // 11:30pm on 30 November in Brisbane, already 1 December in Sydney.
+      expect(await activeIds('2026-11-30T13:30:00Z')).toEqual(['retires'])
+    })
   })
 })

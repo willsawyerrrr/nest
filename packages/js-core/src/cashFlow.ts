@@ -10,7 +10,6 @@ import {
 } from '@nest/household'
 import {
   fortnightlyCents,
-  HOUSEHOLD_TIME_ZONE,
   isActiveOn,
   isDrawnFromAllowance,
   isTemporaryActive,
@@ -126,10 +125,7 @@ export function cashFlowLines(bundle: CashFlowBundle, now: Date): CashFlowLine[]
     }
     return [allowance]
   })
-  const budgetLines = activeBudgetLineRows(
-    bundle.budgetLines,
-    localIsoDate(now, bundle.timeZone ?? HOUSEHOLD_TIME_ZONE),
-  )
+  const budgetLines = activeBudgetLineRows(bundle.budgetLines, localIsoDate(now, bundle.timeZone))
   const drawable = budgetLines.map((line) => ({
     amountCents: line.amount_cents,
     frequency: line.frequency as Frequency,

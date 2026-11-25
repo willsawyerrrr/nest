@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { grantValueCents } from '@nest/plan'
+import { useHouseholdTimeZone } from '../components/HouseholdProvider'
 import { LoadingScreen } from '../components/LoadingScreen'
 import { NetWorthView } from '../components/NetWorthView'
 import { usePlanningMode } from '../components/PlanningModeProvider'
@@ -52,6 +53,7 @@ export function NetWorthSection() {
   const deductions = useDeductions()
   const goals = useGoals()
   const budgetLines = useBudgetLines()
+  const timeZone = useHouseholdTimeZone()
   const { members, loading: membersLoading } = useMembers()
   const [horizon, setHorizon] = useState<ProjectionHorizonOption>(readProjectionHorizon)
 
@@ -144,6 +146,7 @@ export function NetWorthSection() {
       assumptions,
       horizonYears,
       now: today,
+      timeZone,
     })
 
   const outcome = outcomeFor(inflows.inflows ?? [], goals.goals ?? [], budgetLines.lines ?? [])

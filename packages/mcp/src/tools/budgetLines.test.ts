@@ -231,6 +231,25 @@ describe('budget line lifespan', () => {
     expect(result).toEqual({ id: ID, retired_on: '2026-10-02' })
   })
 
+  it("retires from the household's own day just after its midnight", async () => {
+    const { ctx, state } = fakeContext({
+      tables: {
+        budget_line: [line],
+        households: [{ id: 'h-1', timezone: 'Australia/Brisbane' }],
+      },
+    })
+    // 12:30am on 1 December in Brisbane; 1:30am in Sydney, 30 November in UTC.
+    ctx.now = () => new Date('2026-11-30T14:30:00Z')
+    expect(await retireBudgetLine(ctx, { id: ID })).toEqual({ id: ID, retired_on: '2026-12-01' })
+    // 11:30pm on 30 November in Brisbane is already 1 December in Sydney.
+    ctx.now = () => new Date('2026-11-30T13:30:00Z')
+    expect(await retireBudgetLine(ctx, { id: ID })).toEqual({ id: ID, retired_on: '2026-11-30' })
+    expect(state.rpcCalls.map((call) => call.args.p_retire_on)).toEqual([
+      '2026-12-01',
+      '2026-11-30',
+    ])
+  })
+
   it('names the replacement the default item needs', async () => {
     const { ctx } = fakeContext({
       tables: { budget_line: [line] },

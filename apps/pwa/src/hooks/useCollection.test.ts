@@ -109,7 +109,11 @@ describe('useHouseholdCollection', () => {
       createElement(
         QueryClientProvider,
         { client },
-        createElement(HouseholdProvider, { householdId: 'h1' }, children),
+        createElement(
+          HouseholdProvider,
+          { householdId: 'h1', timeZone: 'Australia/Sydney' },
+          children,
+        ),
       )
 
     // A scoped detail query and the unscoped roll-up of the same table, as the
@@ -153,7 +157,11 @@ describe('useHouseholdCollection', () => {
       createElement(
         QueryClientProvider,
         { client },
-        createElement(HouseholdProvider, { householdId: 'h1' }, children),
+        createElement(
+          HouseholdProvider,
+          { householdId: 'h1', timeZone: 'Australia/Sydney' },
+          children,
+        ),
       )
 
     const { result } = renderHook(
@@ -269,7 +277,11 @@ describe('useHouseholdQuery', () => {
       createElement(
         QueryClientProvider,
         { client },
-        createElement(HouseholdProvider, { householdId: 'h1' }, children),
+        createElement(
+          HouseholdProvider,
+          { householdId: 'h1', timeZone: 'Australia/Sydney' },
+          children,
+        ),
       )
 
     const queryFn = vi.fn(async () => {
@@ -330,7 +342,7 @@ describe('useHouseholdCollection in planning mode', () => {
         { client },
         createElement(
           HouseholdProvider,
-          { householdId: 'h1' },
+          { householdId: 'h1', timeZone: 'Australia/Sydney' },
           createElement(PlanningModeProvider, null, children),
         ),
       )

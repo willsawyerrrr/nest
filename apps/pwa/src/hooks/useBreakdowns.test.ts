@@ -77,7 +77,11 @@ describe('useBreakdowns', () => {
       createElement(
         QueryClientProvider,
         { client },
-        createElement(HouseholdProvider, { householdId: 'h1' }, children),
+        createElement(
+          HouseholdProvider,
+          { householdId: 'h1', timeZone: 'Australia/Sydney' },
+          children,
+        ),
       )
     const { result } = renderHook(() => useBreakdowns(), { wrapper })
     await waitFor(() => expect(result.current.loading).toBe(false))

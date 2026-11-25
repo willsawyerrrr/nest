@@ -21,7 +21,6 @@
  */
 
 import {
-  HOUSEHOLD_TIME_ZONE,
   localIsoDate,
   summarise,
   type Amounts,
@@ -203,7 +202,7 @@ function reportedSummary(wholeYear: BudgetSummary, activeNow: BudgetSummary): Bu
 export function summariseHouseholdFromRows(bundle: BudgetSummaryBundle, now: Date): BudgetSummary {
   const financialYear = financialYearForDate(now)
   const config = configsByYear[financialYear] ?? FY2027_CONFIG
-  const today = localIsoDate(now, bundle.timeZone ?? HOUSEHOLD_TIME_ZONE)
+  const today = localIsoDate(now, bundle.timeZone)
 
   // Projected savings interest is steady, always-active `other` income, so the
   // same inputs feed the whole-year estimate and the active-now rerun.

@@ -77,4 +77,26 @@ import Testing
         #expect(!rows.isDefault("old", from: "2026-10-01"))
         #expect(rows.isDefault("new", from: "2026-09-30"))
     }
+
+    @Test func paySplitsReadABrisbaneHouseholdsLinesOnItsOwnDay() throws {
+        var rows = SplitsRows()
+        rows.households = [
+            Household(
+                createdAt: "2026-01-01T00:00:00Z", id: "h1", inviteCode: nil,
+                inviteCodeExpiresAt: nil, name: "Home", payAccountId: nil,
+                timezone: "Australia/Brisbane", updatedAt: "2026-01-01T00:00:00Z")
+        ]
+        rows.budgetLines = [
+            try line(id: "starts", startsOn: "2026-12-01"),
+            try line(id: "retires", startsOn: "2026-01-01", retiredOn: "2026-12-01"),
+        ]
+        let active = { (instant: String) in
+            rows.budgetLines.active(on: rows.today(at: ISO8601DateFormatter().date(from: instant)!))
+                .map(\.id)
+        }
+        // 12:30am on 1 December in Brisbane.
+        #expect(active("2026-11-30T14:30:00Z") == ["starts"])
+        // 11:30pm on 30 November in Brisbane, already 1 December in Sydney.
+        #expect(active("2026-11-30T13:30:00Z") == ["retires"])
+    }
 }

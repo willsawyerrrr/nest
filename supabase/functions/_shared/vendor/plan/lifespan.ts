@@ -9,9 +9,6 @@
  * the household's timezone, compared as strings.
  */
 
-/** The timezone a household's local days are read in when no other is known. */
-export const HOUSEHOLD_TIME_ZONE = 'Australia/Sydney'
-
 /** An item's lifespan; either side open when null or absent. */
 export interface Lifespan {
   /** The first local day the item applies. */
@@ -33,7 +30,7 @@ export function isBudgetLineRetired(lifespan: Lifespan, today: string): boolean 
   return lifespan.retiredOn != null && lifespan.retiredOn <= today
 }
 
-/** The local day (ISO `YYYY-MM-DD`) `now` falls on in `timeZone`. */
-export function localIsoDate(now: Date, timeZone: string = HOUSEHOLD_TIME_ZONE): string {
+/** The local day (ISO `YYYY-MM-DD`) `now` falls on in `timeZone` (an IANA zone, e.g. `households.timezone`). */
+export function localIsoDate(now: Date, timeZone: string): string {
   return now.toLocaleDateString('en-CA', { timeZone })
 }

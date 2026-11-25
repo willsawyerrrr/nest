@@ -162,7 +162,9 @@ describe('household and pay account', () => {
       tables: { households: [{ ...households[0], pay_account_id: null }] },
     })
     expect((await getHousehold(none.ctx)).pay_account).toBeNull()
-    expect((await failure(getHousehold(fakeContext().ctx))).code).toBe('not_found')
+    expect(
+      (await failure(getHousehold(fakeContext({ tables: { households: [] } }).ctx))).code,
+    ).toBe('not_found')
   })
 
   it('sets and clears the pay account through the RPC', async () => {

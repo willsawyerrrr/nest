@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { activeBudgetLineRows } from '@nest/household'
 import { localIsoDate } from '@nest/plan'
+import { useHouseholdTimeZone } from '../components/HouseholdProvider'
 import type { Tables } from '../lib/database.types'
 import type { BudgetGroup, Frequency } from '../lib/domain'
 import { useHouseholdCollection } from './useCollection'
@@ -43,15 +44,17 @@ export interface UseBudgetLinesResult {
 
 /**
  * Loads and mutates the household's budget lines. RLS scopes reads to the
- * household. Only the lines active today (started and not retired) are
- * returned, so every figure built on them is today's plan.
+ * household. Only the lines active on the household's local day (started and
+ * not retired) are returned, so every figure built on them is today's plan.
  */
 export function useBudgetLines(): UseBudgetLinesResult {
   const { rows, baselineRows, loading, reload, create, update, remove } = useHouseholdCollection<
     'budget_line',
     BudgetLineInput
   >({ table: 'budget_line', orderBy: 'name' })
-  const [today] = useState(() => localIsoDate(new Date()))
+  const timeZone = useHouseholdTimeZone()
+  const [now] = useState(() => new Date())
+  const today = localIsoDate(now, timeZone)
   const lines = useMemo(() => rows && activeBudgetLineRows(rows, today), [rows, today])
   const baselineLines = useMemo(
     () => baselineRows && activeBudgetLineRows(baselineRows, today),

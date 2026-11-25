@@ -318,6 +318,7 @@ function pwaOutcome(horizon: '5y' | '10y' | '20y' | '30y' | 'retirement') {
     projectionHorizonYears([], DEFAULT_ASSUMPTIONS.retirementAge),
   )
   const outcome: NetWorthComputeResult = computeNetWorth({
+    timeZone: 'Australia/Sydney',
     accounts: rows.accounts as never,
     superProfiles: rows.superProfiles,
     contributions: rows.contributions,

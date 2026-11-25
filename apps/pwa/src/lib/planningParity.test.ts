@@ -107,6 +107,7 @@ const summarise = (
   JSON.parse(
     JSON.stringify(
       summariseHousehold({
+        timeZone: 'Australia/Sydney',
         inflows,
         budgetLines,
         memberAllowances: rows.memberAllowances,

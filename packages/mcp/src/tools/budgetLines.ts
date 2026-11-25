@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import { localIsoDate, type Frequency } from '@nest/plan'
-import { resolveMember, selectAll, type NestContext } from '../context.ts'
+import type { Frequency } from '@nest/plan'
+import { householdToday, resolveMember, selectAll, type NestContext } from '../context.ts'
 import { fixedError, ToolError, writeError } from '../errors.ts'
 import { requireAccount } from './shared.ts'
 import { centsSchema, isoDateSchema } from './write.ts'
@@ -212,7 +212,7 @@ export async function addBudgetLine(ctx: NestContext, input: z.infer<typeof addB
   const created = data as { id: string; starts_on?: string }
   return {
     id: created.id,
-    starts_on: created.starts_on ?? input.starts_on ?? localIsoDate(ctx.now()),
+    starts_on: created.starts_on ?? input.starts_on ?? (await householdToday(ctx)),
     name: input.name,
     group: input.group,
     amount_cents: input.amount_cents,
@@ -413,7 +413,7 @@ export async function retireBudgetLine(
   input: z.infer<typeof retireBudgetLineInput>,
 ) {
   await manualLine(ctx, input.id, 'remove')
-  const retiredOn = input.retire_on ?? localIsoDate(ctx.now())
+  const retiredOn = input.retire_on ?? (await householdToday(ctx))
   const { error } = await ctx.supabase.rpc('retire_budget_line', {
     p_budget_line_id: input.id,
     p_retire_on: retiredOn,

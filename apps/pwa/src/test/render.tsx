@@ -13,7 +13,9 @@ function Providers({ children }: { children: ReactNode }) {
   return (
     <MantineProvider theme={theme} env="test">
       <QueryClientProvider client={queryClient}>
-        <HouseholdProvider householdId="h1">{children}</HouseholdProvider>
+        <HouseholdProvider householdId="h1" timeZone="Australia/Sydney">
+          {children}
+        </HouseholdProvider>
       </QueryClientProvider>
     </MantineProvider>
   )

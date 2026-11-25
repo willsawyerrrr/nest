@@ -108,6 +108,32 @@ describe('listBudgetLines lifespans', () => {
     ],
   }
 
+  it("reads each line's status on a Brisbane household's own day", async () => {
+    const { ctx } = fakeContext({
+      tables: {
+        budget_line: [
+          line({ id: 'starts', name: 'Gym', starts_on: '2026-12-01' }),
+          line({ id: 'retires', name: 'Rent', starts_on: '2026-01-01', retired_on: '2026-12-01' }),
+        ],
+        households: [{ id: 'h-1', timezone: 'Australia/Brisbane' }],
+      },
+    })
+    const statuses = async () =>
+      (await listBudgetLines(ctx, { include_retired: true })).lines.map((l) => [l.id, l.status])
+    // 12:30am on 1 December in Brisbane.
+    ctx.now = () => new Date('2026-11-30T14:30:00Z')
+    expect(await statuses()).toEqual([
+      ['starts', 'active'],
+      ['retires', 'retired'],
+    ])
+    // 11:30pm on 30 November in Brisbane, already 1 December in Sydney.
+    ctx.now = () => new Date('2026-11-30T13:30:00Z')
+    expect(await statuses()).toEqual([
+      ['starts', 'upcoming'],
+      ['retires', 'active'],
+    ])
+  })
+
   it("reports each line's lifespan and leaves retired lines out unless asked", async () => {
     const { ctx } = fakeContext({
       tables,
@@ -296,6 +322,7 @@ describe('getFortnightlyBuffer', () => {
         temporaryItems: [],
         savingsGoals: rows.savings_goal,
         savers: [{ id: 's1', owner_member_id: 'm1', balance_cents: 10_000_00 }],
+        timeZone: 'Australia/Sydney',
       },
       ctx.now(),
     )
@@ -376,6 +403,26 @@ describe('getFortnightlyBuffer', () => {
         remaining_fortnightly_cents: null,
       },
     ])
+  })
+
+  it("counts the lines active on a Brisbane household's own day", async () => {
+    const buffer = async (now: string) => {
+      const { ctx } = fakeContext({
+        tables: {
+          ...rows,
+          budget_line: [
+            line({ amount_cents: 300_00, frequency: 'fortnightly', starts_on: '2026-12-01' }),
+          ],
+          households: [{ id: 'h-1', timezone: 'Australia/Brisbane' }],
+        },
+      })
+      ctx.now = () => new Date(now)
+      return (await getFortnightlyBuffer(ctx)).outgoings_fortnightly_cents
+    }
+    // 12:30am on 1 December in Brisbane, then 11:30pm on 30 November (1 December in Sydney).
+    expect((await buffer('2026-11-30T14:30:00Z')) - (await buffer('2026-11-30T13:30:00Z'))).toBe(
+      300_00,
+    )
   })
 
   it('treats a saver with no visible balance as zero', async () => {

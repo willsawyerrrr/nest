@@ -25,10 +25,20 @@ describe('isBudgetLineRetired', () => {
 })
 
 describe('localIsoDate', () => {
-  it('reads the local day in the household timezone, not UTC', () => {
+  it('reads the local day in the given timezone, not UTC', () => {
     // 9am on 25 November in Sydney is still 24 November in UTC.
     const now = new Date('2026-11-24T22:00:00Z')
-    expect(localIsoDate(now)).toBe('2026-11-25')
+    expect(localIsoDate(now, 'Australia/Sydney')).toBe('2026-11-25')
     expect(localIsoDate(now, 'UTC')).toBe('2026-11-24')
+  })
+
+  it('reads a Brisbane household its own day, an hour behind Sydney in summer', () => {
+    // 12:30am on 1 December in Brisbane is 1:30am in Sydney and 30 November in UTC.
+    const now = new Date('2026-11-30T14:30:00Z')
+    expect(localIsoDate(now, 'Australia/Brisbane')).toBe('2026-12-01')
+    // 11:30pm on 30 November in Brisbane is already 1 December in Sydney.
+    const lateNight = new Date('2026-11-30T13:30:00Z')
+    expect(localIsoDate(lateNight, 'Australia/Brisbane')).toBe('2026-11-30')
+    expect(localIsoDate(lateNight, 'Australia/Sydney')).toBe('2026-12-01')
   })
 })

@@ -370,6 +370,8 @@ export interface NetWorthComputeInput<A extends NetWorthAccountRow = NetWorthAcc
   /** The projection horizon in whole years. */
   horizonYears: number
   now: Date
+  /** The household's timezone (`households.timezone`), whose local day at `now` decides which budget lines fund the goals. */
+  timeZone: string
 }
 
 /** A net-worth outcome: the accrual-adjusted accounts, the current total, and the projection. */
@@ -406,6 +408,7 @@ export function computeNetWorth<A extends NetWorthAccountRow>({
   assumptions,
   horizonYears,
   now,
+  timeZone,
 }: NetWorthComputeInput<A>): NetWorthComputeResult<A> {
   const superIds = superAccountIds(superProfiles)
   const netContributionByMember = netAnnualSuperContributionFromRows(
@@ -448,7 +451,7 @@ export function computeNetWorth<A extends NetWorthAccountRow>({
   )
   const savingsGoals = netWorthGoals(
     goals,
-    activeBudgetLineRows(budgetLines, localIsoDate(now)),
+    activeBudgetLineRows(budgetLines, localIsoDate(now, timeZone)),
     balanceByAccountId,
   )
   const { cashCents, debtCents } = splitCashAndDebt(breakdown.otherAccounts)
@@ -501,6 +504,8 @@ export interface NetWorthRows<A extends NetWorthAccountRow = NetWorthAccountRow>
   /** The retirement assumptions; absent reads as `DEFAULT_ASSUMPTIONS`. */
   assumptions?: RetirementAssumptions
   now: Date
+  /** The household's timezone (`households.timezone`), whose local day at `now` decides which budget lines fund the goals. */
+  timeZone: string
 }
 
 /** What the Net worth tab shows: its breakdown and the projection. */
@@ -566,6 +571,7 @@ export function netWorthOfRows<A extends NetWorthAccountRow>(
     assumptions,
     horizonYears,
     now,
+    timeZone: rows.timeZone,
   })
   return {
     breakdown: netWorthBreakdown(

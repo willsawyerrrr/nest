@@ -14,6 +14,7 @@ const FIXTURE = '../../../ios/NestTests/Fixtures/summary-parity.json'
 const expected = JSON.parse(
   JSON.stringify(
     summariseHousehold({
+      timeZone: 'Australia/Sydney',
       inflows: rows.inflows,
       budgetLines: rows.budgetLines,
       memberAllowances: rows.memberAllowances,

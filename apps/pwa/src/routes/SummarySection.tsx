@@ -1,3 +1,4 @@
+import { useHouseholdTimeZone } from '../components/HouseholdProvider'
 import { LoadingScreen } from '../components/LoadingScreen'
 import { usePlanningMode } from '../components/PlanningModeProvider'
 import { SummaryView } from '../components/SummaryView'
@@ -30,6 +31,7 @@ export function SummarySection() {
   const inflows = useInflows()
   const taxProfiles = useTaxProfiles()
   const budgetLines = useBudgetLines()
+  const timeZone = useHouseholdTimeZone()
   const temporaryItems = useTemporaryItems()
   const memberAllowances = useMemberAllowances()
   const contributions = useSuperContributions()
@@ -91,6 +93,7 @@ export function SummarySection() {
       accounts: savers.savers ?? [],
       derivedAmounts: context,
       temporaryItems: temporaryItems.items ?? [],
+      timeZone,
     })
 
   const summary = buildSummary(inflows.inflows ?? [], budgetLines.lines ?? [], goals.goals ?? [])

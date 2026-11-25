@@ -849,8 +849,8 @@ empty; the update alert comes from a version check instead of the PWA's reload
 prompt. A failed load shows the PWA's inline error alert, not `ErrorView`.
 
 `VersionSource` compares the bundle's `CFBundleShortVersionString` with the latest
-release on the app's channel (`UpdateChannel`): the App Store on iOS and Mac
-Catalyst (an iTunes lookup by bundle id, linking to `trackViewUrl`), and Homebrew on
+release on the app's channel (`UpdateChannel`): the App Store on iOS (an
+iTunes lookup by bundle id, linking to `trackViewUrl`), and Homebrew on
 `NestMac` (the `version` in the tap's `Casks/nest.rb`, shown with
 `brew upgrade --cask willsawyerrrr/tap/nest`). `AppVersion` compares numerically
 per component. A failed lookup, or no published release, offers no update; a failed

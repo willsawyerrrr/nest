@@ -1,8 +1,8 @@
 # iOS and macOS app
 
 `apps/ios` is the native Nest app, with two Xcode targets built from one set of
-sources: `Nest` (iOS and Mac Catalyst destinations) and `NestMac` (a native
-AppKit/SwiftUI macOS app). It is a SwiftUI app built on:
+sources: `Nest` (the iOS app) and `NestMac` (a native AppKit/SwiftUI macOS
+app). It is a SwiftUI app built on:
 
 - a burger-menu [navigation shell](#navigation-shell) over a route registry
   (`Route.swift`) that renders every route natively;
@@ -23,19 +23,17 @@ browser and installed via Safari, but gets no new work; anything it needs is
 filed as a backlog issue.
 
 Nothing about how the PWA is built, deployed, or served changes because this
-app exists. `Nest`'s two destinations differ only by
-`project.yml`'s `supportedDestinations: [iOS, macCatalyst]`. `NestMac` compiles
-the same `Nest/` and `Shared/` sources for macOS; the few platform differences
+app exists. `NestMac` compiles the same `Nest/` and `Shared/` sources for macOS; the few platform differences
 are `#if os(macOS)` branches (`Auth.swift`'s presenting window, `WebView.swift`'s
 `NSViewRepresentable`, external-link and foreground handling, `ContentView+*.swift`'s
-dynamic colours). Every file below applies to all three builds unless noted.
+dynamic colours). Every file below applies to both apps unless noted.
 
 ### Navigation shell
 
 Once signed in, `ContentView` shows `NavigationShell` (`Nest/Navigation/`),
 the PWA's `TabBar` natively: on iPhone (compact width) a top bar (brand mark,
 "What's new", burger) whose burger opens a left drawer over a dimmed scrim; on
-iPad, Mac Catalyst and `NestMac` a persistent 240pt sidebar (wordmark lockup, nav,
+iPad and `NestMac` a persistent 240pt sidebar (wordmark lockup, nav,
 "What's new" in the footer). Both render `NavMenu` (`NavMenu.swift`) over
 `NavEntry.entries(planningActive:)`: Summary stands alone, Plan, Review, Grow, Tax
 and Settings are collapsible groups with uppercase headers and chevrons, the active
@@ -181,7 +179,7 @@ view's session.
   (`project.yml`'s `info.properties`), and `SupabaseConfig.swift` reads them via
   `Bundle.main`, failing loudly (`fatalError`) if either is missing rather than
   building against no project. Local dev runs `xcodegen generate` after
-  loading the [local env files](operations.md#1password-environments); CI (`ci.yml`'s `build-ios` / `build-catalyst` /
+  loading the [local env files](operations.md#1password-environments); CI (`ci.yml`'s `build-ios` /
   `build-macos`) loads the 1Password Environments (see
   [`operations.md`](operations.md#1password-environments)).
 - **`Auth.swift`** — an `@Observable` `AuthModel` wrapping the client: a coarse
@@ -394,8 +392,7 @@ added to Nest from the share sheet's **Nest** destination, and each file becomes
 a draft deduction to review.
 
 - **Extension.** `ShareExtension/` is a share extension
-  (`dev.willsawyerrrr.nest.share-extension`), embedded in `Nest` and built for
-  both destinations. Its `NSExtensionActivationRule` is a predicate that offers
+  (`dev.willsawyerrrr.nest.share-extension`), embedded in `Nest`. Its `NSExtensionActivationRule` is a predicate that offers
   Nest when at least one attachment conforms to `com.adobe.pdf` or
   `public.image`. `ShareViewController` loads each attachment with
   `loadFileRepresentation`, which hands over a file on disk, and copies it into
@@ -442,15 +439,12 @@ The web view is a `WKWebView`, which cannot receive Web Push, so the app is
 reached over APNs instead. The trigger logic, preferences, and dedupe are shared
 with Web Push (see [`architecture.md`](architecture.md#push-notifications)).
 
-- **Entitlement.** `Nest/NestiOS.entitlements` adds `aps-environment` to the
-  iOS entitlements; `project.yml` selects it with
-  `CODE_SIGN_ENTITLEMENTS[sdk=iphone*]`, so Mac Catalyst and `NestMac` keep their
-  own entitlement files. The value is `development`; exporting for TestFlight
+- **Entitlement.** `Nest/Nest.entitlements` carries `aps-environment`;
+  `NestMac` has its own entitlement file without it. The value is `development`; exporting for TestFlight
   signs with the distribution profile, which swaps in `production`. The App ID's
   Push Notifications capability is enabled by automatic signing at export.
 - **Registration.** `NestApp` registers for remote notifications once the
-  member allows notifications at launch, except under Mac Catalyst, which
-  keys push differently and does not receive APNs. The iOS `NestAppDelegate`
+  member allows notifications at launch. The iOS `NestAppDelegate`
   (`NestAppDelegate+iOS.swift`, wired uniformly on every platform through a
   `PlatformAppDelegateAdaptor` typealias; the macOS one handles only taps)
   receives the token and hands it to `PushRegistrar`, which calls the
@@ -461,7 +455,7 @@ with Web Push (see [`architecture.md`](architecture.md#push-notifications)).
   app signs out, it deletes its own `apns_device` row, so
   a signed-out install stops receiving the member's notifications.
 - **Tap.** The payload carries `url`, an in-app path, optionally with a query.
-  `NestAppDelegate` (on iOS, iPad, Mac Catalyst and `NestMac`) turns it into a
+  `NestAppDelegate` (on iOS, iPad and `NestMac`) turns it into a
   `NotificationDestination`: the native `Route` whose path it names (`/` opens
   Summary and `/household` Household, as the web app redirects them), plus any
   context that screen takes — a `promoteName` and positive integer
@@ -501,8 +495,8 @@ with Web Push (see [`architecture.md`](architecture.md#push-notifications)).
   [notification content extension](#notification-content-extension), and a
   plain tap still opens the review screen on the transaction. A review action
   without a uuid `transactionId` is ignored. `NotificationResponse`
-  maps an action identifier and payload to what the delegate does. Mac Catalyst
-  receives no APNs pushes to act on, and `NestMac` registers no categories.
+  maps an action identifier and payload to what the delegate does. `NestMac`
+  registers no categories.
   Notifications that arrive in the foreground are shown as banners. The delegate
   uses the completion-handler forms of `didReceive` and `willPresent` and calls
   the completion handler on the main thread: UserNotifications calls them on a
@@ -512,15 +506,13 @@ with Web Push (see [`architecture.md`](architecture.md#push-notifications)).
   device as on (`PushStatus` `native`, from `__NEST_NATIVE_SHELL__`) with no web
   opt-in, shows the per-trigger toggles, and its test button sends to the app.
   Turning notifications off or back on is done in iOS Settings.
-- **Not covered.** Mac Catalyst and the native Mac app do not register for
-  APNs. Backend credentials are set up in
+- **Not covered.** The native Mac app does not register for APNs. Backend credentials are set up in
   [`operations.md`](operations.md#apns-auth-key-setup).
 
 ## Notification content extension
 
 `NotificationContent/` (bundle `dev.willsawyerrrr.nest.notification-content`,
-iOS only — Mac Catalyst receives no APNs pushes, so `Nest` embeds it under a
-`destinationFilters: [iOS]` dependency) is a Notification Content Extension for
+iOS only) is a Notification Content Extension for
 the `transaction_review` category. Expanding a review notification shows its
 title (merchant and amount) and the transaction's current Up category, read
 live by `ReviewNotificationLoader` (labelled by `UpCategories.label`), with
@@ -571,8 +563,8 @@ through and drops deletes. Why this shape:
 A paid Apple Developer Program membership is **not** required to build, run, or
 use this app on either platform. Per Apple's App Intents documentation, an
 `AppShortcutsProvider` needs no entitlement: a free personal team covers
-compile, Simulator, on-device install (7-day provisioning), a local Mac
-Catalyst build, and the App Shortcut reaching the Shortcuts app and Spotlight
+compile, Simulator, on-device install (7-day provisioning), a local `NestMac`
+build, and the App Shortcut reaching the Shortcuts app and Spotlight
 on both platforms. (The share extension is the exception: its App Group
 needs the paid team to register, so sharing into Nest runs on TestFlight builds.
 The notification content extension needs no App Group: its only entitlement is
@@ -598,7 +590,7 @@ The App Shortcuts have been run from Spotlight and the Shortcuts app **on a
 real iOS device**; the queries answer. **The iOS Simulator cannot reliably
 invoke an App Shortcut** — it fails with "Unable to run App Shortcut" regardless
 of the code — so test the intents on iOS hardware. The Simulator is still fine
-for the sign-in flow, the web shell, and `xcodebuild test`. A Mac Catalyst build
+for the sign-in flow, the web shell, and `xcodebuild test`. A `NestMac` build
 has no simulator: running it is already the "real device" case, and
 `Metadata.appintents` is produced and validated in its build product exactly as
 it is for iOS.
@@ -626,7 +618,7 @@ the anon key.
   tables are added the same way.
 - **`RowCache`** — the last-fetched rows of each query as JSON files under
   `Caches/NestRows/<user id>/` (`<table>__<digest of the query>.json`), a plain
-  file store that behaves identically on iOS, Catalyst and macOS. The system may
+  file store that behaves identically on iOS and macOS. The system may
   purge it; a missing or unreadable file is a cache miss. Entries are scoped per
   user id, and `NestData.live` clears the whole cache when the session ends.
 - **`NestData`** — `rows(_:filters:order:limit:)` returns a stream that yields the
@@ -654,10 +646,7 @@ the anon key.
 
 - `project.yml` — [XcodeGen](https://github.com/yonaskolb/XcodeGen) spec; the
   source of truth for the Xcode project, its `Info.plist` properties, and the
-  SPM dependency. `Nest`'s `supportedDestinations: [iOS, macCatalyst]` is what
-  makes it a two-platform target rather than a separate macOS project; its
-  `Info.plist` carries no `LSRequiresIPhoneOS` key, since that key excludes
-  Catalyst outright. The generated `Nest.xcodeproj` and `Nest/Info.plist` are
+  SPM dependency. The generated `Nest.xcodeproj` and `Nest/Info.plist` are
   not committed.
 - `Nest/` — Swift sources: `NestApp.swift`, `ContentView.swift`, `Navigation/`,
   `DesignSystem/`, `Screens/` (the [native screens](native-screens.md)), `WebView.swift`,
@@ -694,10 +683,9 @@ instructions.
 
 ## CI
 
-`.github/workflows/ci.yml` runs `build-ios`, `build-catalyst` and `build-macos` on
-`macos-latest` runners: `build-ios` (the iOS Simulator destination),
-`build-catalyst` (the Mac Catalyst destination) and `build-macos` (the `NestMac`
-scheme). Each runs `xcodegen generate`,
+`.github/workflows/ci.yml` runs `build-ios` and `build-macos` on
+`macos-latest` runners: `build-ios` (the iOS Simulator destination) and
+`build-macos` (the `NestMac` scheme). Each runs `xcodegen generate`,
 then `xcodebuild build` (which runs `appintentsmetadataprocessor`, so a
 malformed App Shortcut phrase — a missing `\(.applicationName)`, a duplicate
 identifier, an unresolvable parameter type — fails the build on both
@@ -705,17 +693,17 @@ destinations), then `xcodebuild test`. Neither overrides `SWIFT_EXEC` (that
 drops `--compile-time-extraction` and breaks App Intents metadata extraction
 on Xcode 16+) and both pass `-skipMacroValidation` /
 `-skipPackagePluginValidation` so a fresh runner does not stall on a macro or
-plugin approval prompt. `build-catalyst` and `build-macos` additionally pass
+plugin approval prompt. `build-macos` additionally passes
 `CODE_SIGNING_ALLOWED=NO`, since a runner carries no development team and
-Catalyst and macOS builds, unlike the Simulator, always sign. Each job restores
+macOS builds, unlike the Simulator, always sign. Each job restores
 and saves its DerivedData, Swift packages included, with platform's
 [`xcode-cache`](https://github.com/willsawyerrrr/platform/blob/main/docs/xcode-cache.md)
 action.
 
-All three are **required** — the `changes` job (`dorny/paths-filter`) gates them on
+Both are **required** — the `changes` job (`dorny/paths-filter`) gates them on
 `apps/ios/**` (or the workflow file itself) having changed, and `ci-status`
-`needs` all three, so a real regression blocks the merge; a PR that leaves
-`apps/ios/` untouched gets `skipped` on all three, which `ci-status` treats the same
+`needs` both, so a real regression blocks the merge; a PR that leaves
+`apps/ios/` untouched gets `skipped` on both, which `ci-status` treats the same
 as a pass rather than waiting forever on a check that never ran. See
 [`architecture.md`](architecture.md#ci).
 

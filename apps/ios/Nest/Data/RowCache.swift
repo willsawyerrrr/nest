@@ -44,7 +44,7 @@ actor RowCache {
     private let directory: URL
     private let fileManager = FileManager.default
 
-    /// The default location, `Caches/NestRows`, which exists on iOS, Catalyst and macOS alike.
+    /// The default location, `Caches/NestRows`, which exists on iOS and macOS alike.
     static let defaultDirectory = FileManager.default
         .urls(for: .cachesDirectory, in: .userDomainMask)[0]
         .appendingPathComponent("NestRows", isDirectory: true)

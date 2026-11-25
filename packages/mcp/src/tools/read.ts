@@ -8,11 +8,16 @@ import {
   fortnightlyCents,
   isBudgetLineActive,
   isBudgetLineRetired,
-  localIsoDate,
   type Frequency,
 } from '@nest/plan'
 import { financialYearForDate } from '@nest/tax'
-import { listMembers, selectAll, type NestContext } from '../context.ts'
+import {
+  householdTimeZone,
+  householdToday,
+  listMembers,
+  selectAll,
+  type NestContext,
+} from '../context.ts'
 import { fixedError } from '../errors.ts'
 
 interface BudgetLineRecord {
@@ -50,8 +55,8 @@ export async function listBudgetLines(
   ctx: NestContext,
   input: { name?: string | undefined; include_retired?: boolean | undefined },
 ) {
-  const today = localIsoDate(ctx.now())
-  const [rows, counted] = await Promise.all([
+  const [today, rows, counted] = await Promise.all([
+    householdToday(ctx),
     selectAll<BudgetLineRecord>(ctx, 'budget_line'),
     ctx.supabase.rpc('budget_lines_with_counted_spend'),
   ])
@@ -116,13 +121,13 @@ interface GoalRecord {
  * budget line active today is active; one with none is queued.
  */
 export async function listSavingsGoals(ctx: NestContext) {
-  const [goals, accounts, lines] = await Promise.all([
+  const [goals, accounts, lines, today] = await Promise.all([
     selectAll<GoalRecord>(ctx, 'savings_goal'),
     selectAll<AccountRecord>(ctx, 'accounts_with_balance'),
     selectAll<BudgetLineRecord>(ctx, 'budget_line'),
+    householdToday(ctx),
   ])
   const balanceByAccount = new Map(accounts.map((a) => [a.id, a.balance_cents ?? 0]))
-  const today = localIsoDate(ctx.now())
   const fundedGoalIds = new Set(
     lines.flatMap((line) =>
       line.goal_id === null || lifespanStatus(line, today) !== 'active' ? [] : [line.goal_id],
@@ -224,6 +229,7 @@ export async function getFortnightlyBuffer(ctx: NestContext) {
     temporaryItems,
     savingsGoals,
     accounts,
+    timeZone,
   ] = await Promise.all([
     selectAll<BudgetSummaryBundle['inflows'][number]>(ctx, 'inflows'),
     selectAll<BudgetSummaryBundle['taxProfiles'][number]>(ctx, 'tax_profile', scoped),
@@ -236,6 +242,7 @@ export async function getFortnightlyBuffer(ctx: NestContext) {
     selectAll<BudgetSummaryBundle['temporaryItems'][number]>(ctx, 'temporary_item'),
     selectAll<BudgetSummaryBundle['savingsGoals'][number]>(ctx, 'savings_goal'),
     selectAll<AccountRecord>(ctx, 'accounts_with_balance'),
+    householdTimeZone(ctx),
   ])
   const savers: SaverRow[] = accounts
     .filter((account) => account.source === 'up' && account.type === 'savings')
@@ -258,6 +265,7 @@ export async function getFortnightlyBuffer(ctx: NestContext) {
       temporaryItems,
       savingsGoals,
       savers,
+      timeZone,
     },
     now,
   )

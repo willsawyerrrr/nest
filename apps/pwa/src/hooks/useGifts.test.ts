@@ -214,7 +214,11 @@ describe('useGifts', () => {
       createElement(
         QueryClientProvider,
         { client },
-        createElement(HouseholdProvider, { householdId: 'h1' }, children),
+        createElement(
+          HouseholdProvider,
+          { householdId: 'h1', timeZone: 'Australia/Sydney' },
+          children,
+        ),
       )
     const { result } = renderHook(() => useGifts(), { wrapper })
     await waitFor(() => expect(result.current.loading).toBe(false))
@@ -250,7 +254,11 @@ describe('useGifts', () => {
       createElement(
         QueryClientProvider,
         { client },
-        createElement(HouseholdProvider, { householdId: 'h1' }, children),
+        createElement(
+          HouseholdProvider,
+          { householdId: 'h1', timeZone: 'Australia/Sydney' },
+          children,
+        ),
       )
     const { result } = renderHook(() => useGifts(), { wrapper })
     await waitFor(() => expect(result.current.loading).toBe(false))

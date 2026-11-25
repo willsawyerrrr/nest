@@ -25,7 +25,7 @@ function mount(householdId = 'h1') {
     return null
   }
   const tree = (id: string) => (
-    <HouseholdProvider householdId={id}>
+    <HouseholdProvider householdId={id} timeZone="Australia/Sydney">
       <PlanningModeProvider>
         <Grab />
       </PlanningModeProvider>

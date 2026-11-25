@@ -57,7 +57,8 @@ struct SummaryRows: Codable, Sendable, Equatable {
                 helpDebts: helpDebts, deductions: deductions, members: members,
                 budgetLines: budgetLines, memberAllowances: memberAllowances,
                 temporaryItems: temporaryItems, savingsGoals: savingsGoals,
-                savers: savers.compactMap(SaverInput.init)),
+                savers: savers.compactMap(SaverInput.init),
+                timeZone: TimeZone.current.identifier),
             now: Self.iso(now))
     }
 
@@ -87,6 +88,8 @@ struct SummaryBundle: Encodable, Sendable {
     let temporaryItems: [TemporaryItem]
     let savingsGoals: [SavingsGoal]
     let savers: [SaverInput]
+    /// The timezone whose local day decides which budget lines count.
+    let timeZone: String
 }
 
 /// A synced saver as the engine reads it: its balance, and its owner (`nil` for a joint saver).

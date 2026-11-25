@@ -231,7 +231,7 @@ function HouseholdApp({
   onRevokeInviteCode: () => Promise<void>
 }) {
   return (
-    <HouseholdProvider householdId={household.id}>
+    <HouseholdProvider householdId={household.id} timeZone={household.timezone}>
       <PlanningModeProvider>
         <HouseholdShell
           household={household}

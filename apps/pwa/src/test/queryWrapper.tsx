@@ -5,14 +5,14 @@ import { HouseholdProvider } from '../components/HouseholdProvider'
 /**
  * Build a `renderHook` wrapper providing a fresh React Query client with
  * retries disabled (so a query's error surfaces on the first attempt) and the
- * `h1` household every hook test reads under.
+ * `h1` household every hook test reads under, in `timeZone`.
  */
-export function makeWrapper() {
+export function makeWrapper(timeZone = 'Australia/Sydney') {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return ({ children }: { children: ReactNode }) =>
     createElement(
       QueryClientProvider,
       { client },
-      createElement(HouseholdProvider, { householdId: 'h1' }, children),
+      createElement(HouseholdProvider, { householdId: 'h1', timeZone }, children),
     )
 }

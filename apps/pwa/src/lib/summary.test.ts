@@ -99,6 +99,7 @@ const sources = (inflows: Inflow[], budgetLines: BudgetLine[] = []) => ({
   accounts: [],
   derivedAmounts: context(),
   temporaryItems: [],
+  timeZone: 'Australia/Sydney',
   now,
 })
 
@@ -111,6 +112,27 @@ const salary = (overrides: Partial<Inflow> = {}): Inflow =>
     amount_cents: 120_000_00,
     ...overrides,
   })
+
+describe("summariseHousehold — a Brisbane household's own day", () => {
+  // 12:30am on 1 December in Brisbane, and 11:30pm on 30 November (1 December in Sydney).
+  const afterMidnight = new Date('2026-11-30T14:30:00Z')
+  const beforeMidnight = new Date('2026-11-30T13:30:00Z')
+  const needs = (budgetLine: BudgetLine, at: Date) =>
+    summariseHousehold({
+      ...sources([salary()], [budgetLine]),
+      timeZone: 'Australia/Brisbane',
+      now: at,
+    }).groups.needs.fortnightlyCents
+  const starts = line({ line_group: 'needs', starts_on: '2026-12-01' })
+  const retires = line({ line_group: 'needs', starts_on: '2026-01-01', retired_on: '2026-12-01' })
+
+  it('counts a line from its start day and stops it on its retire day, read in Brisbane', () => {
+    expect(needs(starts, afterMidnight)).toBeGreaterThan(0)
+    expect(needs(retires, afterMidnight)).toBe(0)
+    expect(needs(starts, beforeMidnight)).toBe(0)
+    expect(needs(retires, beforeMidnight)).toBeGreaterThan(0)
+  })
+})
 
 describe('summariseHousehold — active-now fortnightly basis', () => {
   it('divides an always-on salary’s after-tax evenly, fortnightly matching annual', () => {

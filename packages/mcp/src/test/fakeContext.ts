@@ -40,7 +40,7 @@ const SELF = 'm-self'
 /** An in-memory stand-in for the slice of the Supabase client the tools use. */
 export function fakeContext(options: FakeOptions = {}): { ctx: NestContext; state: FakeState } {
   const state: FakeState = {
-    tables: options.tables ?? {},
+    tables: { households: [{ id: HOUSEHOLD, timezone: 'Australia/Sydney' }], ...options.tables },
     inserts: [],
     updates: [],
     rpcCalls: [],

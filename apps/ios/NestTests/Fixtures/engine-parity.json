@@ -694,7 +694,8 @@
         "memberAllowances": [],
         "temporaryItems": [],
         "savingsGoals": [],
-        "savers": []
+        "savers": [],
+        "timeZone": "Australia/Sydney"
       },
       "now": "2026-12-01T00:00:00Z"
     },
@@ -821,7 +822,8 @@
         "memberAllowances": [],
         "temporaryItems": [],
         "savingsGoals": [],
-        "savers": []
+        "savers": [],
+        "timeZone": "Australia/Sydney"
       },
       "now": "2026-12-01T00:00:00Z"
     },
@@ -942,7 +944,8 @@
         "memberAllowances": [],
         "temporaryItems": [],
         "savingsGoals": [],
-        "savers": []
+        "savers": [],
+        "timeZone": "Australia/Sydney"
       },
       "now": "2026-12-01T00:00:00Z"
     },
@@ -1081,7 +1084,8 @@
         "memberAllowances": [],
         "temporaryItems": [],
         "savingsGoals": [],
-        "savers": []
+        "savers": [],
+        "timeZone": "Australia/Sydney"
       },
       "now": "2026-12-01T00:00:00Z"
     },
@@ -1208,7 +1212,8 @@
             "current_balance_cents": 15000000
           }
         ],
-        "savers": []
+        "savers": [],
+        "timeZone": "Australia/Sydney"
       },
       "now": "2026-12-01T00:00:00Z"
     },
@@ -1365,7 +1370,8 @@
         "memberAllowances": [],
         "temporaryItems": [],
         "savingsGoals": [],
-        "savers": []
+        "savers": [],
+        "timeZone": "Australia/Sydney"
       },
       "now": "2026-12-01T00:00:00Z"
     },
@@ -1513,7 +1519,8 @@
         ],
         "temporaryItems": [],
         "savingsGoals": [],
-        "savers": []
+        "savers": [],
+        "timeZone": "Australia/Sydney"
       },
       "now": "2026-12-01T00:00:00Z"
     },

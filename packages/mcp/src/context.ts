@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { localIsoDate } from '@nest/plan'
 import { fixedError, ToolError } from './errors.ts'
 
 /** What every tool runs with: the member's own client and who they are. */
@@ -34,6 +35,20 @@ export async function selectAll<T>(
     throw fixedError('query_failed')
   }
   return (data ?? []) as T[]
+}
+
+/** The household's timezone (`households.timezone`), whose local days its budget lines live on. */
+export async function householdTimeZone(ctx: NestContext): Promise<string> {
+  const [household] = await selectAll<{ timezone: string }>(ctx, 'households', {
+    id: ctx.householdId,
+  })
+  if (!household) throw new ToolError('not_found', 'The household could not be found.')
+  return household.timezone
+}
+
+/** The household's local day (ISO `YYYY-MM-DD`) at `ctx.now()`, in its own timezone. */
+export async function householdToday(ctx: NestContext): Promise<string> {
+  return localIsoDate(ctx.now(), await householdTimeZone(ctx))
 }
 
 /** The household's members. */

@@ -203,8 +203,8 @@ export interface TaxEstimateRows {
 export interface BudgetSummaryBundle extends TaxEstimateRows {
   /** Budget lines; only those active on the household's local day count. */
   budgetLines: readonly BudgetLineRow[]
-  /** The household's timezone (`households.timezone`), whose local day the lines' lifespans are read on; absent ⇒ `HOUSEHOLD_TIME_ZONE`. */
-  timeZone?: string
+  /** The household's timezone (`households.timezone`), whose local day the lines' lifespans are read on. */
+  timeZone: string
   /** Members' spending allowances — each the Discretionary outgoing for its member, with drawn lines counting against it. */
   memberAllowances: readonly MemberAllowanceRow[]
   temporaryItems: readonly TemporaryItemRow[]

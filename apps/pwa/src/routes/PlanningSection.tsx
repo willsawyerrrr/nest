@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { fortnightlyCents, grantValueCents, projectGoal } from '@nest/plan'
+import { useHouseholdTimeZone } from '../components/HouseholdProvider'
 import { LoadingScreen } from '../components/LoadingScreen'
 import { usePlanningMode } from '../components/PlanningModeProvider'
 import {
@@ -169,6 +170,7 @@ export function PlanningSection() {
   const { members, loading: membersLoading } = useMembers()
   const inflows = useInflows()
   const budgetLines = useBudgetLines()
+  const timeZone = useHouseholdTimeZone()
   const goals = useGoals()
   const savers = useSavers()
   const accounts = useAccounts()
@@ -268,6 +270,7 @@ export function PlanningSection() {
       accounts: saverRows,
       derivedAmounts: context,
       temporaryItems: temporaryItems.items ?? [],
+      timeZone,
       now: today,
     })
   const estimateFor = (inf: Inflow[], gls: Goal[]) =>
@@ -332,6 +335,7 @@ export function PlanningSection() {
       assumptions,
       horizonYears,
       now: today,
+      timeZone,
     })
 
   const realSummary = summaryFor(baselineInflows, baselineLines, baselineGoals)

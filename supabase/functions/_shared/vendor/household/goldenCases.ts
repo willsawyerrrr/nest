@@ -461,6 +461,7 @@ function bundle(overrides: Partial<BudgetSummaryBundle> = {}): BudgetSummaryBund
     temporaryItems: [],
     savingsGoals: [],
     savers: [],
+    timeZone: 'Australia/Sydney',
     ...overrides,
   }
 }

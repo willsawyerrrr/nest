@@ -25,12 +25,7 @@ export {
 
 export { MS_PER_DAY } from './constants.ts'
 
-export {
-  HOUSEHOLD_TIME_ZONE,
-  isBudgetLineActive,
-  isBudgetLineRetired,
-  localIsoDate,
-} from './lifespan.ts'
+export { isBudgetLineActive, isBudgetLineRetired, localIsoDate } from './lifespan.ts'
 export type { Lifespan } from './lifespan.ts'
 
 export { isDrawnFromAllowance, summariseAllowances } from './allowance.ts'

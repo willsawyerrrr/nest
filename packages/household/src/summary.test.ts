@@ -48,6 +48,7 @@ function bundle(overrides: Partial<BudgetSummaryBundle> = {}): BudgetSummaryBund
     temporaryItems: [],
     savingsGoals: [],
     savers: [],
+    timeZone: 'Australia/Sydney',
     ...overrides,
   }
 }
@@ -357,15 +358,30 @@ describe('budget line lifespans', () => {
     const at = new Date('2026-11-24T22:00:00Z')
     const startsToday = line({ amount_cents: 300_00, starts_on: '2026-11-25' })
     const base = bundle({ budgetLines: [line({ amount_cents: 100_00 })] })
-    const withLines = (budgetLines: BudgetLineRow[], timeZone?: string) =>
-      summariseHouseholdFromRows(
-        { ...base, budgetLines, ...(timeZone !== undefined && { timeZone }) },
-        at,
-      ).groups.needs.fortnightlyCents
+    const withLines = (budgetLines: BudgetLineRow[], timeZone = 'Australia/Sydney') =>
+      summariseHouseholdFromRows({ ...base, budgetLines, timeZone }, at).groups.needs
+        .fortnightlyCents
 
     expect(withLines([startsToday])).toBe(300_00)
     expect(withLines([startsToday], 'UTC')).toBe(0)
     expect(withLines([line({ amount_cents: 300_00, starts_on: '2027-01-01' })])).toBe(0)
     expect(withLines([line({ amount_cents: 300_00, retired_on: '2026-11-25' })])).toBe(0)
+  })
+
+  it("reads a Brisbane household's start and retire days on Brisbane's day, not Sydney's", () => {
+    // 12:30am on 1 December in Brisbane (1:30am in Sydney).
+    const afterMidnight = new Date('2026-11-30T14:30:00Z')
+    // 11:30pm on 30 November in Brisbane, already 1 December in Sydney.
+    const beforeMidnight = new Date('2026-11-30T13:30:00Z')
+    const starts = line({ amount_cents: 300_00, starts_on: '2026-12-01' })
+    const retires = line({ amount_cents: 300_00, retired_on: '2026-12-01' })
+    const needs = (budgetLines: BudgetLineRow[], now: Date) =>
+      summariseHouseholdFromRows({ ...bundle(), budgetLines, timeZone: 'Australia/Brisbane' }, now)
+        .groups.needs.fortnightlyCents
+
+    expect(needs([starts], afterMidnight)).toBe(300_00)
+    expect(needs([retires], afterMidnight)).toBe(0)
+    expect(needs([starts], beforeMidnight)).toBe(0)
+    expect(needs([retires], beforeMidnight)).toBe(300_00)
   })
 })

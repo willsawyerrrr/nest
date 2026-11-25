@@ -39,6 +39,7 @@ const context = derivedAmountContext([breakdown], breakdownItems, [], [], null)
 
 function graphs(household: typeof rows) {
   const summary = summariseHousehold({
+    timeZone: 'Australia/Sydney',
     inflows: household.inflows,
     budgetLines: household.budgetLines,
     memberAllowances: household.memberAllowances,

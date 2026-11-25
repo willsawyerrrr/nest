@@ -47,6 +47,7 @@ function fakeBundle(overrides: Partial<BudgetSummaryBundle> = {}): BudgetSummary
     temporaryItems: [],
     savingsGoals: [],
     savers: [],
+    timeZone: 'Australia/Sydney',
     ...overrides,
   }
 }
@@ -107,4 +108,34 @@ Deno.test('runIntentSummary passes an unauthorised caller straight through', asy
       Promise.resolve({ error: { status: 401, message: 'Invalid authorization' } }),
   }))
   assertEquals(result, { status: 401, body: { error: 'Invalid authorization' } })
+})
+
+Deno.test("runIntentSummary reads a Brisbane household's lines on Brisbane's own day", async () => {
+  const line = {
+    line_group: 'needs',
+    amount_cents: 300_00,
+    frequency: 'fortnightly',
+    interval_count: null,
+  }
+  const buffer = async (now: string) => {
+    const result = await runIntentSummary(deps({
+      now: () => new Date(now),
+      loadBundle: () =>
+        Promise.resolve(fakeBundle({
+          timeZone: 'Australia/Brisbane',
+          budgetLines: [
+            { ...line, starts_on: '2026-12-01' },
+            { ...line, amount_cents: 100_00, starts_on: '2026-01-01', retired_on: '2026-12-01' },
+          ],
+        })),
+    }))
+    return (result.body as { fortnightlyAfterSavingCents: number }).fortnightlyAfterSavingCents
+  }
+  // 12:30am on 1 December in Brisbane counts the starting line and drops the
+  // retiring one; at 11:30pm on 30 November (already 1 December in Sydney) the
+  // reverse.
+  assertEquals(
+    (await buffer('2026-11-30T13:30:00Z')) - (await buffer('2026-11-30T14:30:00Z')),
+    200_00,
+  )
 })

@@ -712,7 +712,12 @@ Discretionary lines may be drawn from.
     splits, goal funding and the Budget screen's totals count only the lines
     active today; a line not yet started is listed as "starts <date>". Spend
     counts toward a line only within its lifespan (see
-    [Spend allocation](#spend-allocation)).
+    [Spend allocation](#spend-allocation)). "Today" is the local day in the
+    household's `timezone`: the engines take it as a required argument
+    (`localIsoDate`'s zone, the summary and net-worth inputs' `timeZone`) with
+    no fallback zone, and the PWA (`useHouseholdTimeZone`), the MCP server,
+    the edge functions and native Pay splits pass `households.timezone`;
+    the native app's other screens pass the device's timezone.
   - **Delete or retire.** A manual line spending has ever counted toward (by a
     member choice, a rule, a suggestion, or the default) cannot be deleted:
     `prevent_budget_line_delete_with_spend` raises `budget_line_has_spend`, so

@@ -31,6 +31,8 @@ export interface HouseholdSummarySources {
   accounts: readonly Pick<Account, 'id' | 'balance_cents' | 'owner_member_id'>[]
   derivedAmounts: DerivedAmountContext
   temporaryItems: TemporaryItem[]
+  /** The household's timezone (`households.timezone`), whose local day decides which budget lines count. */
+  timeZone: string
   now?: Date
 }
 
@@ -58,6 +60,7 @@ export function summariseHousehold({
   accounts,
   derivedAmounts,
   temporaryItems,
+  timeZone,
   now = new Date(),
 }: HouseholdSummarySources): BudgetSummary {
   return summariseHouseholdFromRows(
@@ -73,6 +76,7 @@ export function summariseHousehold({
       temporaryItems,
       savingsGoals: goals,
       savers: accounts,
+      timeZone,
     },
     now,
   )

@@ -72,7 +72,8 @@ struct NetWorthRows: Codable, Sendable, Equatable {
             deductions: deductions, members: members, inflows: inflows, goals: savingsGoals,
             budgetLines: budgetLines, equityGrants: equityGrants,
             equityExercises: equityExercises, equitySales: equitySales, trades: trades,
-            horizon: horizon.rawValue, now: SummaryRows.iso(now))
+            horizon: horizon.rawValue, now: SummaryRows.iso(now),
+            timeZone: TimeZone.current.identifier)
     }
 
     /// The rows with the planning sandbox laid over the three tables it covers here.
@@ -140,6 +141,8 @@ struct NetWorthInput: Encodable, Sendable {
     let trades: [Trade]
     let horizon: String
     let now: String
+    /// The timezone whose local day decides which budget lines fund the goals.
+    let timeZone: String
 }
 
 /// The engine's net worth: the breakdown and the year-by-year projection.

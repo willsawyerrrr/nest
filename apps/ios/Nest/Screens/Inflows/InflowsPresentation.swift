@@ -173,7 +173,14 @@ struct InflowsPresentation: Sendable {
 
     /// `YYYY-MM-DD` of `date` in the local calendar.
     static func isoDate(_ date: Date) -> String {
-        let parts = Calendar.current.dateComponents([.year, .month, .day], from: date)
+        isoDate(date, in: Calendar.current.timeZone)
+    }
+
+    /// `YYYY-MM-DD` of `date` in `timeZone`.
+    static func isoDate(_ date: Date, in timeZone: TimeZone) -> String {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        let parts = calendar.dateComponents([.year, .month, .day], from: date)
         return String(format: "%04d-%02d-%02d", parts.year!, parts.month!, parts.day!)
     }
 

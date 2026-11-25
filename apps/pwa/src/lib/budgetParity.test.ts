@@ -182,6 +182,7 @@ describe('the native Budget parity fixture', () => {
 
   it('agrees with the Summary on every group', () => {
     const summary = summariseHousehold({
+      timeZone: 'Australia/Sydney',
       inflows: [],
       budgetLines: rows.budgetLines,
       memberAllowances: rows.memberAllowances,

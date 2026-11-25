@@ -117,6 +117,9 @@ export async function loadBudgetSummaryBundle(
   if (household.error) {
     throw new Error(`Failed to read households: ${household.error.message}`)
   }
+  if (!household.data) {
+    throw new Error(`No household ${householdId}`)
+  }
 
   return {
     inflows,
@@ -130,6 +133,6 @@ export async function loadBudgetSummaryBundle(
     temporaryItems,
     savingsGoals,
     savers: toSaverRows(accounts, accountBalances),
-    ...(household.data?.timezone != null && { timeZone: household.data.timezone as string }),
+    timeZone: household.data.timezone as string,
   }
 }

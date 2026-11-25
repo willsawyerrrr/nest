@@ -32,6 +32,15 @@ struct SplitsRows: Codable, Sendable, Equatable {
         households.first { $0.id == members.first?.householdId } ?? households.first
     }
 
+    /// The household's timezone (`households.timezone`), whose local day decides
+    /// which budget lines apply; the device's until the household row loads.
+    var timeZone: TimeZone {
+        household.flatMap { TimeZone(identifier: $0.timezone) } ?? .current
+    }
+
+    /// The local day (`YYYY-MM-DD`) `now` falls on in the household's timezone.
+    func today(at now: Date) -> String { InflowsPresentation.isoDate(now, in: timeZone) }
+
     /// The account pay lands in, if one is designated.
     var payAccountId: String? { household?.payAccountId }
 

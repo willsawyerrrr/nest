@@ -64,6 +64,7 @@ function bundle(overrides: Partial<HouseholdBundle> = {}): HouseholdBundle {
     upHandles: [],
     upCategories: [],
     savers: [],
+    timeZone: 'Australia/Sydney',
     ...overrides,
   }
 }

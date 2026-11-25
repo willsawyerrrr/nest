@@ -127,6 +127,15 @@ collect `results/` from the Files app. `report.ts` reads only engine files as
 results; it lists each run record's hardware, OS, corpus hash and arm statuses
 in a `Runs` section at the top of the report.
 
+During a run the app keeps the screen on, holds a background-task assertion
+(renewed per document) so a brief lock finishes the current generation, and
+shows the arm and document position, current document id, elapsed time, a
+rolling estimate of the time left in the arm and a scrolling log. Each arm's
+results file is written when that arm completes. With Resume on, arms whose
+results file exists without an `armError` are skipped. A tick gap over five
+seconds shows a "suspended while locked" hint. A local notification, requested
+on first run, reports when the run finishes or has failed arms.
+
 The PCC arm checks `PrivateCloudComputeLanguageModel().availability` first;
 until the managed entitlement is granted it writes the results file with an
 `armError` and no documents, so the failure is recorded.

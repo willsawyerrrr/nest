@@ -37,55 +37,59 @@ enum Run {
   nonisolated(unsafe) private static var generated = false
 
   static func run(
-    dir: URL, path: InputPath, model: ModelChoice, sampling: Sampling, repeats: Int, only: Set<String>, cross: Bool = false
+    dir: URL, path: InputPath, model: ModelChoice, sampling: Sampling, repeats: Int, only: Set<String>, cross: Bool = false,
+    progress: (@Sendable (DocumentProgress) -> Void)? = nil
   ) async throws {
     let corpus = try CorpusDoc.loadAll(from: dir)
     let files = dir.appending(path: "files")
     let device = await Device.snapshot(model)
     var results: [String: [String: Any]] = [:]
+    var units: [(doc: CorpusDoc, kind: String)] = []
     for doc in corpus where only.isEmpty || only.contains(doc.id) {
       // A picture-only variant has no text layer for the PDF text path to read.
       if path == .pdftext && doc.textLayer == false { continue }
       let kinds = doc.kind == "other" || cross ? ["payslip", "deduction", "trade"] : [doc.kind]
-      for kind in kinds {
-        var runs: [[String: Any]] = []
-        for repeatIndex in 0..<repeats {
-          let timing = generated ? "warm" : "cold"
-          generated = true
-          let thermal = Device.thermalState
-          let started = ContinuousClock.now
-          var result = RunResult(ms: 0)
-          do {
-            if let reason = Pages.unreadable(files.appending(path: "\(doc.id).pdf")) {
-              result.unreadable = reason
-            } else {
-              let (raw, tokens) = try await extract(
-                doc, kind: kind, path: path, model: model, sampling: sampling, dir: dir)
-              result.raw = raw
-              result.promptTokens = tokens
-            }
-          } catch {
-            result.error = describe(error)
+      units += kinds.map { (doc, $0) }
+    }
+    for (position, (doc, kind)) in units.enumerated() {
+      progress?(DocumentProgress(id: "\(doc.id):\(kind)", index: position + 1, total: units.count))
+      var runs: [[String: Any]] = []
+      for repeatIndex in 0..<repeats {
+        let timing = generated ? "warm" : "cold"
+        generated = true
+        let thermal = Device.thermalState
+        let started = ContinuousClock.now
+        var result = RunResult(ms: 0)
+        do {
+          if let reason = Pages.unreadable(files.appending(path: "\(doc.id).pdf")) {
+            result.unreadable = reason
+          } else {
+            let (raw, tokens) = try await extract(
+              doc, kind: kind, path: path, model: model, sampling: sampling, dir: dir)
+            result.raw = raw
+            result.promptTokens = tokens
           }
-          let elapsed = ContinuousClock.now - started
-          result.ms = Int(elapsed.components.seconds * 1000 + elapsed.components.attoseconds / 1_000_000_000_000_000)
-          var json = result.json
-          json["repeat"] = repeatIndex
-          json["sampling"] = sampling.rawValue
-          json["timing"] = timing
-          json["thermalState"] = thermal
-          json["lowPowerMode"] = ProcessInfo.processInfo.isLowPowerModeEnabled
-          json.merge(device) { $1 }
-          runs.append(json)
-          print(
-            "\(doc.id):\(kind)#\(repeatIndex)", result.error ?? result.unreadable.map { "unreadable(\($0))" } ?? "ok", "\(result.ms)ms", timing, thermal,
-            result.promptTokens.map { "\($0) tokens" } ?? "")
+        } catch {
+          result.error = describe(error)
         }
-        // The first repeat is the result the scorer reads; `runs` holds every repeat.
-        var entry = runs[0]
-        entry["runs"] = runs
-        results["\(doc.id):\(kind)"] = entry
+        let elapsed = ContinuousClock.now - started
+        result.ms = Int(elapsed.components.seconds * 1000 + elapsed.components.attoseconds / 1_000_000_000_000_000)
+        var json = result.json
+        json["repeat"] = repeatIndex
+        json["sampling"] = sampling.rawValue
+        json["timing"] = timing
+        json["thermalState"] = thermal
+        json["lowPowerMode"] = ProcessInfo.processInfo.isLowPowerModeEnabled
+        json.merge(device) { $1 }
+        runs.append(json)
+        print(
+          "\(doc.id):\(kind)#\(repeatIndex)", result.error ?? result.unreadable.map { "unreadable(\($0))" } ?? "ok", "\(result.ms)ms", timing, thermal,
+          result.promptTokens.map { "\($0) tokens" } ?? "")
       }
+      // The first repeat is the result the scorer reads; `runs` holds every repeat.
+      var entry = runs[0]
+      entry["runs"] = runs
+      results["\(doc.id):\(kind)"] = entry
     }
     let engine = "fm-\(model.rawValue)-\(path.rawValue)" + (sampling == .greedy ? "-greedy" : "")
     let out = dir.appending(path: "results")

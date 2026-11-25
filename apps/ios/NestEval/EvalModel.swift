@@ -21,12 +21,22 @@ final class EvalModel {
   var repeats = 5
   var only = ""
   var cross = false
+  /// Skips arms that already have a finished results file.
+  var resume = false
 
   private(set) var status = "Idle"
   private(set) var running = false
   private(set) var log: [String] = []
   private(set) var results: [URL] = []
   private(set) var corpusCount: Int?
+  private(set) var progress: RunProgressState?
+  /// How long the process was last suspended, such as while the phone was locked.
+  private(set) var suspendedFor: TimeInterval?
+
+  private let keepAlive = KeepAlive()
+  private var eta = RollingETA()
+  private var documentStarted = Date()
+  private var ticker: Task<Void, Never>?
 
   /// The app's Documents folder, which the Files app shows under Nest Eval: corpus files go in, `results/` comes out.
   let root = URL.documentsDirectory
@@ -70,38 +80,99 @@ final class EvalModel {
     guard !running else { return }
     running = true
     log = []
+    suspendedFor = nil
+    progress = nil
+    eta = RollingETA()
+    keepAlive.begin()
+    startTicker()
     Task {
-      await run()
+      let failed = await run()
+      ticker?.cancel()
+      keepAlive.end()
       running = false
       refresh()
+      await Notifier.post(
+        title: failed == 0 ? "Nest Eval finished" : "Nest Eval finished with failures",
+        body: failed == 0 ? status : "\(failed) arms failed. \(status)")
     }
   }
 
-  private func run() async {
+  /// Ticks each second to refresh the elapsed time and notice a suspension.
+  private func startTicker() {
+    ticker = Task {
+      var detector = SuspensionDetector(start: Date())
+      while !Task.isCancelled {
+        try? await Task.sleep(for: .seconds(1))
+        if let gap = detector.tick(Date()) {
+          suspendedFor = gap
+          append("Suspended for \(clock(gap)), likely while locked")
+        }
+        progress?.tick()
+      }
+    }
+  }
+
+  private func append(_ line: String) {
+    log.append("\(Date.now.formatted(date: .omitted, time: .standard)) \(line)")
+  }
+
+  private func record(_ document: DocumentProgress, arm: Int, arms: Int, engine: String, runStarted: Date) {
+    let now = Date()
+    if let current = progress, current.document.index < document.index, current.arm == arm {
+      eta.record(now.timeIntervalSince(documentStarted))
+    } else if progress?.arm != arm {
+      eta = RollingETA()
+    }
+    documentStarted = now
+    keepAlive.renew()
+    progress = RunProgressState(
+      arm: arm, arms: arms, engine: engine, document: document, runStarted: runStarted,
+      remaining: eta.remaining(document.total - document.index + 1))
+    append("\(engine) \(document.index)/\(document.total) \(document.id)")
+  }
+
+  /// Runs every arm and returns how many failed.
+  private func run() async -> Int {
+    var failed = 0
     let arms = arms
     let ids = Set(only.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty })
     let started = Date()
     var outcomes: [[String: Any]] = []
+    let pending = Set(Resume.pending(arms.map(\.engine), results: root.appending(path: "results")))
     for (index, arm) in arms.enumerated() {
       status = "\(index + 1)/\(arms.count) \(arm.engine)"
       var outcome: [String: Any] = ["engine": arm.engine]
+      if resume && !pending.contains(arm.engine) {
+        outcome["status"] = "skipped"
+        outcomes.append(outcome)
+        append("\(arm.engine) skipped, results exist")
+        continue
+      }
       do {
         if arm.model == .pcc, case .unavailable(let reason) = PrivateCloudComputeLanguageModel().availability {
           throw EvalError("pcc unavailable: \(reason)")
         }
-        try await Run.run(dir: root, path: arm.path, model: arm.model, sampling: arm.sampling, repeats: repeats, only: ids, cross: cross)
+        let (armNumber, armCount, engine, runStarted) = (index + 1, arms.count, arm.engine, started)
+        try await Run.run(
+          dir: root, path: arm.path, model: arm.model, sampling: arm.sampling, repeats: repeats, only: ids, cross: cross,
+          progress: { document in
+            Task { @MainActor in self.record(document, arm: armNumber, arms: armCount, engine: engine, runStarted: runStarted) }
+          })
         outcome["status"] = "completed"
       } catch {
         outcome["status"] = "failed"
         outcome["error"] = String(describing: error)
-        log.append("\(arm.engine): \(error)")
+        failed += 1
+        append("\(arm.engine) failed: \(error)")
         try? await writeFailure(arm, error: String(describing: error))
       }
       outcomes.append(outcome)
       refresh()
     }
     status = "Done"
+    progress = nil
     try? writeRunRecord(started: started, outcomes: outcomes)
+    return failed
   }
 
   /// A results file with no documents scored, so an arm that cannot run reads as a failure and not a gap.
@@ -141,6 +212,24 @@ final class EvalModel {
     try JSONSerialization.data(withJSONObject: record, options: [.prettyPrinted, .sortedKeys])
       .write(to: out.appending(path: "run-\(stamp).json"))
   }
+}
+
+/// Where a run has reached, for display.
+struct RunProgressState {
+  let arm: Int
+  let arms: Int
+  let engine: String
+  let document: DocumentProgress
+  let runStarted: Date
+  /// Seconds left in the arm, from recent documents.
+  let remaining: TimeInterval?
+  private(set) var elapsed: TimeInterval = 0
+
+  init(arm: Int, arms: Int, engine: String, document: DocumentProgress, runStarted: Date, remaining: TimeInterval?) {
+    (self.arm, self.arms, self.engine, self.document, self.runStarted, self.remaining) = (arm, arms, engine, document, runStarted, remaining)
+  }
+
+  mutating func tick() { elapsed = Date().timeIntervalSince(runStarted) }
 }
 
 enum Hardware {

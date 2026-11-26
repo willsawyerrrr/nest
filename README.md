@@ -102,7 +102,7 @@ supabase        Postgres migrations, edge functions, and local config
 
 ## Development
 
-Requires Node ≥ 22, pnpm, and Docker (for the local Supabase stack).
+Requires Node 26 (`.nvmrc`), pnpm, and Docker (for the local Supabase stack).
 
 Secrets (Supabase tokens and keys, third-party API keys, Apple signing) live in
 [1Password Environments](docs/operations.md#1password-environments), mounted

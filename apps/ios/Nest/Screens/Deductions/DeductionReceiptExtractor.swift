@@ -1,8 +1,5 @@
 import Foundation
-
-#if canImport(FoundationModels)
-    import FoundationModels
-#endif
+import FoundationModels
 
 /// Why an on-device receipt read was not accepted. The router sends the document to the
 /// server on any of them.
@@ -54,41 +51,33 @@ enum OnDeviceReceiptModel {
     /// prompt does not fit its context window (checked up front, and again by the model,
     /// which throws if the count was short), or generation fails.
     static func read(_ prompt: ReceiptPrompt) async throws -> RawReceiptFields {
-        #if canImport(FoundationModels)
-            if #available(iOS 26, macOS 26, *) {
-                let model = SystemLanguageModel.default
-                guard case .available = model.availability else { throw ReceiptReadError.modelUnavailable }
-                guard prompt.fits(contextSize: model.contextSize) else { throw ReceiptReadError.tooLong }
-                let session = LanguageModelSession(model: model, instructions: prompt.instructions)
-                let generated = try await session.respond(
-                    to: prompt.document, generating: GeneratedReceipt.self,
-                    options: GenerationOptions(sampling: .greedy)
-                ).content
-                return RawReceiptFields(
-                    isReceipt: generated.isReceipt, notReceiptReason: generated.notReceiptReason,
-                    description: generated.description, deductionDate: generated.deductionDate,
-                    amount: generated.amount)
-            }
-        #endif
-        throw ReceiptReadError.modelUnavailable
+        let model = SystemLanguageModel.default
+        guard case .available = model.availability else { throw ReceiptReadError.modelUnavailable }
+        guard prompt.fits(contextSize: model.contextSize) else { throw ReceiptReadError.tooLong }
+        let session = LanguageModelSession(model: model, instructions: prompt.instructions)
+        let generated = try await session.respond(
+            to: prompt.document, generating: GeneratedReceipt.self,
+            options: GenerationOptions(samplingMode: .greedy)
+        ).content
+        return RawReceiptFields(
+            isReceipt: generated.isReceipt, notReceiptReason: generated.notReceiptReason,
+            description: generated.description, deductionDate: generated.deductionDate,
+            amount: generated.amount)
     }
 }
 
-#if canImport(FoundationModels)
-    /// The structure the model fills in; every field is nullable so a receipt that does
-    /// not show one yields null, not an invention.
-    @available(iOS 26, macOS 26, *)
-    @Generable
-    private struct GeneratedReceipt {
-        @Guide(description: "True when the document is the kind of receipt described; false for anything else.")
-        var isReceipt: Bool
-        @Guide(description: "What the document is, when it is not a receipt. Null otherwise.")
-        var notReceiptReason: String?
-        @Guide(description: "The name described in the instructions, as printed. Null when the receipt does not show it.")
-        var description: String?
-        @Guide(description: "The date of purchase exactly as printed. Null when the receipt does not show it.")
-        var deductionDate: String?
-        @Guide(description: "The total amount paid, as printed. Null when the receipt does not show it.")
-        var amount: String?
-    }
-#endif
+/// The structure the model fills in; every field is nullable so a receipt that does
+/// not show one yields null, not an invention.
+@Generable
+private struct GeneratedReceipt {
+    @Guide(description: "True when the document is the kind of receipt described; false for anything else.")
+    var isReceipt: Bool
+    @Guide(description: "What the document is, when it is not a receipt. Null otherwise.")
+    var notReceiptReason: String?
+    @Guide(description: "The name described in the instructions, as printed. Null when the receipt does not show it.")
+    var description: String?
+    @Guide(description: "The date of purchase exactly as printed. Null when the receipt does not show it.")
+    var deductionDate: String?
+    @Guide(description: "The total amount paid, as printed. Null when the receipt does not show it.")
+    var amount: String?
+}

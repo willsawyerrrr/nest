@@ -575,8 +575,8 @@ struct SuperCapsSummary: View {
     }
 
     private func capLine(_ label: String, _ used: Int, _ cap: Int) -> some View {
-        (Text("\(label): ") + Text(MoneyFormat.cents(used)).fontWeight(.semibold).foregroundColor(
-            NestColor.text) + Text(" of \(MoneyFormat.cents(cap)) used"))
+        let amount = Text(MoneyFormat.cents(used)).fontWeight(.semibold).foregroundColor(NestColor.text)
+        return Text("\(label): \(amount) of \(MoneyFormat.cents(cap)) used")
             .font(.system(size: 12)).foregroundStyle(NestColor.dimmedText)
     }
 }

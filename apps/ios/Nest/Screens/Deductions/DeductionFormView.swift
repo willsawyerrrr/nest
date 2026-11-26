@@ -199,7 +199,7 @@ struct DeductionFormView: View {
                 dateField
             }
             if form.isDerived {
-                (Text("Deductible amount: ") + Text(MoneyFormat.cents(form.computedAmountCents)).bold())
+                Text("Deductible amount: \(Text(MoneyFormat.cents(form.computedAmountCents)).bold())")
                     .font(.system(size: 14)).foregroundStyle(NestColor.dimmedText)
             }
             if form.overCap {
@@ -223,7 +223,7 @@ struct DeductionFormView: View {
             }
             workUseAndGroup
             if showDetails && form.apportionable && form.workUseValid && form.workUsePercent != 100 {
-                (Text("Deductible amount: ") + Text(MoneyFormat.cents(form.apportionedAmountCents)).bold())
+                Text("Deductible amount: \(Text(MoneyFormat.cents(form.apportionedAmountCents)).bold())")
                     .font(.system(size: 14)).foregroundStyle(NestColor.dimmedText)
             }
             receiptButtons

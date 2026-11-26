@@ -74,9 +74,9 @@ Clients talk to the database in the way that fits each job:
   (`create_payslip_from_document`, `create_deduction_from_document`,
   `create_trades_from_document`), and the native apps as the fallback. The
   **on-device** path (Apple Foundation Models, native apps only) is used when
-  `SystemLanguageModel.availability` is `.available` (iOS 26 or later, an eligible
-  device, Apple Intelligence on, model downloaded). It reads deduction receipts only; the document's text
-  is not sent to Anthropic. Any doubt or failure falls back to the server
+  `SystemLanguageModel.availability` is `.available` (an eligible device, Apple
+  Intelligence on, model downloaded). It reads deduction receipts only; the
+  document's text is not sent to Anthropic. Any doubt or failure falls back to the server
   path. See [`native-screens.md`](native-screens.md#uploads) and
   [`on-device-extraction.md`](on-device-extraction.md).
 - **SQL views / RPC** — derived reporting (spend-vs-budget, savings progress) and

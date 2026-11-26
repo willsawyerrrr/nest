@@ -2,8 +2,8 @@ name: Nest
 options:
   bundleIdPrefix: dev.willsawyerrrr
   deploymentTarget:
-    iOS: '17.0'
-    macOS: '15.0'
+    iOS: '27.0'
+    macOS: '27.0'
   createIntermediateGroups: true
 
 packages:
@@ -25,8 +25,6 @@ targets:
   Nest:
     type: application
     supportedDestinations: [iOS]
-    deploymentTarget:
-      iOS: '17.0'
     sources:
       - path: Nest
         excludes:
@@ -86,8 +84,6 @@ targets:
   ShareExtension:
     type: app-extension
     supportedDestinations: [iOS]
-    deploymentTarget:
-      iOS: '17.0'
     sources:
       - path: ShareExtension
       - path: Shared
@@ -117,8 +113,6 @@ targets:
   NotificationContent:
     type: app-extension
     supportedDestinations: [iOS]
-    deploymentTarget:
-      iOS: '17.0'
     sources:
       - path: NotificationContent
         excludes:
@@ -168,7 +162,6 @@ targets:
   NestEval:
     type: application
     platform: iOS
-    deploymentTarget: '27.0'
     sources:
       - path: NestEval
       - path: ../../evals/foundation-models/Sources/ExtractionEval
@@ -194,7 +187,6 @@ targets:
   NestTests:
     type: bundle.unit-test
     platform: iOS
-    deploymentTarget: '17.0'
     sources:
       - path: NestTests
     dependencies:
@@ -209,7 +201,6 @@ targets:
   NestMac:
     type: application
     platform: macOS
-    deploymentTarget: '15.0'
     sources:
       - path: Nest
         excludes:
@@ -260,7 +251,6 @@ targets:
   ShareExtensionMac:
     type: app-extension
     platform: macOS
-    deploymentTarget: '15.0'
     sources:
       - path: ShareExtensionMac
         excludes:
@@ -291,7 +281,6 @@ targets:
   NestMacTests:
     type: bundle.unit-test
     platform: macOS
-    deploymentTarget: '15.0'
     sources:
       - path: NestTests
     dependencies:

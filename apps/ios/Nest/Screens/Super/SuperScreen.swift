@@ -178,10 +178,9 @@ private struct CapsBlock: View {
         VStack(alignment: .leading, spacing: 6) {
             ForEach(caps.lines, id: \.label) { line in
                 VStack(alignment: .leading, spacing: 0) {
-                    (Text("\(line.label): ")
-                        + Text(MoneyFormat.cents(line.usedCents)).fontWeight(.semibold)
+                    let used = Text(MoneyFormat.cents(line.usedCents)).fontWeight(.semibold)
                         .foregroundColor(NestColor.text)
-                        + Text(" of \(MoneyFormat.cents(line.capCents)) used"))
+                    Text("\(line.label): \(used) of \(MoneyFormat.cents(line.capCents)) used")
                         .font(NestFont.caption).foregroundStyle(NestColor.dimmedText)
                     Text(line.note).font(NestFont.caption).foregroundStyle(NestColor.dimmedText)
                     if let warning = line.warning {

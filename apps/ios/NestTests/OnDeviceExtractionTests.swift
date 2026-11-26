@@ -93,9 +93,9 @@ import Testing
 
     @Test func eachUnavailabilityHasItsOwnReason() {
         let reasons = [
-            OnDeviceUnavailability.osTooOld, .deviceNotEligible, .appleIntelligenceOff, .modelNotReady,
+            OnDeviceUnavailability.deviceNotEligible, .appleIntelligenceOff, .modelNotReady,
         ].map(\.reason)
-        #expect(Set(reasons).count == 4)
+        #expect(Set(reasons).count == 3)
     }
 
     @Test func theModelIsReadyOnlyWithoutAnUnavailability() {
@@ -128,12 +128,6 @@ import Testing
             Issue.record("not unsupported")
             return
         }
-    }
-
-    @Test func theModelIsNotReadyWithoutAnythingToRunIt() {
-        #if !canImport(FoundationModels)
-            #expect(!OnDeviceModel.isReady)
-        #endif
     }
 
     @Test func verdictsMatchTheServerPathsOutcomes() {

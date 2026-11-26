@@ -6,9 +6,7 @@ import UserNotificationsUI
 /// The expanded transaction review notification: the transaction and its
 /// current Up category, above the category's Looks right and Wrong category
 /// actions, which the system forwards to the app.
-final class NotificationViewController: UIViewController,
-    @preconcurrency UNNotificationContentExtension
-{
+final class NotificationViewController: UIViewController, UNNotificationContentExtension {
     private let model = ReviewNotificationModel()
 
     func didReceive(_ notification: UNNotification) {

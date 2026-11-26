@@ -288,7 +288,7 @@ struct FrequencyInput: View {
     ]
 
     /// Whether `frequency` takes an interval.
-    static func takesInterval(_ frequency: Frequency) -> Bool {
+    nonisolated static func takesInterval(_ frequency: Frequency) -> Bool {
         frequency == .everyNWeeks || frequency == .everyNMonths
     }
 

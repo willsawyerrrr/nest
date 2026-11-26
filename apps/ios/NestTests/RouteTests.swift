@@ -38,7 +38,7 @@ struct RouteTests {
                 == [.planning, .allowance, .whatsNew])
     }
 
-    @Test func everyRouteIsNative() {
+    @MainActor @Test func everyRouteIsNative() {
         for route in Route.allCases {
             guard case .native = route.content() else {
                 Issue.record("\(route) is not native")
@@ -47,7 +47,7 @@ struct RouteTests {
         }
     }
 
-    @Test func transactionsAndTheirReviewSitUnderReview() {
+    @MainActor @Test func transactionsAndTheirReviewSitUnderReview() {
         #expect(Route.transactions.path == "/transactions")
         #expect(Route.transactions.title == "Transactions")
         #expect(Route.transactionReview.path == "/transactions/review")

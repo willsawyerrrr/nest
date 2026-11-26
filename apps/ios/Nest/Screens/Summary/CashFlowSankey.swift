@@ -154,7 +154,7 @@ struct SankeyCanvas: View {
     }
 
     /// `text`, cut with an ellipsis to fit `maxChars`.
-    static func clip(_ text: String, _ maxChars: Int) -> String {
+    nonisolated static func clip(_ text: String, _ maxChars: Int) -> String {
         text.count > maxChars ? "\(text.prefix(max(1, maxChars - 1)))…" : text
     }
 }

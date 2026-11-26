@@ -13,5 +13,7 @@ let supabaseAuth = AuthClient(
         "apikey": SupabaseConfig.anonKey,
         "Authorization": "Bearer \(SupabaseConfig.anonKey)",
     ],
-    localStorage: AuthClient.Configuration.defaultLocalStorage
+    localStorage: AuthClient.Configuration.defaultLocalStorage,
+    // Naming `logger` selects the initialiser that is not deprecated.
+    logger: nil
 )

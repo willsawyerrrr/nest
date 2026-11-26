@@ -151,7 +151,7 @@ enum Route: String, CaseIterable, Identifiable, Hashable {
 
     /// The route's native screen, opening Goals or Budget with `draft` prefilled
     /// in its add form, and transaction review focused on the transaction `id`.
-    func content(draft: PromoteDraft? = nil, id: String? = nil) -> RouteContent {
+    @MainActor func content(draft: PromoteDraft? = nil, id: String? = nil) -> RouteContent {
         switch self {
         case .summary: .native(AnyView(SummaryScreen()))
         case .breakdowns: .native(AnyView(BreakdownsScreen()))

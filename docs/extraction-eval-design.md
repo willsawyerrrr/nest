@@ -10,16 +10,16 @@ below, which renders but has not yet been scored; the Claude runner is built (se
 
 ## Arms
 
-| Arm       | Model                                               | Context                      | Inputs                      | Notes                                                                    |
-| --------- | --------------------------------------------------- | ---------------------------- | --------------------------- | ------------------------------------------------------------------------ |
-| On-device | `SystemLanguageModel` (`AFM 3 Core`)                | 8192 (OS 27), 4096 (OS 26.4) | PDF text, Vision OCR, image | Offline, private, free. Declines poorly, converts dates in code.         |
-| PCC       | `PrivateCloudComputeLanguageModel`                  | 32768                        | PDF text, Vision OCR, image | Managed entitlement, per-user quotas, needs network.                     |
-| Haiku 4.5 | `claude-haiku-4-5-20251001` (production pin)        | 200K                         | Native PDF, PNG             | $1 / $5 per MTok. Baseline every other arm is compared with.             |
-| Haiku 5.5 | `claude-haiku-5-5`                                  | 1M                           | Native PDF, PNG             | $0.10 / $0.50 per MTok (prompts to 100K). Cheaper candidate replacement. |
-| Sonnet    | `claude-sonnet-5-5`                                 | 1M                           | Native PDF, PNG             | $2 / $10. Mid-tier.                                                      |
-| Opus      | `claude-opus-5-5`                                   | 1M                           | Native PDF, PNG             | $4 / $20. Quality ceiling candidate.                                     |
-| Fable     | `claude-fable-5-2`                                  | 1M                           | Native PDF, PNG             | $8 / $40. Quality ceiling; 30-day retention required, no ZDR.            |
-| Cascade   | On-device first, server when the native checks fail | n/a                          | As the first arm            | What the apps ship for receipts; scored as an arm of its own.            |
+| Arm       | Model                                               | Context | Inputs                      | Notes                                                                    |
+| --------- | --------------------------------------------------- | ------- | --------------------------- | ------------------------------------------------------------------------ |
+| On-device | `SystemLanguageModel` (`AFM 3 Core`)                | 8192    | PDF text, Vision OCR, image | Offline, private, free. Declines poorly, converts dates in code.         |
+| PCC       | `PrivateCloudComputeLanguageModel`                  | 32768   | PDF text, Vision OCR, image | Managed entitlement, per-user quotas, needs network.                     |
+| Haiku 4.5 | `claude-haiku-4-5-20251001` (production pin)        | 200K    | Native PDF, PNG             | $1 / $5 per MTok. Baseline every other arm is compared with.             |
+| Haiku 5.5 | `claude-haiku-5-5`                                  | 1M      | Native PDF, PNG             | $0.10 / $0.50 per MTok (prompts to 100K). Cheaper candidate replacement. |
+| Sonnet    | `claude-sonnet-5-5`                                 | 1M      | Native PDF, PNG             | $2 / $10. Mid-tier.                                                      |
+| Opus      | `claude-opus-5-5`                                   | 1M      | Native PDF, PNG             | $4 / $20. Quality ceiling candidate.                                     |
+| Fable     | `claude-fable-5-2`                                  | 1M      | Native PDF, PNG             | $8 / $40. Quality ceiling; 30-day retention required, no ZDR.            |
+| Cascade   | On-device first, server when the native checks fail | n/a     | As the first arm            | What the apps ship for receipts; scored as an arm of its own.            |
 
 Model ids and prices are from the Claude API skill's model table (cached
 2026-11-03); re-check before each run.
@@ -352,8 +352,7 @@ two-sided and the Holm adjustment is per arm across the three types.
   | ---------------------------------------- | ---- | -------------------------------------------------------- |
   | Mac (Apple silicon)                      | 27.x | Where the harness runs today                             |
   | iPhone (eligible, Apple Intelligence on) | 27.x | Where receipts are read; latency and accuracy unmeasured |
-  | iPhone                                   | 26.4 | 4096-token context and the older model                   |
-  | iPhone (ineligible or AI off)            | any  | Confirms the cascade falls back, not that the arm works  |
+  | iPhone (ineligible or AI off)            | 27.x | Confirms the cascade falls back, not that the arm works  |
 
 - Latency is wall-clock from file in hand to validated result, including PDFKit
   or Vision, first-use model download and warm-up (reported separately from
@@ -453,7 +452,7 @@ before spending.
 | Arm              | Blocker                                                                                                                                                           |
 | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | On-device Mac    | None; runs on macOS 27.2 today                                                                                                                                    |
-| On-device iPhone | The `Nest Eval` host app exists; eligible device on iOS 27 and iOS 26.4; Apple Intelligence on; eligibility list is unconfirmed             |
+| On-device iPhone | The `Nest Eval` host app exists; eligible device on iOS 27; Apple Intelligence on; eligibility list is unconfirmed                                                |
 | PCC              | Managed entitlement (the unsigned command-line tool fails with `ModelManagerError` 1046, untested as the cause); a signed host app; per-user quotas bound repeats |
 | Haiku 4.5, 5.5   | An Anthropic API key (none was available for the first run); Haiku 5.5 behaviour with the production tool schema unverified                                       |
 | Sonnet, Opus     | API key                                                                                                                                                           |
@@ -467,7 +466,7 @@ before spending.
 | 0     | Scorer v2 and Claude multi-model runner; Haiku 4.5 baseline on the existing corpus                                      | API key                    |
 | 1     | Noise pipeline and layout, locale and adversarial strata (T1); on-device Mac arm on T0 and T1                           | Phase 0 scorer             |
 | 2     | Local real-document workflow, re-skinned layouts (T2) and labelled real documents (T3)                                  | Consent                    |
-| 3     | iPhone and OS 26.4 on-device runs; PCC arm; larger Claude arms                                                          | Host app, entitlement, key |
+| 3     | iPhone on-device runs; PCC arm; larger Claude arms                                                                      | Host app, entitlement, key |
 | 4     | Apply gates, fill the decision matrix per type, record the outcome in the extraction docs and on the PCC decision issue | Phases 1 to 3              |
 
 Follow-up issues, each one shippable change:
@@ -478,6 +477,6 @@ Follow-up issues, each one shippable change:
 4. Score extraction with null-correctness, wrong-but-confident, risk-coverage, repeats and clustered bootstrap.
 5. Run the Claude arms across models and effort levels with usage and cost capture.
 6. Run Foundation Models with repeats, greedy and default sampling and device metadata.
-7. Add an eval host app to run the on-device and PCC arms on iPhone and OS 26.4.
+7. Add an eval host app to run the on-device and PCC arms on iPhone.
 8. Request the PCC managed entitlement for the eval host app.
 9. Decide the extraction model per document type from the eval results.

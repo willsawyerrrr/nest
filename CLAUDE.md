@@ -1288,6 +1288,9 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   `26.x`, `@types/node` `^26`), Vercel's newest supported runtime. Each Vercel
   project's Root Directory (`apps/pwa`, `packages/mcp`) declares its own
   `engines.node`, which sets its Node version over the project setting.
+- CI, local development and production all build the native apps with Xcode 27.2
+  (`.xcode-version`; `ci.yml`'s `xcode-27` runner and `DEVELOPER_DIR`; bump
+  together), as platform's TestFlight and release workflows do.
 - All planning happens in Linear, under the Nest project
   (`willsawyerrrr-dev` / WSD team). Do not produce ad-hoc chat plans or
   planning documents outside Linear — capture scope, decisions, and
@@ -1327,7 +1330,7 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
 - The four Linux jobs (`check`, `test`, `rls`, `functions`) must stay fast —
   each targets well under a minute. If one regresses noticeably, diagnosing and
   reducing its time takes priority over other work. `build-ios` /
-  `build-macos` (macOS runners, gated to PRs touching `apps/ios/**`) are the
+  `build-macos` (`xcode-27` runners, gated to PRs touching `apps/ios/**`) are the
   exception: an Xcode build and test run is inherently several minutes, and
   there is no fixed time budget for them. All six are aggregated by a
   `ci-status` job that is the single required `CI Status` check, so overall

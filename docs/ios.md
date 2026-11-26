@@ -683,21 +683,26 @@ instructions.
 
 ## CI
 
-`.github/workflows/ci.yml` runs `build-ios` and `build-macos` on
-`macos-latest` runners: `build-ios` (the iOS Simulator destination) and
-`build-macos` (the `NestMac` scheme). Each runs `xcodegen generate`, then a
-single `xcodebuild test`, whose build runs `appintentsmetadataprocessor`, so a
-malformed App Shortcut phrase — a missing `\(.applicationName)`, a duplicate
-identifier, an unresolvable parameter type — fails the job on both
-destinations. The suite uses Swift Testing, so xcodebuild's XCTest summary
-reads "Executed 0 tests" even though every test runs. Neither overrides `SWIFT_EXEC` (that
-drops `--compile-time-extraction` and breaks App Intents metadata extraction
-on Xcode 16+) and both pass `-skipMacroValidation` /
+`.github/workflows/ci.yml` runs `build-ios` and `build-macos` on `xcode-27`
+runners with Xcode 27.2: `build-ios` (the iOS Simulator destination) and
+`build-macos` (the `NestMac` scheme). Platform's TestFlight and release
+workflows and local development use the same Xcode: `.xcode-version` records
+it, `ci.yml` pins it with `DEVELOPER_DIR`, and the two change together.
+
+Each job runs `xcodegen generate`, then a single `xcodebuild test`, whose build
+runs `appintentsmetadataprocessor`, so a malformed App Shortcut phrase — a
+missing `\(.applicationName)`, a duplicate identifier, an unresolvable
+parameter type — fails the job on both destinations. The suite uses Swift
+Testing, so xcodebuild's XCTest summary reads "Executed 0 tests" even though
+every test runs. `build-macos` skips the image text recognition test, which
+Vision cannot run on a virtualised Mac; `build-ios` runs it. Neither overrides
+`SWIFT_EXEC` (that drops `--compile-time-extraction` and breaks App Intents
+metadata extraction on Xcode 16+) and both pass `-skipMacroValidation` /
 `-skipPackagePluginValidation` so a fresh runner does not stall on a macro or
 plugin approval prompt. `build-macos` additionally passes
-`CODE_SIGNING_ALLOWED=NO`, since a runner carries no development team and
-macOS builds, unlike the Simulator, always sign. Each job restores
-and saves its DerivedData, Swift packages included, with platform's
+`CODE_SIGNING_ALLOWED=NO`, since a runner carries no development team and macOS
+builds, unlike the Simulator, always sign. Each job restores and saves its
+DerivedData, Swift packages included, with platform's
 [`xcode-cache`](https://github.com/willsawyerrrr/platform/blob/main/docs/xcode-cache.md)
 action.
 

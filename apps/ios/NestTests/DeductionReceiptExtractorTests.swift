@@ -149,7 +149,20 @@ import UniformTypeIdentifiers
         #expect(reading.text.contains("$124.50"))
     }
 
-    @Test func anImageIsRecognised() async throws {
+    /// False on a virtualised Mac, as CI's is: Vision has no backend there for its text
+    /// recognition models.
+    private static var canRecognise: Bool {
+        #if os(macOS)
+            var isVirtual: Int32 = 0
+            var size = MemoryLayout<Int32>.size
+            sysctlbyname("kern.hv_vmm_present", &isVirtual, &size, nil, 0)
+            return isVirtual == 0
+        #else
+            return true
+        #endif
+    }
+
+    @Test(.enabled(if: DocumentTextTests.canRecognise)) func anImageIsRecognised() async throws {
         let reading = try await DocumentText.read(Self.png())
         #expect(reading.text.uppercased().contains("OFFICEWORKS"))
         #expect(reading.text.contains("124.50"))

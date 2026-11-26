@@ -51,7 +51,7 @@ final class NestAppDelegate: NSObject, UIApplicationDelegate, UNUserNotification
             switch outcome {
             case .open(let destination): NotificationRouter.shared.open(destination)
             case .dismissGiftCandidate(let id):
-                try? await GiftCandidateDismisser().dismiss(transactionID: id)
+                _ = try? await GiftCandidateDismisser().dismiss(transactionID: id)
             case .markReviewed(let id):
                 try? await TransactionReviewMarker().markReviewed(transactionID: id)
             case .flagWrongCategory(let id):

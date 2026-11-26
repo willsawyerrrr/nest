@@ -115,7 +115,7 @@ import UserNotifications
                 actionIdentifier: UNNotificationDefaultActionIdentifier, userInfo: [:]) == .ignore)
     }
 
-    @Test func everyScreenShortcutOpensANativeRoute() {
+    @MainActor @Test func everyScreenShortcutOpensANativeRoute() {
         for screen in ScreenShortcut.allCases {
             guard case .native = screen.route.content() else {
                 Issue.record("\(screen) is not native")

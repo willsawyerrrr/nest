@@ -98,6 +98,7 @@ final class ShareViewController: UIViewController {
         else {
             return .unsupported
         }
+        let suggestedName = provider.suggestedName
         return await withCheckedContinuation { continuation in
             _ = provider.loadFileRepresentation(forTypeIdentifier: typeIdentifier) { url, _ in
                 guard let url else {
@@ -106,7 +107,7 @@ final class ShareViewController: UIViewController {
                 }
                 // The URL is removed when this closure returns, so the copy
                 // happens here.
-                let name = provider.suggestedName.map { name in
+                let name = suggestedName.map { name in
                     (name as NSString).pathExtension.isEmpty
                         ? name + "." + url.pathExtension : name
                 } ?? url.lastPathComponent

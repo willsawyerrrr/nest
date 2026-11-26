@@ -50,6 +50,9 @@ targets:
         # App Store Connect skips the export-compliance questions per build.
         ITSAppUsesNonExemptEncryption: false
         UILaunchScreen: {}
+        # Deprecated, with no replacement: where the app is resizable (iPad,
+        # iPhone Mirroring), it resizes in discrete steps that honour portrait
+        # rather than freely.
         UIRequiresFullScreen: true
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait

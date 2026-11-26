@@ -1,8 +1,5 @@
 import Foundation
-
-#if canImport(FoundationModels)
-    import FoundationModels
-#endif
+import FoundationModels
 
 /// A stored document handed to an on-device extractor.
 struct OnDeviceRequest: Sendable {
@@ -41,14 +38,12 @@ enum OnDeviceResult<Extraction: Sendable>: Sendable {
 
 /// Why the system on-device model cannot run, as shown beside the setting.
 enum OnDeviceUnavailability: Equatable, Sendable {
-    case osTooOld
     case deviceNotEligible
     case appleIntelligenceOff
     case modelNotReady
 
     var reason: String {
         switch self {
-        case .osTooOld: "Requires iOS 26, iPadOS 26 or macOS 26 or later."
         case .deviceNotEligible: "This device doesn't support Apple Intelligence."
         case .appleIntelligenceOff: "Turn on Apple Intelligence in Settings."
         case .modelNotReady: "The Apple Intelligence model is still downloading."
@@ -56,22 +51,17 @@ enum OnDeviceUnavailability: Equatable, Sendable {
     }
 }
 
-/// Whether the system on-device model can run: OS 26 or later, an eligible device,
-/// Apple Intelligence on, and the model downloaded.
+/// Whether the system on-device model can run: an eligible device, Apple Intelligence
+/// on, and the model downloaded.
 enum OnDeviceModel {
     /// Why the model cannot run, or nil when it is ready.
     static var unavailability: OnDeviceUnavailability? {
-        #if canImport(FoundationModels)
-            guard #available(iOS 26, macOS 26, *) else { return .osTooOld }
-            switch SystemLanguageModel.default.availability {
-            case .available: return nil
-            case .unavailable(.deviceNotEligible): return .deviceNotEligible
-            case .unavailable(.appleIntelligenceNotEnabled): return .appleIntelligenceOff
-            case .unavailable: return .modelNotReady
-            }
-        #else
-            return .osTooOld
-        #endif
+        switch SystemLanguageModel.default.availability {
+        case .available: nil
+        case .unavailable(.deviceNotEligible): .deviceNotEligible
+        case .unavailable(.appleIntelligenceNotEnabled): .appleIntelligenceOff
+        case .unavailable: .modelNotReady
+        }
     }
 
     static var isReady: Bool { unavailability == nil }

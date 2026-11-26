@@ -2,7 +2,7 @@
 
 `apps/ios` is the native Nest app, with two Xcode targets built from one set of
 sources: `Nest` (the iOS app) and `NestMac` (a native AppKit/SwiftUI macOS
-app). It is a SwiftUI app built on:
+app). They require iOS 27 and macOS 27. It is a SwiftUI app built on:
 
 - a burger-menu [navigation shell](#navigation-shell) over a route registry
   (`Route.swift`) that renders every route natively;
@@ -73,10 +73,10 @@ upstream response body never reaches the screen.
 
 ### Native macOS target
 
-`NestMac` (`dev.willsawyerrrr.nest.macos`, product name `Nest`, macOS 15 — the
-floor for Spotlight's `indexAppEntities`) is an App Sandbox, hardened-runtime
-app with the `network.client` and `8558CXPT9G.dev.willsawyerrrr.nest` App Group
-entitlements and a `keychain-access-groups` entry for
+`NestMac` (`dev.willsawyerrrr.nest.macos`, product name `Nest`) is an App
+Sandbox, hardened-runtime app with the `network.client` and
+`8558CXPT9G.dev.willsawyerrrr.nest` App Group entitlements and a
+`keychain-access-groups` entry for
 `8558CXPT9G.dev.willsawyerrrr.nest.macos` (`NestMac/Nest.entitlements`). The
 group is team-prefixed because macOS grants that form to a Developer ID–signed
 app, where a `group.` identifier needs the portal to register it
@@ -302,9 +302,9 @@ sign in…"; network or decode failure → "Couldn't reach Nest just now."
   live response, and offers none when signed out or unreachable. No match → names
   the household's budget lines; none at all → prompts to set one up.
 - **`Intents/SpotlightIndex.swift`** — indexes every budget line and every
-  pay-split account in Spotlight as an `IndexedEntity` (iOS 18+; earlier systems
-  skip it), with the planned amount, a one-line description, and the name's words
-  as keywords so the system matches them semantically. Only planned figures
+  pay-split account in Spotlight as an `IndexedEntity`, with the planned amount,
+  a one-line description, and the name's words as keywords so the system matches
+  them semantically. Only planned figures
   shared by the household are indexed — no balance or transaction. `NestApp`
   refreshes the index once a session exists and whenever the app becomes active,
   and empties it on sign-out.

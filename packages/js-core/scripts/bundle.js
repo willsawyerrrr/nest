@@ -29,7 +29,7 @@ export async function bundledText() {
     format: 'iife',
     platform: 'neutral',
     mainFields: ['module', 'main'],
-    // BigInt and everything else the engines use runs in JavaScriptCore on iOS 17 / macOS 15.
+    // BigInt and everything else the engines use runs in JavaScriptCore on iOS 27 / macOS 27.
     target: 'es2022',
     minify: true,
     legalComments: 'none',

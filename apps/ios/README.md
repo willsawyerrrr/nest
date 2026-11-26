@@ -11,8 +11,9 @@ it into that web view. See [`docs/ios.md`](../../docs/ios.md) for the design and
 
 The `Nest` target is the iOS app; `NestMac` is the native macOS app compiled
 from the same sources: the same shell, screens, `AuthModel`/Keychain session,
-and App Intents run on both. The one behavioural difference is Siri voice
-invocation, which macOS does not support for App Intents at all (see
+and App Intents run on both. They require iOS 27 and macOS 27. The one
+behavioural difference is Siri voice invocation, which macOS does not support
+for App Intents at all (see
 [`docs/ios.md`](../../docs/ios.md#apple-developer-program)) — the Shortcuts app
 and Spotlight still work on both platforms.
 

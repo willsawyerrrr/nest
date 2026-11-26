@@ -169,8 +169,13 @@ jobs:
       - name: Pick a simulator
         id: sim
         run: |
-          udid=$(xcrun simctl list devices available --json \
-            | jq -r '[.devices[][] | select(.name | test("^iPhone"))][0].udid')
+          # An iPhone on the newest iOS runtime, which meets the deployment target.
+          udid=$(xcrun simctl list devices available --json | jq -r '
+            [.devices | to_entries[]
+              | {version: (.key | capture("[.]iOS-(?<major>[0-9]+)-(?<minor>[0-9]+)")
+                           | [.major, .minor] | map(tonumber)),
+                 udid: (.value[] | select(.name | test("^iPhone")) | .udid)}]
+            | max_by(.version).udid // empty')
           test -n "$udid" || { echo "no iPhone simulator available"; exit 1; }
           echo "udid=$udid" >> "$GITHUB_OUTPUT"
 

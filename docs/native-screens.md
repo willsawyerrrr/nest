@@ -704,16 +704,17 @@ the id the form minted, so a retry rewrites the same slip.
 - `UploadRules` — the PWA's `uploadFile.ts`: the 25 MiB limit and its message, content
   type and extractability decided by extension, safe storage key names, and HEIC/HEIF
   converted to JPEG where it decodes.
-- `OnDeviceExtraction` — routes a stored payslip or receipt (only receipts have an extractor) through a registered
-  `OnDeviceExtractor` when the system language model is ready (OS 26 or later, an
-  eligible device, Apple Intelligence on, model downloaded; checked through
-  `SystemLanguageModel.availability` behind `#available`) and the per-device
-  `OnDevicePreference` is on, and otherwise through the server functions. The preference
+- `OnDeviceExtraction` — routes a stored payslip or receipt (only receipts have
+  an extractor) through a registered `OnDeviceExtractor` when the system
+  language model is ready (an eligible device, Apple Intelligence on, model
+  downloaded; checked through `SystemLanguageModel.availability`) and the
+  per-device `OnDevicePreference` is on, and otherwise through the server
+  functions. The preference
   (`UserDefaults`, on by default) is the "Read documents on this device" switch on the
   Documents settings route (`Route.documents`, `DocumentsSettingsScreen`, native only);
   with the model unavailable the switch is disabled and off, showing why
-  (`OnDeviceUnavailability`: OS too old, device not eligible, Apple Intelligence off,
-  model not ready). The file is fetched from Storage, so only readable types route. An
+  (`OnDeviceUnavailability`: device not eligible, Apple Intelligence off, model
+  not ready). The file is fetched from Storage, so only readable types route. An
   extractor's not-a-document and unsupported verdicts map to the same outcomes and copy
   as the server's; any other failure falls back to the server. Trade documents have no
   on-device route and always use `trade-extract`.
@@ -725,7 +726,7 @@ the id the form minted, so a retry rewrites the same slip.
   converts them as `fields.ts` does (`PrintedText`, `ReceiptReading`; a date printed
   `DD/MM/YYYY`, `6 Jul 2025` or without a year converts in Swift, a yearless one inside
   the financial year). `ReceiptPrompt` sizes the prompt against
-  `SystemLanguageModel.contextSize` (4096 before iOS 27, 8192 after, covering prompt,
+  `SystemLanguageModel.contextSize` (covering prompt,
   schema and answer) and a too-long document goes to the server. A reading is accepted
   only when `ReceiptCheck` finds nothing doubtful: OCR confidence at least 0.6; the text
   looks like a receipt (a receipt word, no statement balances) since the model does not

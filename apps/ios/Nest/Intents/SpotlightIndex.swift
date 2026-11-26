@@ -50,20 +50,17 @@ extension SpotlightListing {
     }
 }
 
-@available(iOS 18.0, *)
 extension BudgetLineEntity: IndexedEntity {
     var attributeSet: CSSearchableItemAttributeSet { listing.attributeSet }
 }
 
-@available(iOS 18.0, *)
 extension PaySplitEntity: IndexedEntity {
     var attributeSet: CSSearchableItemAttributeSet { listing.attributeSet }
 }
 
 /// Keeps the app's Spotlight index in step with the household's budget lines and
 /// routed pay-split accounts. Both are planned figures shared by the whole
-/// household; no balance or transaction is indexed. Indexing needs iOS 18; on
-/// earlier systems both calls do nothing.
+/// household; no balance or transaction is indexed.
 actor SpotlightIndexer {
     static let shared = SpotlightIndexer()
 
@@ -73,7 +70,7 @@ actor SpotlightIndexer {
     /// unreachable, it leaves the index as it is. A refresh already running
     /// covers a second request.
     func refresh() async {
-        guard #available(iOS 18.0, *), !refreshing else { return }
+        guard !refreshing else { return }
         refreshing = true
         defer { refreshing = false }
 
@@ -97,7 +94,6 @@ actor SpotlightIndexer {
 
     /// Removes every indexed entity, on sign-out.
     func clear() async {
-        guard #available(iOS 18.0, *) else { return }
         let index = CSSearchableIndex(name: Self.indexName)
         try? await index.deleteAppEntities(ofType: BudgetLineEntity.self)
         try? await index.deleteAppEntities(ofType: PaySplitEntity.self)

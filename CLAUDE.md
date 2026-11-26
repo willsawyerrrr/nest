@@ -1291,6 +1291,8 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
 - CI, local development and production all build the native apps with Xcode 27.2
   (`.xcode-version`; `ci.yml`'s `xcode-27` runner and `DEVELOPER_DIR`; bump
   together), as platform's TestFlight and release workflows do.
+- The native apps require iOS 27 and macOS 27 (`options.deploymentTarget` in
+  `apps/ios/project.yml`; no target overrides it).
 - All planning happens in Linear, under the Nest project
   (`willsawyerrrr-dev` / WSD team). Do not produce ad-hoc chat plans or
   planning documents outside Linear — capture scope, decisions, and

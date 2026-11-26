@@ -683,13 +683,16 @@ instructions.
 
 ## CI
 
-`.github/workflows/ci.yml` runs `build-ios` and `build-macos` on
-`macos-latest` runners: `build-ios` (the iOS Simulator destination) and
-`build-macos` (the `NestMac` scheme). Each runs `xcodegen generate`, then a
-single `xcodebuild test`, whose build runs `appintentsmetadataprocessor`, so a
-malformed App Shortcut phrase — a missing `\(.applicationName)`, a duplicate
-identifier, an unresolvable parameter type — fails the job on both
-destinations. The suite uses Swift Testing, so xcodebuild's XCTest summary
+`.github/workflows/ci.yml` runs `build-ios` and `build-macos` on `xcode-27`
+runners with Xcode 27.2: `build-ios` (the iOS Simulator destination) and
+`build-macos` (the `NestMac` scheme). Platform's TestFlight and release
+workflows and local development use the same Xcode: `.xcode-version` records
+it, `ci.yml` pins it with `DEVELOPER_DIR`, and the two change together.
+
+Each job runs `xcodegen generate`, then a single `xcodebuild test`, whose
+build runs `appintentsmetadataprocessor`, so a malformed App Shortcut phrase —
+a missing `\(.applicationName)`, a duplicate identifier, an unresolvable
+parameter type — fails the job on both destinations. The suite uses Swift Testing, so xcodebuild's XCTest summary
 reads "Executed 0 tests" even though every test runs. Neither overrides `SWIFT_EXEC` (that
 drops `--compile-time-extraction` and breaks App Intents metadata extraction
 on Xcode 16+) and both pass `-skipMacroValidation` /

@@ -135,7 +135,9 @@ jobs:
   build-ios:
     needs: [changes]
     if: ${{ needs.changes.outputs.ios == 'true' }}
-    runs-on: macos-latest
+    runs-on: xcode-27
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.2.app
     defaults:
       run:
         working-directory: apps/ios
@@ -185,7 +187,9 @@ jobs:
   build-macos:
     needs: [changes]
     if: ${{ needs.changes.outputs.ios == 'true' }}
-    runs-on: macos-latest
+    runs-on: xcode-27
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.2.app
     defaults:
       run:
         working-directory: apps/ios

@@ -116,8 +116,9 @@ and Spotlight still work on both platforms.
 
 ## Building
 
-Requires Xcode and [XcodeGen](https://github.com/yonaskolb/XcodeGen)
-(`brew install xcodegen`). `SUPABASE_URL` and `SUPABASE_ANON_KEY` come from the Nest
+Requires Xcode 27.2 (`.xcode-version`) and
+[XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`).
+`SUPABASE_URL` and `SUPABASE_ANON_KEY` come from the Nest
 [1Password Environment](https://developer.1password.com/docs/environments/),
 mounted locally as `.env` files; run `xcodegen generate` under `load-env`:
 

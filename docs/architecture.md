@@ -411,7 +411,7 @@ channel:
   `up-webhook` hand the rows `sync_up_transactions` reports newly inserted to
   `_shared/transactionReview.ts`, which prompts for each categorisable,
   unreviewed one Up dated within 48 hours of its first sight (so backfilled
-  history never is; pending holds included, transfers, round-ups and covers
+  history never is; pending holds included, transfers
   excluded by `is_categorizable`). An individual account notifies its owner; a
   joint account only its purchaser, so a gift bought on it never pings its
   recipient. Up names the purchaser by handle (`performing_customer_name`,

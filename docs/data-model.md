@@ -1044,6 +1044,9 @@ null; Up's own taxonomy is mirrored in `up_category`.
     such an account as "Deleted at source"), `ledger_resync_pending` (default
     `false` — when set, `up-sync`'s next ledger pass for the account re-reads
     from the backfill start, re-landing every row, then clears it),
+    `ledger_read_through` (nullable — the newest Up `createdAt` the ledger pass
+    has read on the account, landed or not; the next pass resumes a day behind
+    it, and null backfills),
     `created_at`, `updated_at`.
   - `unique (source, external_id)` is the sync's dedupe key — global rather than
     household-scoped, since an Up account id is globally unique and a joint

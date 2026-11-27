@@ -205,6 +205,7 @@ struct Account: NestRow {
     let externalId: String?
     let householdId: String
     let id: String
+    let ledgerReadThrough: String?
     let ledgerResyncPending: Bool
     let name: String
     let ownerMemberId: String?
@@ -220,6 +221,7 @@ struct Account: NestRow {
         case externalId = "external_id"
         case householdId = "household_id"
         case id
+        case ledgerReadThrough = "ledger_read_through"
         case ledgerResyncPending = "ledger_resync_pending"
         case name
         case ownerMemberId = "owner_member_id"

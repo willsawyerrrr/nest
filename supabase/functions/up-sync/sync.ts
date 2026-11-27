@@ -70,8 +70,7 @@ export const UP_GIFT_CATEGORY = 'gifts-and-charity'
 export const GIFT_WINDOW_DAYS = 365
 
 /**
- * The overlap the ledger pass re-reads behind an account's latest synced
- * transaction, so a hold that settles after a later transaction was synced, and
+ * The overlap the ledger pass re-reads behind how far it last read an account, so a hold that settles after a later transaction was synced, and
  * clock skew between Up and the ledger, are not stepped past. The upsert makes
  * re-reading harmless.
  */
@@ -108,13 +107,13 @@ export function backfillStart(now: Date = new Date()): Date {
 
 /**
  * Where the ledger pass resumes one account: {@link LEDGER_OVERLAP_HOURS} behind
- * its latest synced transaction's `posted_at`, or {@link backfillStart} when it
- * has none.
+ * the newest transaction it has read there (`ledger_read_through`), or
+ * {@link backfillStart} when it has read none.
  */
-export function ledgerSince(latestPostedAt: string | null, now: Date = new Date()): Date {
-  return latestPostedAt === null
+export function ledgerSince(readThrough: string | null, now: Date = new Date()): Date {
+  return readThrough === null
     ? backfillStart(now)
-    : new Date(Date.parse(latestPostedAt) - LEDGER_OVERLAP_HOURS * MILLISECONDS_PER_HOUR)
+    : new Date(Date.parse(readThrough) - LEDGER_OVERLAP_HOURS * MILLISECONDS_PER_HOUR)
 }
 
 /** A synced account as the ledger pass reads it. */
@@ -124,6 +123,12 @@ export interface LedgerAccount extends SyncedAccount {
    * rather than its high-water mark, re-landing every row it holds.
    */
   ledger_resync_pending: boolean
+  /**
+   * The newest Up `createdAt` the ledger pass has read on the account, landed or
+   * not, so an account whose transactions are all automatic transfers still
+   * advances; null until it has read one.
+   */
+  ledger_read_through: string | null
 }
 
 /** A connected member and the household its accounts belong to. */
@@ -203,17 +208,12 @@ export interface SyncDeps {
   reconcileJointAccounts: (reconcile: JointAccountReconcile) => Promise<void>
   /** Resolves the local ledger rows for the given Up account ids. */
   listSyncedAccounts: (externalIds: string[]) => Promise<LedgerAccount[]>
-  /** Clears an account's `ledger_resync_pending` once its re-read has landed. */
-  clearLedgerResync: (accountId: string) => Promise<void>
   /**
-   * The latest `posted_at` of a local account's synced Up transactions outside
-   * the gift category, or null when it has none. Gift-category rows are left
-   * out: the gift rescan lands them over its own year-long window, so they say
-   * nothing about how far the ledger pass has read. An account whose only
-   * transactions are gifts therefore re-reads from {@link backfillStart} each
-   * run, which costs a few pages.
+   * Records a ledger pass over one account once its rows have landed: sets
+   * `ledger_read_through` to `readThrough` when given and clears
+   * `ledger_resync_pending`.
    */
-  latestPostedAt: (accountId: string) => Promise<string | null>
+  recordLedgerPass: (accountId: string, readThrough: string | null) => Promise<void>
   /** Lists one Up account's transactions created since `since`. */
   listAccountTransactions: (
     token: string,
@@ -332,7 +332,22 @@ async function landTransactions(
   return unique.length
 }
 
-/** Maps Up transactions to ledger rows, skipping those on an unsynced account. */
+/**
+ * The later of `readThrough` and the newest `createdAt` among `transactions`,
+ * kept verbatim so an unchanged mark compares equal.
+ */
+function newestCreatedAt(transactions: UpTransaction[], readThrough: string | null): string | null {
+  let newest = readThrough
+  for (const { attributes: { createdAt } } of transactions) {
+    if (newest === null || Date.parse(createdAt) > Date.parse(newest)) newest = createdAt
+  }
+  return newest
+}
+
+/**
+ * Maps Up transactions to ledger rows, skipping automatic transfers and those on
+ * an unsynced account.
+ */
 function mapTransactions(
   transactions: UpTransaction[],
   accounts: ReadonlyMap<string, SyncedAccount>,
@@ -347,9 +362,11 @@ function mapTransactions(
  * high-water mark ({@link ledgerSince}), returning how many it carried. Each
  * account resumes from its own mark, so an account newly visible to the member
  * is backfilled even when their others are current, and an account with no
- * transactions costs one empty page. An account with `ledger_resync_pending`
- * re-reads from {@link backfillStart} instead, refreshing every row it holds,
- * and the flag clears once those rows have landed. An account already settled this run
+ * transactions costs one empty page. The mark moves to the newest transaction
+ * read, automatic transfers included, only once the rows have landed, so a run
+ * that fails part-way re-reads the same span next time. An account with
+ * `ledger_resync_pending` re-reads from {@link backfillStart} instead,
+ * refreshing every row it holds, and the flag clears once those rows have landed. An account already settled this run
  * (`settled`, a joint account seen through a partner's token) is skipped, and
  * one joins `settled` only once its rows have landed.
  */
@@ -367,14 +384,14 @@ async function syncLedger(
     if (settled.has(account.id)) continue
     const since = account.ledger_resync_pending
       ? backfillStart(now)
-      : ledgerSince(await deps.latestPostedAt(account.id), now)
+      : ledgerSince(account.ledger_read_through, now)
     const transactions = await deps.listAccountTransactions(token, account.external_id, since)
-    // Oldest first, so a run that fails between batches leaves the mark at the
-    // newest row it landed and the next run re-reads everything after it.
     const rows = mapTransactions(transactions, accounts)
-      .sort((a, b) => Date.parse(a.posted_at) - Date.parse(b.posted_at))
     landed += await landTransactions(deps, member.householdId, rows, inserted)
-    if (account.ledger_resync_pending) await deps.clearLedgerResync(account.id)
+    const readThrough = newestCreatedAt(transactions, account.ledger_read_through)
+    if (account.ledger_resync_pending || readThrough !== account.ledger_read_through) {
+      await deps.recordLedgerPass(account.id, readThrough)
+    }
     settled.add(account.id)
   }
   return landed

@@ -67,14 +67,40 @@ export function mapAccount(account: UpAccount): AccountUpsert {
   }
 }
 
+/** Up transaction types that are always a move Up makes on the owner's behalf. */
+const AUTOMATIC_TRANSFER_TYPES: ReadonlySet<string> = new Set(['Round Up', 'Scheduled Transfer'])
+
+/**
+ * How Up describes an automatic move it types as a plain `Transfer`: a cover or
+ * its undo, a forward, a closed saver's final interest payment, or Save Up's sweep.
+ */
+const AUTOMATIC_TRANSFER_DESCRIPTION =
+  /^(?:(?:(?:Undo )?Cover|Forward|Final interest payment) (?:to|from) |Saved Up$)/
+
+/**
+ * Whether Up made `tx` on its owner's behalf rather than the owner or anyone
+ * else making it: a round-up, a scheduled auto transfer, a cover (or its undo),
+ * a forward, a closed saver's final interest payment, or Save Up's sweep. Such
+ * a move is not a transaction in Nest. Up flags none of them, so a `Transfer`
+ * is told apart by its description; a transfer the owner makes, a Quick save or
+ * a Top Up, is not automatic.
+ */
+export function isAutomaticTransfer(tx: UpTransaction): boolean {
+  const { transactionType, description } = tx.attributes
+  if (transactionType === null) return false
+  return AUTOMATIC_TRANSFER_TYPES.has(transactionType) ||
+    (transactionType === 'Transfer' && AUTOMATIC_TRANSFER_DESCRIPTION.test(description))
+}
+
 /**
  * Maps an Up transaction to a ledger transaction row, resolving its account from
  * `accounts` (keyed by Up account id) so household and member attribution come
  * from the account the money moved through — `member_id` is the account's owner,
  * null for a joint account, mirroring how the account itself is attributed.
  * Returns null when the account is absent, which is what happens before the
- * account pass has landed it or when the token cannot see it; such a transaction
- * is skipped rather than failing the pass.
+ * account pass has landed it or when the token cannot see it, and for an
+ * {@link isAutomaticTransfer}; such a transaction is skipped rather than failing
+ * the pass.
  *
  * Amounts stay exactly as Up signs them, a debit negative, so a `HELD` amount
  * revised on settlement carries through unchanged. `posted_at` is Up's
@@ -87,7 +113,7 @@ export function mapTransaction(
   accounts: ReadonlyMap<string, SyncedAccount>,
 ): TransactionUpsert | null {
   const account = accounts.get(tx.relationships.account.data.id)
-  if (!account) return null
+  if (!account || isAutomaticTransfer(tx)) return null
 
   const { attributes, relationships } = tx
   const amountCents = attributes.amount.valueInBaseUnits

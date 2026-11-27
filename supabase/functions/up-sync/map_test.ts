@@ -1,5 +1,5 @@
 import { assertEquals } from '@std/assert'
-import { mapAccount, mapTransaction, type SyncedAccount } from './map.ts'
+import { isAutomaticTransfer, mapAccount, mapTransaction, type SyncedAccount } from './map.ts'
 import type { UpAccount, UpTransaction } from '../_shared/up.ts'
 
 function account(overrides: Partial<UpAccount['attributes']> = {}): UpAccount {
@@ -226,4 +226,56 @@ Deno.test('mapTransaction carries the Salary and Interest transaction types thro
     assertEquals(row?.kind, 'income')
     assertEquals(row?.transaction_type, transactionType)
   }
+})
+
+Deno.test('isAutomaticTransfer flags the moves Up makes on its own', () => {
+  for (
+    const [transactionType, description] of [
+      ['Round Up', 'Round Up'],
+      ['Round Up', 'Transfer to Emergency'],
+      ['Scheduled Transfer', 'Auto Transfer to Water'],
+      ['Transfer', 'Cover from Discretionary'],
+      ['Transfer', 'Cover to 2Up Spending'],
+      ['Transfer', 'Undo Cover from Discretionary'],
+      ['Transfer', 'Forward to Emergency'],
+      ['Transfer', 'Final interest payment from Holiday'],
+      ['Transfer', 'Saved Up'],
+    ]
+  ) {
+    assertEquals(
+      isAutomaticTransfer(transaction({ transactionType, description })),
+      true,
+      description,
+    )
+  }
+})
+
+Deno.test('isAutomaticTransfer leaves transfers someone made, and other payments', () => {
+  for (
+    const [transactionType, description] of [
+      ['Transfer', 'Transfer to Small Emergency'],
+      ['Transfer', 'Transfer from $friend'],
+      ['Transfer', 'Quick save transfer to Emergency'],
+      ['Transfer', 'Top Up to Maybuy'],
+      ['Purchase', 'Cover from Discretionary'],
+      [null, 'Saved Up'],
+    ] as const
+  ) {
+    assertEquals(
+      isAutomaticTransfer(transaction({ transactionType, description })),
+      false,
+      description,
+    )
+  }
+})
+
+Deno.test('mapTransaction skips an automatic transfer', () => {
+  const accounts = new Map([[ownAccount.external_id, ownAccount]])
+  const cover = transaction({
+    transactionType: 'Transfer',
+    description: 'Cover from Discretionary',
+  }, {
+    transferAccount: 'acc-2',
+  })
+  assertEquals(mapTransaction(cover, accounts), null)
 })

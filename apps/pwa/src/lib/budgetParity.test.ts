@@ -37,6 +37,7 @@ const account = (id: string, name: string): Tables<'accounts'> => ({
   deleted_from_source_at: null,
   exclude_from_net_worth: false,
   external_id: null,
+  ledger_read_through: null,
   ledger_resync_pending: false,
   owner_member_id: null,
   source: 'manual',

@@ -1051,7 +1051,8 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   `transactions` via the `sync_up_transactions` RPC (Up's category in
   `external_category` and its parent in `external_parent_category`, the
   household's own `category_id` null; a transfer between the owner's accounts as
-  `kind = 'transfer'`; Up's message, note, transaction type, deep link,
+  `kind = 'transfer'`; Up's automatic transfers — round-ups, covers, forwards,
+  scheduled auto transfers — never landed, as they are not transactions in Nest; Up's message, note, transaction type, deep link,
   categorisability and performing customer in their own columns). Each member's
   own Up webhook (`up-webhook?m=<member_id>`, registered idempotently under Up's
   10-per-user cap by `up-connect`, or by `up-sync` for a connected member without
@@ -1059,9 +1060,10 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   `up_webhook`) lands a created or settled transaction within seconds through
   the same RPC and deletes a deleted one, the poll being the backstop. Every row
   is dated by when the payment was made (`posted_at` is Up's `createdAt`), never
-  by its settlement. Each account resumes 24 hours behind its latest synced
-  non-gift `posted_at`, an account with none, or with `ledger_resync_pending`,
-  backfilling from the start of the prior financial year. `notes`,
+  by its settlement. Each account resumes 24 hours behind the newest transaction
+  the poll has read there (`accounts.ledger_read_through`), an account with
+  none, or with `ledger_resync_pending`, backfilling from the start of the prior
+  financial year. `notes`,
   `reviewed_at`, `reviewed_by_member_id` and the wrong-category flag
   (`category_flagged_wrong_at`, `category_flagged_wrong_by_member_id`) are the
   household's own and the sync never sets them: a member annotates and confirms
@@ -1096,7 +1098,7 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   [`docs/up-ledger-sync.md`](docs/up-ledger-sync.md#transactions-list-transactions).
   The review screen (`/transactions/review`, To review in the nav's Review group, `?id=` focusing one
   transaction) lists a member's unreviewed, categorisable Up transactions (pay,
-  interest, transfers and covers arrive reviewed) to
+  interest and transfers arrive reviewed) to
   confirm ("Looks right"), recategorise and annotate ("Save"), or file as a gift
   ("It's a gift", pointing on to Gifts), or turn an outflow into a tax deduction
   ("Create deduction", opening the Deductions form prefilled and linked through
@@ -1228,7 +1230,7 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   dedupe, log, prune) is `_shared/notify.ts`, wired by `_shared/notifyClient.ts`,
   and shared with ingestion: **`transaction_review`** is sent by `up-sync` and
   `up-webhook` for each Up transaction `sync_up_transactions` newly inserts that
-  is categorisable (pending included; transfers, round-ups and covers excluded),
+  is categorisable (pending included; transfers excluded),
   unreviewed, not linked by a gift purchase, and dated by Up within 48 hours of
   that first sight (so a backfill never is), with `notify-eval` re-evaluating
   the last 2 days as its backstop and the transaction id as the dedupe key. It

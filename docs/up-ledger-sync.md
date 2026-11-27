@@ -39,7 +39,8 @@ from Nest are built and deployed.
 - **`up-sync/map.ts`** — `mapTransaction(tx, accounts)` maps an `UpTransaction`
   onto the row `sync_up_transactions` takes (see the field mapping below),
   resolving the account from a lookup the sync layer passes in and returning
-  null — a skip — for an account that is not synced. It stays pure, and never
+  null — a skip — for an account that is not synced and for an
+  [automatic transfer](#automatic-transfers). It stays pure, and never
   produces `notes` or `category_id`.
 - **`up-sync/`** (index + sync) — three passes per member, in order: every
   account's balance; every account's transactions since its own high-water mark;
@@ -163,15 +164,17 @@ from that account's own `since`, mapped against the accounts just upserted and
 landed through `sync_up_transactions` in batches of 500. A joint account seen
 through both partners' tokens is read once per run, through the first.
 
-- `since` is derived, not stored: `max(posted_at)` of the account's synced Up
-  rows outside the gift category minus 24 hours (the gift rescan lands gift rows
-  over its own year-long window, so they say nothing about how far this pass has
-  read), so a hold that settles after a later transaction was
-  synced, and clock skew, are not stepped past; the upsert makes the overlap
+- `since` is the account's `ledger_read_through` minus 24 hours. The mark is the
+  newest `createdAt` the pass has read on the account, automatic transfers
+  included, so a Round Up saver holding no rows still advances; it moves only
+  once the pass's rows have landed, so a run that fails part-way re-reads the
+  same span. The gift rescan and the webhook never move it. The overlap means a
+  hold that settles after a later transaction was synced, and clock skew, are
+  not stepped past; the upsert makes the overlap
   harmless. `filter[since]` bounds `createdAt`, and a transaction that settles
   days after creation is re-read inside the overlap while it is the account's
   latest, its `status`/`settledAt` flowing through the upsert.
-- An account with no synced rows backfills from midnight AEST on 1 July of the
+- An account the pass has read nothing on backfills from midnight AEST on 1 July of the
   prior financial year — two financial years, all tax and budget reconciliation
   read, and a bound on the first run's volume. Because the mark is per account,
   an account newly visible to a member backfills even when their others are
@@ -211,7 +214,7 @@ which is what prompts review of a newly arrived transaction (see
 [Review prompt](#review-prompt-on-first-sight)). It never writes `notes`,
 `reviewed_by_member_id`, `category_id`, or `created_at`, and sets `reviewed_at`
 only on insert, to now for a `Salary`, `Interest` or `Transfer` transaction
-(pay, interest, and transfers and covers, needing no decision), so a later sync never reviews or un-reviews a row; it restamps `external_category_since` only when
+(pay, interest, and transfers, needing no decision), so a later sync never reviews or un-reviews a row; it restamps `external_category_since` only when
 `external_category` changes, so the gift-candidate notification fires for a
 recategorisation into gifts; it holds a linked `gift_purchase` to its
 transaction's amount; and it leaves a conflicting row in another household
@@ -295,8 +298,8 @@ lists the signed-in member's unreviewed Up transactions (`source = 'up'`,
 `reviewed_at` null, and `is_categorizable`), newest first and capped at the
 newest 100, as the native app and MCP's `unreviewed` filter list them. A
 `Salary`, `Interest` or `Transfer` transaction arrives reviewed (by no member),
-so no transfer or cover awaits review: between the household's own accounts, a
-cover or forward from a saver, or from someone else (e.g. `Transfer from
+so no transfer awaits review: between the household's own accounts or from
+someone else (e.g. `Transfer from
 $friend`, which lands as `kind = 'income'`). Other incoming payments
 (`Direct Credit`, `Osko Payment Received`) await review. RLS already limits them to the member's
 balance-visible accounts. It sits under To review in the nav's Review group, and `?id=<transaction id>` leads with that transaction, expanded and
@@ -392,7 +395,7 @@ nothing, and `notify-eval` re-evaluates the last 2 days daily as a backstop. The
 dedupe key is the transaction id, so whichever path runs first is the only one
 to send.
 
-- **Which rows.** `is_categorizable` (so transfers, round-ups and covers are
+- **Which rows.** `is_categorizable` (so transfers are
   skipped; pending holds are included), unreviewed (so pay and interest, which
   arrive reviewed, are skipped), and dated by Up
   (`posted_at`) within 48 hours of the ledger's first sight (`created_at`), so a
@@ -454,6 +457,27 @@ child + parent onto it, before spend reconciliation (which needs categories to
 group spend). Up **tags** (custom
 labels, max 6) have no column; the gift use case is served by the category
 instead, so tags stay unmapped.
+
+### Automatic transfers
+
+A move Up makes on the member's behalf is not a transaction in Nest:
+`isAutomaticTransfer` (`up-sync/map.ts`) flags it and `mapTransaction` skips
+it, so neither the poll nor the webhook lands it. Up marks none of them as
+automatic, so they are recognised by `transactionType` and, for a plain
+`Transfer`, by description:
+
+| `transactionType` | Description | What it is |
+| --- | --- | --- |
+| `Round Up` | any | A purchase's round-up into the Round Up saver |
+| `Scheduled Transfer` | any (`Auto Transfer to …`) | A scheduled auto transfer |
+| `Transfer` | `Cover from …` / `Cover to …`, `Undo Cover …` | A cover, or its undo |
+| `Transfer` | `Forward from …` / `Forward to …` | An auto-forward of incoming money |
+| `Transfer` | `Final interest payment from …` / `… to …` | A closed saver's interest swept out |
+| `Transfer` | `Saved Up` | Save Up's sweep |
+
+A transfer the member makes (`Transfer to …`, `Quick save transfer …`,
+`Top Up to …`) or receives from someone else still lands. The
+20261127000000 migration deleted the automatic transfers already landed.
 
 **Pending vs settled.** Both are persisted. A `HELD` transaction lands as
 `pending`; when it settles, the webhook or the next poll upserts it to
@@ -612,8 +636,9 @@ the buffer moves with spend.
 - **What counts as spend.** Any row but a transfer, except uncategorised income.
   A refund nets off the target it resolves to. An uncategorised `expense` (a Pay
   Anyone or BPAY payment such as rent) counts. `kind = 'transfer'` never counts:
-  every move between the owner's own accounts — round-ups, covers from a saver,
-  saver transfers — carries Up's `transferAccount` and lands as a transfer, so
+  every move between the owner's own accounts carries Up's `transferAccount` and
+  lands as a transfer (Up's round-ups and covers are not
+  [ingested at all](#automatic-transfers)), so
   funding a saver is not spend and the bill paid out of it is. Uncategorised
   income (pay, a transfer in from someone else) never counts.
 - **Not budgeted is shown, not hidden.** It is a target with its own total, so

@@ -129,31 +129,20 @@ Deno.serve(async (request) => {
     listSyncedAccounts: async (externalIds: string[]) => {
       const { data, error } = await supabase
         .from('accounts')
-        .select('id, external_id, household_id, owner_member_id, ledger_resync_pending')
+        .select(
+          'id, external_id, household_id, owner_member_id, ledger_resync_pending, ledger_read_through',
+        )
         .eq('source', 'up')
         .in('external_id', externalIds)
       if (error) throw new Error(`Failed to resolve synced accounts: ${error.message}`)
       return data ?? []
     },
-    clearLedgerResync: async (accountId: string) => {
+    recordLedgerPass: async (accountId: string, readThrough: string | null) => {
       const { error } = await supabase
         .from('accounts')
-        .update({ ledger_resync_pending: false })
+        .update({ ledger_resync_pending: false, ledger_read_through: readThrough })
         .eq('id', accountId)
-      if (error) throw new Error(`Failed to clear the ledger resync: ${error.message}`)
-    },
-    latestPostedAt: async (accountId: string) => {
-      const { data, error } = await supabase
-        .from('transactions')
-        .select('posted_at')
-        .eq('source', 'up')
-        .eq('account_id', accountId)
-        .or(`external_category.is.null,external_category.neq.${UP_GIFT_CATEGORY}`)
-        .order('posted_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-      if (error) throw new Error(`Failed to read the latest transaction: ${error.message}`)
-      return data?.posted_at ?? null
+      if (error) throw new Error(`Failed to record the ledger pass: ${error.message}`)
     },
     listAccountTransactions: (token, accountId, since) =>
       new UpClient(token).listAccountTransactions(accountId, since),

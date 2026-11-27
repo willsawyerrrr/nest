@@ -140,9 +140,9 @@ function deps(overrides: Partial<SyncDeps> = {}): SyncDeps {
         household_id: 'h-1',
         owner_member_id: 'm-1',
         ledger_resync_pending: false,
+        ledger_read_through: null,
       }))),
-    clearLedgerResync: () => Promise.resolve(),
-    latestPostedAt: () => Promise.resolve(null),
+    recordLedgerPass: () => Promise.resolve(),
     listAccountTransactions: () => Promise.resolve([]),
     listGiftTransactions: () => Promise.resolve([]),
     listStoredGiftTransactionIds: () => Promise.resolve([]),
@@ -413,8 +413,15 @@ Deno.test('runSync lands each account from its own high-water mark', async () =>
   const polled: { accountId: string; since: string }[] = []
   const result = await runSync(deps({
     listAccounts: () => Promise.resolve([account({}, 'acc-1'), account({}, 'acc-2')]),
-    latestPostedAt: (accountId) =>
-      Promise.resolve(accountId === 'local-acc-1' ? '2026-11-19T12:00:00Z' : null),
+    listSyncedAccounts: (externalIds) =>
+      Promise.resolve(externalIds.map((externalId) => ({
+        external_id: externalId,
+        id: `local-${externalId}`,
+        household_id: 'h-1',
+        owner_member_id: 'm-1',
+        ledger_resync_pending: false,
+        ledger_read_through: externalId === 'acc-1' ? '2026-11-19T12:00:00Z' : null,
+      }))),
     listAccountTransactions: (_token, accountId, since) => {
       polled.push({ accountId, since: since.toISOString() })
       return Promise.resolve([transaction(`tx-${accountId}`, accountId, 'groceries')])
@@ -442,13 +449,13 @@ Deno.test('runSync re-reads an account pending a resync from the backfill start'
         household_id: 'h-1',
         owner_member_id: 'm-1',
         ledger_resync_pending: externalId === 'acc-1',
+        ledger_read_through: '2026-11-19T12:00:00Z',
       }))),
-    latestPostedAt: () => Promise.resolve('2026-11-19T12:00:00Z'),
     listAccountTransactions: (_token, accountId, since) => {
       polled.push({ accountId, since: since.toISOString() })
       return Promise.resolve([])
     },
-    clearLedgerResync: (accountId) => {
+    recordLedgerPass: (accountId) => {
       cleared.push(accountId)
       return Promise.resolve()
     },
@@ -471,16 +478,65 @@ Deno.test('runSync keeps a resync pending when its rows fail to land', async () 
         household_id: 'h-1',
         owner_member_id: 'm-1',
         ledger_resync_pending: true,
+        ledger_read_through: null,
       }))),
     listAccountTransactions: () => Promise.resolve([transaction('tx-1', 'acc-1', 'groceries')]),
     syncTransactions: () => Promise.reject(new Error('db down')),
-    clearLedgerResync: (accountId) => {
+    recordLedgerPass: (accountId) => {
       cleared.push(accountId)
       return Promise.resolve()
     },
   }))
 
   assertEquals(cleared, [])
+})
+
+Deno.test('runSync advances the mark past automatic transfers it does not land', async () => {
+  const calls: SyncCall[] = []
+  const recorded: { accountId: string; readThrough: string | null }[] = []
+  const base = transaction('tx-round-up', 'acc-1', null)
+  const roundUp: UpTransaction = {
+    ...base,
+    attributes: {
+      ...base.attributes,
+      transactionType: 'Round Up',
+      createdAt: '2026-06-02T08:00:00+10:00',
+    },
+  }
+  await runSync(deps({
+    listAccountTransactions: () =>
+      Promise.resolve([transaction('tx-1', 'acc-1', 'groceries'), roundUp]),
+    recordLedgerPass: (accountId, readThrough) => {
+      recorded.push({ accountId, readThrough })
+      return Promise.resolve()
+    },
+    ...recordSyncs(calls),
+  }))
+
+  assertEquals(landedIds(calls), ['tx-1'])
+  assertEquals(recorded, [{ accountId: 'local-acc-1', readThrough: '2026-06-02T08:00:00+10:00' }])
+})
+
+Deno.test('runSync leaves an unchanged mark unwritten', async () => {
+  const recorded: string[] = []
+  await runSync(deps({
+    listSyncedAccounts: (externalIds) =>
+      Promise.resolve(externalIds.map((externalId) => ({
+        external_id: externalId,
+        id: `local-${externalId}`,
+        household_id: 'h-1',
+        owner_member_id: 'm-1',
+        ledger_resync_pending: false,
+        ledger_read_through: '2026-06-01T22:00:00+00:00',
+      }))),
+    listAccountTransactions: () => Promise.resolve([transaction('tx-1', 'acc-1', 'groceries')]),
+    recordLedgerPass: (accountId) => {
+      recorded.push(accountId)
+      return Promise.resolve()
+    },
+  }))
+
+  assertEquals(recorded, [])
 })
 
 Deno.test('runSync lands a joint account once, through the first token that sees it', async () => {
@@ -511,20 +567,18 @@ Deno.test('runSync lands a backfill in batches', async () => {
   assertEquals(calls.map((call) => call.rows.length), [SYNC_BATCH_SIZE, 1])
 })
 
-Deno.test('runSync lands an account oldest first, so a failed batch leaves a safe mark', async () => {
-  const calls: SyncCall[] = []
-  const newer = { ...transaction('tx-newer') }
-  const older = {
-    ...transaction('tx-older'),
-    attributes: { ...transaction('tx-older').attributes, createdAt: '2026-05-01T08:00:00+10:00' },
-  }
+Deno.test('runSync leaves the mark where it was when a batch fails to land', async () => {
+  const recorded: string[] = []
   await runSync(deps({
-    // Up lists newest first.
-    listAccountTransactions: () => Promise.resolve([newer, older]),
-    ...recordSyncs(calls),
+    listAccountTransactions: () => Promise.resolve([transaction('tx-1', 'acc-1', 'groceries')]),
+    syncTransactions: () => Promise.reject(new Error('db down')),
+    recordLedgerPass: (accountId) => {
+      recorded.push(accountId)
+      return Promise.resolve()
+    },
   }))
 
-  assertEquals(landedIds(calls), ['tx-older', 'tx-newer'])
+  assertEquals(recorded, [])
 })
 
 Deno.test('runSync skips a transaction on an account the pass did not sync', async () => {
@@ -537,6 +591,7 @@ Deno.test('runSync skips a transaction on an account the pass did not sync', asy
         household_id: 'h-1',
         owner_member_id: 'm-1',
         ledger_resync_pending: false,
+        ledger_read_through: null,
       }]),
     listAccountTransactions: () =>
       Promise.resolve([transaction('tx-1'), transaction('tx-2', 'acc-unsynced')]),

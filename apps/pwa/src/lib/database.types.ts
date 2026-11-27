@@ -97,6 +97,7 @@ export type Database = {
           external_id: string | null
           household_id: string
           id: string
+          ledger_read_through: string | null
           ledger_resync_pending: boolean
           name: string
           owner_member_id: string | null
@@ -113,6 +114,7 @@ export type Database = {
           external_id?: string | null
           household_id: string
           id?: string
+          ledger_read_through?: string | null
           ledger_resync_pending?: boolean
           name: string
           owner_member_id?: string | null
@@ -128,6 +130,7 @@ export type Database = {
           external_id?: string | null
           household_id?: string
           id?: string
+          ledger_read_through?: string | null
           ledger_resync_pending?: boolean
           name?: string
           owner_member_id?: string | null
